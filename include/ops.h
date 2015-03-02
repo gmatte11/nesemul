@@ -5,11 +5,11 @@
 
 namespace ops
 {
-    struct
+    struct metadata
     {
-        CPU::byte_t size;
-        CPU::byte_t timing;
-    } metadata;
+        byte_t size;
+        byte_t timing;
+    };
 
     metadata opcode_data(byte_t opcode);
 
@@ -19,8 +19,8 @@ namespace ops
         kADC1 = 0x69, // ops: 2, addr: #aa
         kADC2 = 0x65, // ops: 2, addr: $aa
         kADC3 = 0x75, // ops: 2, addr: $aa,X
-        kADC4 = 0x60, // ops: 3, addr: $aaaa
-        kADC5 = 0x70, // ops: 3, addr: $aaaa,X
+        kADC4 = 0x6D, // ops: 3, addr: $aaaa
+        kADC5 = 0x7D, // ops: 3, addr: $aaaa,X
         kADC6 = 0x79, // ops: 3, addr: $aaaa,Y
         kADC7 = 0x61, // ops: 2, addr: ($aa,X)
         kADC8 = 0x71, // ops: 2, addr: ($aa),Y
@@ -52,8 +52,8 @@ namespace ops
         kBEQ  = 0xF0, // ops: 2, addr: $aa
 
     //BIT - bit test
-        kBIT  = 0x24, // ops: 2, addr: $aa
-        kBIT  = 0x2C, // ops: 3, addr: $aaaa
+        kBIT1 = 0x24, // ops: 2, addr: $aa
+        kBIT2 = 0x2C, // ops: 3, addr: $aaaa
 
     //BMI - branch if minus
         kBMI  = 0x30, // ops: 2, addr: $aa

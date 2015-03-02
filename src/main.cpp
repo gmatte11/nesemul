@@ -6,7 +6,8 @@
 #include <sstream>
 #include <cstring>
 
-typedef unsigned char byte_t;
+#include <types.h>
+#include <cpu.h>
 
 class Emulator
 {
@@ -15,7 +16,10 @@ public:
 
     void read(const std::string & filename);
 
+    int run();
+
 private:
+    CPU cpu_;
 };
 
 Emulator::Emulator()
@@ -71,15 +75,22 @@ void Emulator::read(const std::string & filename)
         std::string buf{ss.str()};
 
         // Program rom (PRG-ROM) is loaded in $8000
-        std::memcpy(cpu_memory_.data() + 0x8000, buf.data(), 0x4000);
+        std::memcpy(cpu_.data() + 0x8000, buf.data(), 0x4000);
 
         // Character rom (CHR-ROM) is loaded in ppu $0000
-        std::memcpy(ppu_memory_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
+        //std::memcpy(ppu_memory_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
     }
     else
     {
         throw std::runtime_error(std::string("Can't open file ") + filename);
     }
+}
+
+int Emulator::run()
+{
+    for(;;)
+        cpu_.next();
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -88,6 +99,8 @@ int main(int argc, char *argv[])
     {
         Emulator emul;
         emul.read("/home/gmatte11/nestest.nes");
+
+        return emul.run();
     }
     catch(const std::exception & e)
     {

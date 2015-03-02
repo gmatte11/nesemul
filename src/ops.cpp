@@ -2,7 +2,7 @@
 
 namespace
 {
-    const metadata operation_data[] =
+    const ops::metadata operation_data[] =
     {
         // BRK(00) ORA(01) nop(02) nop(03) nop(04) ORA(05) ASL(06) nop(07)
            {1, 7}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {1, 1}, {0, 0}, {0, 0},
@@ -99,10 +99,10 @@ namespace
 
         // SED(F8) SBC(F9) nop(FA) nop(FB) nop(FC) SBC(FD) INC(FE) nop(FF)
            {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}
-    }
+    };
 }
 
-metadata ops::opcode_data(byte_t opcode)
+ops::metadata ops::opcode_data(byte_t opcode)
 {
     return operation_data[opcode];
 }
