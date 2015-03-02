@@ -7,7 +7,7 @@ namespace ops
 {
     struct metadata
     {
-        byte_t size;
+        address_t size;
         byte_t timing;
     };
 

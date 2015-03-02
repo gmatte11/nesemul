@@ -18,19 +18,20 @@ private:
     void exec_(byte_t opcode, address_t addr);
 
     // registers
-    byte_t accumulator_;
-    byte_t register_x_;
-    byte_t register_y_;
-    byte_t status_;
-    address_t program_counter_;
-    address_t stack_pointer_;
+    byte_t accumulator_ = 0x0;
+    byte_t register_x_ = 0x0;
+    byte_t register_y_ = 0x0;
+    byte_t status_ = 0x0;
+    address_t program_counter_ = 0x8000;
+    address_t stack_pointer_ = 0x0;
 
     // memory buffer
-    std::array<byte_t, 0x10000> memory_;
+    std::array<byte_t, 0x10000> memory_{};
 
     // memory access
     void store_(address_t addr, byte_t operand);
     byte_t load_(address_t addr);
+    address_t load_addr_(address_t addr);
 
     // status flags
     enum StatusFlags : byte_t
@@ -48,7 +49,9 @@ private:
     bool get_status_(byte_t flag_mask);
 
     // operations
+    void adc_(byte_t operand);
     void adc_(address_t addr);
+    void and_(byte_t operand);
     void and_(address_t addr);
     void asl_();
     void asl_(address_t addr);
@@ -66,24 +69,32 @@ private:
     void cld_();
     void cli_();
     void clv_();
+    void cmp_(byte_t operand);
     void cmp_(address_t addr);
+    void cpx_(byte_t operand);
     void cpx_(address_t addr);
+    void cpy_(byte_t operand);
     void cpy_(address_t addr);
     void dec_(address_t addr);
     void dex_();
     void dey_();
+    void eor_(byte_t operand);
     void eor_(address_t addr);
     void inc_(address_t addr);
     void inx_();
     void iny_();
     void jmp_(address_t addr);
     void jsr_(address_t addr);
+    void lda_(byte_t operand);
     void lda_(address_t addr);
+    void ldx_(byte_t operand);
     void ldx_(address_t addr);
+    void ldy_(byte_t operand);
     void ldy_(address_t addr);
     void lsr_();
     void lsr_(address_t addr);
     void nop_();
+    void ora_(byte_t operand);
     void ora_(address_t addr);
     void pha_();
     void php_();
@@ -95,6 +106,7 @@ private:
     void ror_(address_t addr);
     void rti_();
     void rts_();
+    void sbc_(byte_t operand);
     void sbc_(address_t addr);
     void sec_();
     void sed_();

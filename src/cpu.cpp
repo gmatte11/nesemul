@@ -3,48 +3,54 @@
 #include <types.h>
 #include <ops.h>
 
+#include <stdexcept>
+#include <sstream>
+#include <iomanip>
+
 #include <cstring>
+
+#include <iostream>
 
 using namespace ops;
 
 namespace
 {
-    address_t absolute_addr(address_t addr)
+    inline address_t absolute_addr(address_t addr)
+    {
+        return addr << 8 | (0xFF & addr >> 8);
+    }
+
+    inline address_t absolute_indirect_addr(address_t addr)
     {
         return addr;
     }
 
-    address_t absolute_indirect_addr(address_t addr)
+    inline byte_t immediate_addr(address_t addr)
+    {
+        return (0xF0 & addr) >> 8;
+    }
+
+    inline address_t indexed_abs_addr(address_t addr, byte_t & reg)
     {
         return addr;
     }
 
-    address_t immediate_addr(address_t addr)
-    {
-        return 0x0F & addr;
-    }
-
-    address_t indexed_abs_addr(address_t addr, byte_t & reg)
+    inline address_t indexed_indirect_addr(address_t addr, byte_t & reg)
     {
         return addr;
     }
 
-    address_t indexed_indirect_addr(address_t addr, byte_t & reg)
+    inline address_t indexed_pz_addr(address_t addr, byte_t & reg)
     {
         return addr;
     }
 
-    address_t indexed_pz_addr(address_t addr, byte_t & reg)
+    inline address_t indirect_indexed_addr(address_t addr, byte_t & reg)
     {
         return addr;
     }
 
-    address_t indirect_indexed_addr(address_t addr, byte_t & reg)
-    {
-        return addr;
-    }
-
-    address_t page_zero_addr(address_t addr)
+    inline address_t page_zero_addr(address_t addr)
     {
         return addr;
     }
@@ -55,17 +61,36 @@ void CPU::next()
     struct
     {
         byte_t opcode;
-        address_t addr;
+        byte_t addr_h;
+        byte_t addr_l;
     } data;
 
-    std::memcpy(memory_.data() + program_counter_, &data, sizeof(data));
-    exec_(data.opcode, data.addr);
+    std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
+
+    address_t addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
+
+    std::cout << std::hex << std::setfill('0')
+        << "[" << program_counter_ << "] executing opcode " << static_cast<unsigned int>(data.opcode)
+        << ", addr: " << std::setw(2) << static_cast<unsigned int>(data.addr_h)
+        << std::setw(2) << static_cast<unsigned int>(data.addr_l) << '\n';
+
+    address_t program_counter = program_counter_;
+
+    exec_(data.opcode, addr);
+
+    // operation didn't jump.
+    if (program_counter_ == program_counter)
+    {
+        address_t size = opcode_data(data.opcode).size;
+        std::ostringstream oss;
+        oss << std::hex << "Use of unsupported opcode " << static_cast<unsigned int>(data.opcode);
+        if (size == 0) throw std::runtime_error(oss.str());
+        program_counter_ += size;
+    }
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
 {
-    address_t program_counter = program_counter_;
-
     // execute operation
     switch (opcode)
     {
@@ -276,14 +301,6 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
         case kTYA: tya_();  break;
     }
-
-    // operation didn't jump.
-    if (program_counter_ == program_counter)
-    {
-        program_counter_ += opcode_data(opcode).size;
-    }
-
-    // manage timing ?
 }
 
 inline void CPU::store_(address_t addr, byte_t operand)
@@ -294,6 +311,11 @@ inline void CPU::store_(address_t addr, byte_t operand)
 inline byte_t CPU::load_(address_t addr)
 {
     return memory_[addr];
+}
+
+inline address_t CPU::load_addr_(address_t addr)
+{
+    return static_cast<address_t>(memory_[addr+1]) << 8 | (0xFF & static_cast<address_t>(memory_[addr]));
 }
 
 inline void CPU::set_status_(byte_t status_mask, bool set)
@@ -313,20 +335,30 @@ inline bool CPU::get_status_(byte_t status_mask)
     return (status_ & status_mask) != 0;
 }
 
-void CPU::adc_(address_t addr)
+void CPU::adc_(byte_t operand)
 {
-    unsigned short result = static_cast<unsigned short>(accumulator_) + load_(addr);
+    unsigned short result = static_cast<unsigned short>(accumulator_) + operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, result & kNegative);
     set_status_(kCarry, result & (1 << 8));
     set_status_(kOverflow, result & (1 << 9));
 }
 
-void CPU::and_(address_t addr)
+void CPU::adc_(address_t addr)
 {
-    accumulator_ = accumulator_ & load_(addr);
+    adc_(load_(addr));
+}
+
+void CPU::and_(byte_t operand)
+{
+    accumulator_ = accumulator_ & operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
+}
+
+void CPU::and_(address_t addr)
+{
+    and_(load_(addr));
 }
 
 void CPU::asl_()
@@ -425,28 +457,40 @@ void CPU::clv_()
     set_status_(kOverflow, false);
 }
 
-void CPU::cmp_(address_t addr)
+void CPU::cmp_(byte_t operand)
 {
-    byte_t operand = load_(addr);
     if (accumulator_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
     if (accumulator_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
     if (accumulator_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
 }
 
-void CPU::cpx_(address_t addr)
+void CPU::cmp_(address_t addr)
 {
-    byte_t operand = load_(addr);
+    cmp_(load_(addr));
+}
+
+void CPU::cpx_(byte_t operand)
+{
     if (register_x_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
     if (register_x_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
     if (register_x_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
 }
 
-void CPU::cpy_(address_t addr)
+void CPU::cpx_(address_t addr)
 {
-    byte_t operand = load_(addr);
+    cpx_(load_(addr));
+}
+
+void CPU::cpy_(byte_t operand)
+{
     if (register_y_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
     if (register_y_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
     if (register_y_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
+}
+
+void CPU::cpy_(address_t addr)
+{
+    cpy_(load_(addr));
 }
 
 void CPU::dec_(address_t addr)
@@ -471,11 +515,16 @@ void CPU::dey_()
     set_status_(kNegative, register_y_ & kNegative);
 }
 
-void CPU::eor_(address_t addr)
+void CPU::eor_(byte_t operand)
 {
-    accumulator_ = accumulator_ ^ load_(addr);
+    accumulator_ = accumulator_ ^ operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
+}
+
+void CPU::eor_(address_t addr)
+{
+    eor_(load_(addr));
 }
 
 void CPU::inc_(address_t addr)
@@ -507,30 +556,45 @@ void CPU::jmp_(address_t addr)
 
 void CPU::jsr_(address_t addr)
 {
-    stack_pointer_ += sizeof(byte_t);
-    store_(stack_pointer_, program_counter_);
+    ++stack_pointer_;
+    store_(0x0100 + stack_pointer_, program_counter_);
     program_counter_ = addr;
 }
 
-void CPU::lda_(address_t addr)
+void CPU::lda_(byte_t operand)
 {
-    accumulator_ = load_(addr);
+    accumulator_ = operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
 }
 
-void CPU::ldx_(address_t addr)
+void CPU::lda_(address_t addr)
 {
-    register_x_ = load_(addr);
+    lda_(load_(addr));
+}
+
+void CPU::ldx_(byte_t operand)
+{
+    register_x_ = operand;
     set_status_(kZero, register_x_ == 0);
     set_status_(kNegative, register_x_ & kNegative);
 }
 
-void CPU::ldy_(address_t addr)
+void CPU::ldx_(address_t addr)
 {
-    register_y_ = load_(addr);
+    ldx_(load_(addr));
+}
+
+void CPU::ldy_(byte_t operand)
+{
+    register_y_ = operand;
     set_status_(kZero, register_y_ == 0);
     set_status_(kNegative, register_y_ & kNegative);
+}
+
+void CPU::ldy_(address_t addr)
+{
+    ldy_(load_(addr));
 }
 
 void CPU::lsr_()
@@ -554,35 +618,40 @@ void CPU::nop_()
 {
 }
 
-void CPU::ora_(address_t addr)
+void CPU::ora_(byte_t operand)
 {
-    accumulator_ = accumulator_ | load_(addr);
+    accumulator_ = accumulator_ | operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
 }
 
+void CPU::ora_(address_t addr)
+{
+    ora_(load_(addr));
+}
+
 void CPU::pha_()
 {
-    stack_pointer_ += sizeof(byte_t);
-    store_(stack_pointer_, accumulator_);
+    ++stack_pointer_;
+    store_(0x0100 + stack_pointer_, accumulator_);
 }
 
 void CPU::php_()
 {
-    stack_pointer_ += sizeof(byte_t);
-    store_(stack_pointer_, status_);
+    ++stack_pointer_;
+    store_(0x0100 + stack_pointer_, status_);
 }
 
 void CPU::pla_()
 {
-    accumulator_ = load_(stack_pointer_);
-    stack_pointer_ -= sizeof(byte_t);
+    accumulator_ = load_(0x0100 + stack_pointer_);
+    --stack_pointer_;
 }
 
 void CPU::plp_()
 {
-    status_ = load_(stack_pointer_);
-    stack_pointer_ -= sizeof(byte_t);
+    status_ = load_(0x0100 + stack_pointer_);
+    --stack_pointer_;
 }
 
 void CPU::rol_()
@@ -619,21 +688,28 @@ void CPU::ror_(address_t addr)
 
 void CPU::rti_()
 {
+    program_counter_ = load_(0x0100 + stack_pointer_);
+    --stack_pointer_;
 }
 
 void CPU::rts_()
 {
-    program_counter_ = load_(stack_pointer_);
-    stack_pointer_ -= sizeof(byte_t);
+    program_counter_ = load_(0x0100 + stack_pointer_);
+    --stack_pointer_;
 }
 
-void CPU::sbc_(address_t addr)
+void CPU::sbc_(byte_t operand)
 {
-    unsigned short result = static_cast<unsigned short>(accumulator_) - load_(addr);
+    unsigned short result = static_cast<unsigned short>(accumulator_) - operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, result & kNegative);
     set_status_(kCarry, result & (1 << 8));
     set_status_(kOverflow, result & (1 << 9));
+}
+
+void CPU::sbc_(address_t addr)
+{
+    sbc_(load_(addr));
 }
 
 void CPU::sec_()
@@ -682,8 +758,8 @@ void CPU::tay_()
 
 void CPU::tsx_()
 {
-    register_x_ = load_(stack_pointer_);
-    stack_pointer_ -= sizeof(byte_t);
+    register_x_ = load_(0x0100 + stack_pointer_);
+    --stack_pointer_;
 }
 
 void CPU::txa_()
@@ -695,8 +771,8 @@ void CPU::txa_()
 
 void CPU::txs_()
 {
-    stack_pointer_ += sizeof(byte_t);
-    store_(stack_pointer_, register_x_);
+    ++stack_pointer_;
+    store_(0x0100 + stack_pointer_, register_x_);
 }
 
 void CPU::tya_()

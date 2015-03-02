@@ -77,6 +77,9 @@ void Emulator::read(const std::string & filename)
         // Program rom (PRG-ROM) is loaded in $8000
         std::memcpy(cpu_.data() + 0x8000, buf.data(), 0x4000);
 
+        if (num_16kb_rom_banks == 1)
+            std::memcpy(cpu_.data() + 0xC000, buf.data(), 0x4000);
+
         // Character rom (CHR-ROM) is loaded in ppu $0000
         //std::memcpy(ppu_memory_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
     }
@@ -88,8 +91,14 @@ void Emulator::read(const std::string & filename)
 
 int Emulator::run()
 {
+    std::string s;
+
     for(;;)
+    {
         cpu_.next();
+        std::getline(std::cin, s);
+    }
+
     return 0;
 }
 
