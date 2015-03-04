@@ -21,17 +21,23 @@ private:
     byte_t accumulator_ = 0x0;
     byte_t register_x_ = 0x0;
     byte_t register_y_ = 0x0;
-    byte_t status_ = 0x0;
+    byte_t status_ = 0x24;
     address_t program_counter_ = 0x8000;
-    address_t stack_pointer_ = 0x0;
+    byte_t stack_pointer_ = 0xFF;
 
     // memory buffer
     std::array<byte_t, 0x10000> memory_{};
 
     // memory access
     void store_(address_t addr, byte_t operand);
+    void store_(address_t addr, address_t addr_value);
     byte_t load_(address_t addr);
     address_t load_addr_(address_t addr);
+
+    void store_stack_(byte_t operand);
+    void store_stack_(address_t addr);
+    void load_stack_(byte_t & dest);
+    void load_stack_(address_t & dest);
 
     // status flags
     enum StatusFlags : byte_t

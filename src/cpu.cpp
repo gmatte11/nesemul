@@ -15,44 +15,45 @@ using namespace ops;
 
 namespace
 {
-    inline address_t absolute_addr(address_t addr)
-    {
-        return addr << 8 | (0xFF & addr >> 8);
-    }
-
-    inline address_t absolute_indirect_addr(address_t addr)
-    {
-        return addr;
-    }
-
     inline byte_t immediate_addr(address_t addr)
     {
-        return (0xF0 & addr) >> 8;
+        return 0xFF & addr;
     }
 
-    inline address_t indexed_abs_addr(address_t addr, byte_t & reg)
+    inline address_t absolute_addr(address_t addr)
     {
         return addr;
     }
 
-    inline address_t indexed_indirect_addr(address_t addr, byte_t & reg)
+    inline address_t indexed_abs_addr(address_t addr, byte_t index)
     {
-        return addr;
+        return addr + index;
     }
 
-    inline address_t indexed_pz_addr(address_t addr, byte_t & reg)
+    inline address_t indirect_addr(address_t addr)
     {
-        return addr;
-    }
-
-    inline address_t indirect_indexed_addr(address_t addr, byte_t & reg)
-    {
+        //return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
         return addr;
     }
 
     inline address_t page_zero_addr(address_t addr)
     {
-        return addr;
+        return 0xFF & addr;
+    }
+
+    inline address_t indexed_pz_addr(address_t addr, byte_t index)
+    {
+        return 0xFF & (addr + index);
+    }
+
+    inline address_t indexed_indirect_addr(address_t addr, byte_t index)
+    {
+        return indirect_addr(indexed_pz_addr(addr, index));
+    }
+
+    inline address_t indirect_indexed_addr(address_t addr, byte_t index)
+    {
+        return indirect_addr(page_zero_addr(addr)) + index;
     }
 }
 
@@ -61,32 +62,50 @@ void CPU::next()
     struct
     {
         byte_t opcode;
-        byte_t addr_h;
         byte_t addr_l;
+        byte_t addr_h;
     } data;
 
     std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
 
     address_t addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 
-    std::cout << std::hex << std::setfill('0')
-        << "[" << program_counter_ << "] executing opcode " << static_cast<unsigned int>(data.opcode)
-        << ", addr: " << std::setw(2) << static_cast<unsigned int>(data.addr_h)
-        << std::setw(2) << static_cast<unsigned int>(data.addr_l) << '\n';
+    std::cout
+        << std::hex << std::setfill('0')
+        << std::setw(4) << program_counter_ << "  "
+        << "  " << std::setw(2) << static_cast<unsigned int>(data.opcode);
 
-    address_t program_counter = program_counter_;
+    if (opcode_data(data.opcode).size > 1)
+        std::cout << "  " << std::setw(2) << static_cast<unsigned int>(data.addr_l);
+    else
+        std::cout << "    ";
+
+    if (opcode_data(data.opcode).size > 2)
+        std::cout << "  " << std::setw(2) << static_cast<unsigned int>(data.addr_h);
+    else
+        std::cout << "    ";
+
+    std::cout
+        << "  " << opcode_data(data.opcode).str << " $    ";
 
     exec_(data.opcode, addr);
 
-    // operation didn't jump.
-    if (program_counter_ == program_counter)
+    std::cout
+        << "\tA:" << std::setw(2) << static_cast<unsigned int>(accumulator_)
+        << " X:" << std::setw(2) << static_cast<unsigned int>(register_x_)
+        << " Y:" << std::setw(2) << static_cast<unsigned int>(register_y_)
+        << " P:" << std::setw(2) << static_cast<unsigned int>(status_)
+        << " SP:" << std::setw(2) << static_cast<unsigned int>(stack_pointer_)
+        << '\n';
+
+    if (program_counter_ < 0x8000)
     {
-        address_t size = opcode_data(data.opcode).size;
         std::ostringstream oss;
-        oss << std::hex << "Use of unsupported opcode " << static_cast<unsigned int>(data.opcode);
-        if (size == 0) throw std::runtime_error(oss.str());
-        program_counter_ += size;
+        oss << std::hex << "Invalid jump to " << program_counter_;
+        throw std::runtime_error(oss.str());
     }
+
+    program_counter_ += opcode_data(data.opcode).size;
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
@@ -192,7 +211,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kINY: iny_();  break;
 
         case kJMP1: jmp_(absolute_addr(addr)); break; // addr: $aaaa
-        case kJMP2: jmp_(absolute_indirect_addr(addr)); break; // addr: ($aaaa)
+        case kJMP2: jmp_(indirect_addr(addr)); break; // addr: ($aaaa)
 
         case kJSR: jsr_(absolute_addr(addr));   break; // addr: $aaaa
 
@@ -300,12 +319,24 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kTXS: txs_();  break;
 
         case kTYA: tya_();  break;
+
+        default:
+            std::ostringstream oss;
+                oss << std::hex << "Execution alted on unsupported opcode: " << static_cast<uint16_t>(opcode);
+            throw std::runtime_error(oss.str());
+            break;
     }
 }
 
 inline void CPU::store_(address_t addr, byte_t operand)
 {
     memory_[addr] = operand;
+}
+
+inline void CPU::store_(address_t addr, address_t addr_value)
+{
+    memory_[addr + 1] = static_cast<byte_t>(addr_value >> 8);
+    memory_[addr] = static_cast<byte_t>(0xFF & addr_value);
 }
 
 inline byte_t CPU::load_(address_t addr)
@@ -315,7 +346,31 @@ inline byte_t CPU::load_(address_t addr)
 
 inline address_t CPU::load_addr_(address_t addr)
 {
-    return static_cast<address_t>(memory_[addr+1]) << 8 | (0xFF & static_cast<address_t>(memory_[addr]));
+    return static_cast<address_t>(memory_[addr + 1]) << 8 | (0xFF & static_cast<address_t>(memory_[addr]));
+}
+
+inline void CPU::store_stack_(byte_t operand)
+{
+    --stack_pointer_;
+    store_(0x0100 + stack_pointer_, operand);
+}
+
+inline void CPU::store_stack_(address_t addr)
+{
+    stack_pointer_ -= 2;
+    store_(0x0100 + stack_pointer_, addr);
+}
+
+inline void CPU::load_stack_(byte_t & dest)
+{
+    dest = load_(0x0100 + stack_pointer_);
+    ++stack_pointer_;
+}
+
+inline void CPU::load_stack_(address_t & dest)
+{
+    dest = load_addr_(0x0100 + stack_pointer_);
+    stack_pointer_ += 2;
 }
 
 inline void CPU::set_status_(byte_t status_mask, bool set)
@@ -381,42 +436,45 @@ void CPU::asl_(address_t addr)
 void CPU::bcc_(address_t addr)
 {
     if (!get_status_(kCarry))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::bcs_(address_t addr)
 {
     if (get_status_(kCarry))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::beq_(address_t addr)
 {
     if (get_status_(kZero))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::bit_(address_t addr)
 {
-    set_status_(kZero, accumulator_ & load_(addr));
+    byte_t operand = accumulator_ & load_(addr);
+    set_status_(kZero, operand == 0);
+    set_status_(kNegative, operand & kNegative);
+    set_status_(kOverflow, operand & kOverflow);
 }
 
 void CPU::bmi_(address_t addr)
 {
     if (get_status_(kNegative))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::bne_(address_t addr)
 {
     if (!get_status_(kZero))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::bpl_(address_t addr)
 {
     if (!get_status_(kNegative))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::brk_()
@@ -428,13 +486,13 @@ void CPU::brk_()
 void CPU::bvc_(address_t addr)
 {
     if (!get_status_(kOverflow))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::bvs_(address_t addr)
 {
     if (get_status_(kOverflow))
-        program_counter_ = addr;
+        program_counter_ += static_cast<int8_t>(0xFF & addr);
 }
 
 void CPU::clc_()
@@ -556,8 +614,7 @@ void CPU::jmp_(address_t addr)
 
 void CPU::jsr_(address_t addr)
 {
-    ++stack_pointer_;
-    store_(0x0100 + stack_pointer_, program_counter_);
+    store_stack_(program_counter_);
     program_counter_ = addr;
 }
 
@@ -632,26 +689,22 @@ void CPU::ora_(address_t addr)
 
 void CPU::pha_()
 {
-    ++stack_pointer_;
-    store_(0x0100 + stack_pointer_, accumulator_);
+    store_stack_(accumulator_);
 }
 
 void CPU::php_()
 {
-    ++stack_pointer_;
-    store_(0x0100 + stack_pointer_, status_);
+    store_stack_(status_);
 }
 
 void CPU::pla_()
 {
-    accumulator_ = load_(0x0100 + stack_pointer_);
-    --stack_pointer_;
+    load_stack_(accumulator_);
 }
 
 void CPU::plp_()
 {
-    status_ = load_(0x0100 + stack_pointer_);
-    --stack_pointer_;
+    load_stack_(status_);
 }
 
 void CPU::rol_()
@@ -688,14 +741,11 @@ void CPU::ror_(address_t addr)
 
 void CPU::rti_()
 {
-    program_counter_ = load_(0x0100 + stack_pointer_);
-    --stack_pointer_;
 }
 
 void CPU::rts_()
 {
-    program_counter_ = load_(0x0100 + stack_pointer_);
-    --stack_pointer_;
+    load_stack_(program_counter_);
 }
 
 void CPU::sbc_(byte_t operand)
@@ -758,8 +808,9 @@ void CPU::tay_()
 
 void CPU::tsx_()
 {
-    register_x_ = load_(0x0100 + stack_pointer_);
-    --stack_pointer_;
+    register_x_ = stack_pointer_;
+    set_status_(kZero, register_x_ == 0);
+    set_status_(kNegative, register_x_ & kNegative);
 }
 
 void CPU::txa_()
@@ -771,8 +822,9 @@ void CPU::txa_()
 
 void CPU::txs_()
 {
-    ++stack_pointer_;
-    store_(0x0100 + stack_pointer_, register_x_);
+    stack_pointer_ = register_x_;
+    set_status_(kZero, stack_pointer_ == 0);
+    set_status_(kNegative, stack_pointer_ & kNegative);
 }
 
 void CPU::tya_()

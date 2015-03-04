@@ -3,12 +3,16 @@
 
 #include <types.h>
 
+#include <string>
+
 namespace ops
 {
     struct metadata
     {
         address_t size;
         byte_t timing;
+        byte_t addressing;
+        std::string str;
     };
 
     metadata opcode_data(byte_t opcode);

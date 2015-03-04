@@ -96,7 +96,7 @@ int Emulator::run()
     for(;;)
     {
         cpu_.next();
-        std::getline(std::cin, s);
+        //std::getline(std::cin, s);
     }
 
     return 0;
