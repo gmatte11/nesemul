@@ -13,50 +13,6 @@
 
 using namespace ops;
 
-namespace
-{
-    inline byte_t immediate_addr(address_t addr)
-    {
-        return 0xFF & addr;
-    }
-
-    inline address_t absolute_addr(address_t addr)
-    {
-        return addr;
-    }
-
-    inline address_t indexed_abs_addr(address_t addr, byte_t index)
-    {
-        return addr + index;
-    }
-
-    inline address_t indirect_addr(address_t addr)
-    {
-        //return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
-        return addr;
-    }
-
-    inline address_t page_zero_addr(address_t addr)
-    {
-        return 0xFF & addr;
-    }
-
-    inline address_t indexed_pz_addr(address_t addr, byte_t index)
-    {
-        return 0xFF & (addr + index);
-    }
-
-    inline address_t indexed_indirect_addr(address_t addr, byte_t index)
-    {
-        return indirect_addr(indexed_pz_addr(addr, index));
-    }
-
-    inline address_t indirect_indexed_addr(address_t addr, byte_t index)
-    {
-        return indirect_addr(page_zero_addr(addr)) + index;
-    }
-}
-
 void CPU::next()
 {
     struct
@@ -86,17 +42,17 @@ void CPU::next()
         std::cout << "    ";
 
     std::cout
-        << "  " << opcode_data(data.opcode).str << " $    ";
-
-    exec_(data.opcode, addr);
-
-    std::cout
+        << "  " << opcode_data(data.opcode).str << " $aaaa"
         << "\tA:" << std::setw(2) << static_cast<unsigned int>(accumulator_)
         << " X:" << std::setw(2) << static_cast<unsigned int>(register_x_)
         << " Y:" << std::setw(2) << static_cast<unsigned int>(register_y_)
         << " P:" << std::setw(2) << static_cast<unsigned int>(status_)
         << " SP:" << std::setw(2) << static_cast<unsigned int>(stack_pointer_)
         << '\n';
+
+    program_counter_ += opcode_data(data.opcode).size;
+
+    exec_(data.opcode, addr);
 
     if (program_counter_ < 0x8000)
     {
@@ -105,7 +61,11 @@ void CPU::next()
         throw std::runtime_error(oss.str());
     }
 
-    program_counter_ += opcode_data(data.opcode).size;
+    static int count = 0;
+    if (++count > 9000)
+    {
+        throw std::runtime_error("too many operations");
+    }
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
@@ -390,13 +350,56 @@ inline bool CPU::get_status_(byte_t status_mask)
     return (status_ & status_mask) != 0;
 }
 
+inline byte_t CPU::immediate_addr(address_t addr)
+{
+    return 0xFF & addr;
+}
+
+inline address_t CPU::absolute_addr(address_t addr)
+{
+    return addr;
+}
+
+inline address_t CPU::indexed_abs_addr(address_t addr, byte_t index)
+{
+    return addr + index;
+}
+
+inline address_t CPU::indirect_addr(address_t addr)
+{
+    //return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
+    return addr;
+}
+
+inline address_t CPU::page_zero_addr(address_t addr)
+{
+    return 0xFF & addr;
+}
+
+inline address_t CPU::indexed_pz_addr(address_t addr, byte_t index)
+{
+    return 0xFF & (addr + index);
+}
+
+inline address_t CPU::indexed_indirect_addr(address_t addr, byte_t index)
+{
+    return indirect_addr(indexed_pz_addr(addr, index));
+}
+
+inline address_t CPU::indirect_indexed_addr(address_t addr, byte_t index)
+{
+    return indirect_addr(page_zero_addr(addr)) + index;
+}
+
 void CPU::adc_(byte_t operand)
 {
-    unsigned short result = static_cast<unsigned short>(accumulator_) + operand;
+    byte_t carry = (get_status_(kCarry)) ? 0x01 : 0x00;
+    bool negative = accumulator_ & kNegative;
+    accumulator_ += operand + carry;
     set_status_(kZero, accumulator_ == 0);
-    set_status_(kNegative, result & kNegative);
-    set_status_(kCarry, result & (1 << 8));
-    set_status_(kOverflow, result & (1 << 9));
+    set_status_(kNegative, accumulator_ & kNegative);
+    set_status_(kCarry, accumulator_ < operand);
+    set_status_(kOverflow, (negative == (operand & kNegative)) && negative != get_status_(kNegative));
 }
 
 void CPU::adc_(address_t addr)
@@ -453,10 +456,11 @@ void CPU::beq_(address_t addr)
 
 void CPU::bit_(address_t addr)
 {
-    byte_t operand = accumulator_ & load_(addr);
-    set_status_(kZero, operand == 0);
+    byte_t operand = load_(addr);
     set_status_(kNegative, operand & kNegative);
     set_status_(kOverflow, operand & kOverflow);
+    operand &= accumulator_;
+    set_status_(kZero, operand == 0);
 }
 
 void CPU::bmi_(address_t addr)
@@ -481,6 +485,8 @@ void CPU::brk_()
 {
     set_status_(kBreak, true);
     set_status_(kIntDisable, true);
+    store_stack_(program_counter_);
+    store_stack_(status_);
 }
 
 void CPU::bvc_(address_t addr)
@@ -700,18 +706,21 @@ void CPU::php_()
 void CPU::pla_()
 {
     load_stack_(accumulator_);
+    set_status_(kZero, accumulator_ == 0);
+    set_status_(kNegative, accumulator_ & kNegative);
 }
 
 void CPU::plp_()
 {
     load_stack_(status_);
+    status_ |= 0x20; // WTF? nestest.nes needs this
 }
 
 void CPU::rol_()
 {
     set_status_(kCarry, accumulator_ & kNegative);
     accumulator_ <<= 1;
-    if (get_status_(kCarry)) accumulator_ &= kCarry;
+    if (get_status_(kCarry)) accumulator_ |= kCarry;
 }
 
 void CPU::rol_(address_t addr)
@@ -719,7 +728,7 @@ void CPU::rol_(address_t addr)
     byte_t operand = load_(addr);
     set_status_(kCarry, operand & kNegative);
     operand <<= 1;
-    if (get_status_(kCarry)) operand &= kCarry;
+    if (get_status_(kCarry)) operand |= kCarry;
     store_(addr, operand);
 }
 
@@ -727,7 +736,7 @@ void CPU::ror_()
 {
     set_status_(kCarry, accumulator_ & kCarry);
     accumulator_ >>= 1;
-    if (get_status_(kCarry)) accumulator_ &= kNegative;
+    if (get_status_(kCarry)) accumulator_ |= kNegative;
 }
 
 void CPU::ror_(address_t addr)
@@ -735,12 +744,14 @@ void CPU::ror_(address_t addr)
     byte_t operand = load_(addr);
     set_status_(kCarry, operand & kCarry);
     operand >>= 1;
-    if (get_status_(kCarry)) operand &= kNegative;
+    if (get_status_(kCarry)) operand |= kNegative;
     store_(addr, operand);
 }
 
 void CPU::rti_()
 {
+    load_stack_(status_);
+    load_stack_(program_counter_);
 }
 
 void CPU::rts_()
@@ -750,11 +761,14 @@ void CPU::rts_()
 
 void CPU::sbc_(byte_t operand)
 {
-    unsigned short result = static_cast<unsigned short>(accumulator_) - operand;
+    byte_t carry = (!get_status_(kCarry)) ? 0x01 : 0x00;
+    bool negative = accumulator_ & kNegative;
+    accumulator_ = accumulator_ - operand - carry;
     set_status_(kZero, accumulator_ == 0);
-    set_status_(kNegative, result & kNegative);
-    set_status_(kCarry, result & (1 << 8));
-    set_status_(kOverflow, result & (1 << 9));
+    set_status_(kNegative, accumulator_ & kNegative);
+    set_status_(kCarry, accumulator_ < operand);
+    set_status_(kOverflow, (negative == (operand & kNegative)) && negative != get_status_(kNegative));
+    
 }
 
 void CPU::sbc_(address_t addr)

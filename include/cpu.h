@@ -23,7 +23,7 @@ private:
     byte_t register_y_ = 0x0;
     byte_t status_ = 0x24;
     address_t program_counter_ = 0x8000;
-    byte_t stack_pointer_ = 0xFF;
+    byte_t stack_pointer_ = 0xFD;
 
     // memory buffer
     std::array<byte_t, 0x10000> memory_{};
@@ -53,6 +53,16 @@ private:
 
     void set_status_(byte_t flag_mask, bool value);
     bool get_status_(byte_t flag_mask);
+
+    // addressing
+    byte_t immediate_addr(address_t addr);
+    address_t absolute_addr(address_t addr);
+    address_t indexed_abs_addr(address_t addr, byte_t index);
+    address_t indirect_addr(address_t addr);
+    address_t page_zero_addr(address_t addr);
+    address_t indexed_pz_addr(address_t addr, byte_t index);
+    address_t indexed_indirect_addr(address_t addr, byte_t index);
+    address_t indirect_indexed_addr(address_t addr, byte_t index);
 
     // operations
     void adc_(byte_t operand);
