@@ -525,69 +525,73 @@ f95e    38          SEC $aaaa	A:40 X:aa Y:73 P:25 SP:f9
 f95f    24  01      BIT $aaaa	A:40 X:aa Y:73 P:25 SP:f9
 f961    60          RTS $aaaa	A:40 X:aa Y:73 P:e5 SP:f9
 cbc6    e9  41      SBC $aaaa	A:40 X:aa Y:73 P:e5 SP:fb
-cbc8    20  62  f9  JSR $aaaa	A:ff X:aa Y:73 P:e4 SP:fb
-f962    b0  0b      BCS $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-f964    f0  09      BEQ $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-f966    10  07      BPL $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-f968    70  05      BVS $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-f96f    84  00      STY $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-f971    60          RTS $aaaa	A:ff X:aa Y:73 P:e4 SP:f9
-cbcb    c8          INY $aaaa	A:ff X:aa Y:73 P:e4 SP:fb
-cbcc    20  72  f9  JSR $aaaa	A:ff X:aa Y:74 P:64 SP:fb
-f972    18          CLC $aaaa	A:ff X:aa Y:74 P:64 SP:f9
-f973    a9  80      LDA $aaaa	A:ff X:aa Y:74 P:64 SP:f9
-f975    60          RTS $aaaa	A:80 X:aa Y:74 P:e4 SP:f9
-cbcf    e9  00      SBC $aaaa	A:80 X:aa Y:74 P:e4 SP:fb
-cbd1    20  76  f9  JSR $aaaa	A:7f X:aa Y:74 P:24 SP:fb
-f976    90  05      BCC $aaaa	A:7f X:aa Y:74 P:24 SP:f9
-f97d    84  00      STY $aaaa	A:7f X:aa Y:74 P:24 SP:f9
-f97f    60          RTS $aaaa	A:7f X:aa Y:74 P:24 SP:f9
-cbd4    c8          INY $aaaa	A:7f X:aa Y:74 P:24 SP:fb
-cbd5    20  80  f9  JSR $aaaa	A:7f X:aa Y:75 P:24 SP:fb
-f980    38          SEC $aaaa	A:7f X:aa Y:75 P:24 SP:f9
-f981    a9  81      LDA $aaaa	A:7f X:aa Y:75 P:25 SP:f9
-f983    60          RTS $aaaa	A:81 X:aa Y:75 P:a5 SP:f9
-cbd8    e9  7f      SBC $aaaa	A:81 X:aa Y:75 P:a5 SP:fb
-cbda    20  84  f9  JSR $aaaa	A:02 X:aa Y:75 P:25 SP:fb
-f984    50  07      BVC $aaaa	A:02 X:aa Y:75 P:25 SP:f9
-f98d    84  00      STY $aaaa	A:02 X:aa Y:75 P:25 SP:f9
-f98f    60          RTS $aaaa	A:02 X:aa Y:75 P:25 SP:f9
-cbdd    60          RTS $aaaa	A:02 X:aa Y:75 P:25 SP:fb
-c606    20  de  cb  JSR $aaaa	A:02 X:aa Y:75 P:25 SP:fd
-cbde    ea          NOP $aaaa	A:02 X:aa Y:75 P:25 SP:fb
-cbdf    a9  ff      LDA $aaaa	A:02 X:aa Y:75 P:25 SP:fb
-cbe1    85  01      STA $aaaa	A:ff X:aa Y:75 P:a5 SP:fb
-cbe3    a9  44      LDA $aaaa	A:ff X:aa Y:75 P:a5 SP:fb
-cbe5    a2  55      LDX $aaaa	A:44 X:aa Y:75 P:25 SP:fb
-cbe7    a0  66      LDY $aaaa	A:44 X:55 Y:75 P:25 SP:fb
-cbe9    e8          INX $aaaa	A:44 X:55 Y:66 P:25 SP:fb
-cbea    88          DEY $aaaa	A:44 X:56 Y:66 P:25 SP:fb
-cbeb    e0  56      CPX $aaaa	A:44 X:56 Y:65 P:25 SP:fb
-cbed    d0  21      BNE $aaaa	A:44 X:56 Y:65 P:27 SP:fb
-cbef    c0  65      CPY $aaaa	A:44 X:56 Y:65 P:27 SP:fb
-cbf1    d0  1d      BNE $aaaa	A:44 X:56 Y:65 P:27 SP:fb
-cbf3    e8          INX $aaaa	A:44 X:56 Y:65 P:27 SP:fb
-cbf4    e8          INX $aaaa	A:44 X:57 Y:65 P:25 SP:fb
-cbf5    88          DEY $aaaa	A:44 X:58 Y:65 P:25 SP:fb
-cbf6    88          DEY $aaaa	A:44 X:58 Y:64 P:25 SP:fb
-cbf7    e0  58      CPX $aaaa	A:44 X:58 Y:63 P:25 SP:fb
-cbf9    d0  15      BNE $aaaa	A:44 X:58 Y:63 P:27 SP:fb
-cbfb    c0  63      CPY $aaaa	A:44 X:58 Y:63 P:27 SP:fb
-cbfd    d0  11      BNE $aaaa	A:44 X:58 Y:63 P:27 SP:fb
-cbff    ca          DEX $aaaa	A:44 X:58 Y:63 P:27 SP:fb
-cc00    c8          INY $aaaa	A:44 X:57 Y:63 P:25 SP:fb
-cc01    e0  57      CPX $aaaa	A:44 X:57 Y:64 P:25 SP:fb
-cc03    d0  0b      BNE $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc05    c0  64      CPY $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc07    d0  07      BNE $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc09    c9  44      CMP $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc0b    d0  03      BNE $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc0d    4c  14  cc  JMP $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc14    ea          NOP $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc15    38          SEC $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc16    a2  69      LDX $aaaa	A:44 X:57 Y:64 P:27 SP:fb
-cc18    a9  96      LDA $aaaa	A:44 X:69 Y:64 P:25 SP:fb
-cc1a    24  01      BIT $aaaa	A:96 X:69 Y:64 P:a5 SP:fb
+cbc8    20  62  f9  JSR $aaaa	A:ff X:aa Y:73 P:a4 SP:fb
+f962    b0  0b      BCS $aaaa	A:ff X:aa Y:73 P:a4 SP:f9
+f964    f0  09      BEQ $aaaa	A:ff X:aa Y:73 P:a4 SP:f9
+f966    10  07      BPL $aaaa	A:ff X:aa Y:73 P:a4 SP:f9
+f968    70  05      BVS $aaaa	A:ff X:aa Y:73 P:a4 SP:f9
+f96a    c9  ff      CMP $aaaa	A:ff X:aa Y:73 P:a4 SP:f9
+f96c    d0  01      BNE $aaaa	A:ff X:aa Y:73 P:27 SP:f9
+f96e    60          RTS $aaaa	A:ff X:aa Y:73 P:27 SP:f9
+cbcb    c8          INY $aaaa	A:ff X:aa Y:73 P:27 SP:fb
+cbcc    20  72  f9  JSR $aaaa	A:ff X:aa Y:74 P:25 SP:fb
+f972    18          CLC $aaaa	A:ff X:aa Y:74 P:25 SP:f9
+f973    a9  80      LDA $aaaa	A:ff X:aa Y:74 P:24 SP:f9
+f975    60          RTS $aaaa	A:80 X:aa Y:74 P:a4 SP:f9
+cbcf    e9  00      SBC $aaaa	A:80 X:aa Y:74 P:a4 SP:fb
+cbd1    20  76  f9  JSR $aaaa	A:7f X:aa Y:74 P:65 SP:fb
+f976    90  05      BCC $aaaa	A:7f X:aa Y:74 P:65 SP:f9
+f978    c9  7f      CMP $aaaa	A:7f X:aa Y:74 P:65 SP:f9
+f97a    d0  01      BNE $aaaa	A:7f X:aa Y:74 P:67 SP:f9
+f97c    60          RTS $aaaa	A:7f X:aa Y:74 P:67 SP:f9
+cbd4    c8          INY $aaaa	A:7f X:aa Y:74 P:67 SP:fb
+cbd5    20  80  f9  JSR $aaaa	A:7f X:aa Y:75 P:65 SP:fb
+f980    38          SEC $aaaa	A:7f X:aa Y:75 P:65 SP:f9
+f981    a9  81      LDA $aaaa	A:7f X:aa Y:75 P:65 SP:f9
+f983    60          RTS $aaaa	A:81 X:aa Y:75 P:e5 SP:f9
+cbd8    e9  7f      SBC $aaaa	A:81 X:aa Y:75 P:e5 SP:fb
+cbda    20  84  f9  JSR $aaaa	A:02 X:aa Y:75 P:65 SP:fb
+f984    50  07      BVC $aaaa	A:02 X:aa Y:75 P:65 SP:f9
+f986    90  05      BCC $aaaa	A:02 X:aa Y:75 P:65 SP:f9
+f988    c9  02      CMP $aaaa	A:02 X:aa Y:75 P:65 SP:f9
+f98a    d0  01      BNE $aaaa	A:02 X:aa Y:75 P:67 SP:f9
+f98c    60          RTS $aaaa	A:02 X:aa Y:75 P:67 SP:f9
+cbdd    60          RTS $aaaa	A:02 X:aa Y:75 P:67 SP:fb
+c606    20  de  cb  JSR $aaaa	A:02 X:aa Y:75 P:67 SP:fd
+cbde    ea          NOP $aaaa	A:02 X:aa Y:75 P:67 SP:fb
+cbdf    a9  ff      LDA $aaaa	A:02 X:aa Y:75 P:67 SP:fb
+cbe1    85  01      STA $aaaa	A:ff X:aa Y:75 P:e5 SP:fb
+cbe3    a9  44      LDA $aaaa	A:ff X:aa Y:75 P:e5 SP:fb
+cbe5    a2  55      LDX $aaaa	A:44 X:aa Y:75 P:65 SP:fb
+cbe7    a0  66      LDY $aaaa	A:44 X:55 Y:75 P:65 SP:fb
+cbe9    e8          INX $aaaa	A:44 X:55 Y:66 P:65 SP:fb
+cbea    88          DEY $aaaa	A:44 X:56 Y:66 P:65 SP:fb
+cbeb    e0  56      CPX $aaaa	A:44 X:56 Y:65 P:65 SP:fb
+cbed    d0  21      BNE $aaaa	A:44 X:56 Y:65 P:67 SP:fb
+cbef    c0  65      CPY $aaaa	A:44 X:56 Y:65 P:67 SP:fb
+cbf1    d0  1d      BNE $aaaa	A:44 X:56 Y:65 P:67 SP:fb
+cbf3    e8          INX $aaaa	A:44 X:56 Y:65 P:67 SP:fb
+cbf4    e8          INX $aaaa	A:44 X:57 Y:65 P:65 SP:fb
+cbf5    88          DEY $aaaa	A:44 X:58 Y:65 P:65 SP:fb
+cbf6    88          DEY $aaaa	A:44 X:58 Y:64 P:65 SP:fb
+cbf7    e0  58      CPX $aaaa	A:44 X:58 Y:63 P:65 SP:fb
+cbf9    d0  15      BNE $aaaa	A:44 X:58 Y:63 P:67 SP:fb
+cbfb    c0  63      CPY $aaaa	A:44 X:58 Y:63 P:67 SP:fb
+cbfd    d0  11      BNE $aaaa	A:44 X:58 Y:63 P:67 SP:fb
+cbff    ca          DEX $aaaa	A:44 X:58 Y:63 P:67 SP:fb
+cc00    c8          INY $aaaa	A:44 X:57 Y:63 P:65 SP:fb
+cc01    e0  57      CPX $aaaa	A:44 X:57 Y:64 P:65 SP:fb
+cc03    d0  0b      BNE $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc05    c0  64      CPY $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc07    d0  07      BNE $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc09    c9  44      CMP $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc0b    d0  03      BNE $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc0d    4c  14  cc  JMP $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc14    ea          NOP $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc15    38          SEC $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc16    a2  69      LDX $aaaa	A:44 X:57 Y:64 P:67 SP:fb
+cc18    a9  96      LDA $aaaa	A:44 X:69 Y:64 P:65 SP:fb
+cc1a    24  01      BIT $aaaa	A:96 X:69 Y:64 P:e5 SP:fb
 cc1c    a0  ff      LDY $aaaa	A:96 X:69 Y:64 P:e5 SP:fb
 cc1e    c8          INY $aaaa	A:96 X:69 Y:ff P:e5 SP:fb
 cc1f    d0  3d      BNE $aaaa	A:96 X:69 Y:00 P:67 SP:fb
