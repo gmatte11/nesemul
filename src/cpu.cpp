@@ -13,6 +13,15 @@
 
 using namespace ops;
 
+namespace
+{
+    typedef int8_t sbyte_t;
+    inline sbyte_t sign(byte_t b)
+    {
+        return *reinterpret_cast<sbyte_t *>(&b);
+    }
+}
+
 void CPU::next()
 {
     struct
@@ -398,7 +407,7 @@ void CPU::adc_(byte_t operand)
     bool neg_op = operand & kNegative;
 
     accumulator_ += operand + carry;
-    
+
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
     set_status_(kCarry, accumulator_ < operand);
@@ -526,9 +535,10 @@ void CPU::clv_()
 
 void CPU::cmp_(byte_t operand)
 {
-    if (accumulator_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
-    if (accumulator_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
-    if (accumulator_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
+    byte_t cmp = accumulator_ - operand;
+    set_status_(kZero, cmp == 0);
+    set_status_(kNegative, cmp & kNegative);
+    set_status_(kCarry, accumulator_ >= operand);
 }
 
 void CPU::cmp_(address_t addr)
@@ -538,9 +548,10 @@ void CPU::cmp_(address_t addr)
 
 void CPU::cpx_(byte_t operand)
 {
-    if (register_x_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
-    if (register_x_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
-    if (register_x_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
+    byte_t cmp = register_x_ - operand;
+    set_status_(kZero, cmp == 0);
+    set_status_(kNegative, cmp & kNegative);
+    set_status_(kCarry, register_x_ >= operand);
 }
 
 void CPU::cpx_(address_t addr)
@@ -550,9 +561,10 @@ void CPU::cpx_(address_t addr)
 
 void CPU::cpy_(byte_t operand)
 {
-    if (register_y_ <  operand) { set_status_(kNegative, true); set_status_(kZero | kCarry, false); }
-    if (register_y_ == operand) { set_status_(kNegative, false); set_status_(kZero | kCarry, true); }
-    if (register_y_ >  operand) { set_status_(kNegative | kZero, false); set_status_(kCarry, true); }
+    byte_t cmp = register_y_ - operand;
+    set_status_(kZero, cmp == 0);
+    set_status_(kNegative, cmp & kNegative);
+    set_status_(kCarry, register_y_ >= operand);
 }
 
 void CPU::cpy_(address_t addr)
@@ -767,9 +779,9 @@ void CPU::sbc_(byte_t operand)
     byte_t carry = (!get_status_(kCarry)) ? 0x01 : 0x00;
     bool neg_a = accumulator_ & kNegative;
     bool neg_op = operand & kNegative;
-    
+
     accumulator_ = accumulator_ - operand - carry;
-    
+
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
     set_status_(kCarry, accumulator_ < (operand | kNegative));
