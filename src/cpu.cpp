@@ -230,17 +230,17 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
         case kPLP: plp_();  break;
 
-        case kROL1: rol_();                                     break; // addr: A
+        case kROL1: rol_(accumulator_);                         break; // addr: A
         case kROL2: rol_(page_zero_addr(addr));                 break; // addr: $aa
-        case kROL3: rol_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
+        case kROL3: rol_(indexed_pz_addr(addr, register_x_));   break; // addr: $aa,X
         case kROL4: rol_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kROL5: rol_(indexed_abs_addr(addr, register_x_));   break; // addr: $aaaa,X
+        case kROL5: rol_(indexed_abs_addr(addr, register_x_));  break; // addr: $aaaa,X
 
-        case kROR1: ror_();                                     break; // addr: A
+        case kROR1: ror_(accumulator_);                         break; // addr: A
         case kROR2: ror_(page_zero_addr(addr));                 break; // addr: $aa
-        case kROR3: ror_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
+        case kROR3: ror_(indexed_pz_addr(addr, register_x_));   break; // addr: $aa,X
         case kROR4: ror_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kROR5: ror_(indexed_abs_addr(addr, register_x_));   break; // addr: $aaaa,X
+        case kROR5: ror_(indexed_abs_addr(addr, register_x_));  break; // addr: $aaaa,X
 
         case kRTI: rti_();  break;
 
@@ -320,26 +320,28 @@ inline address_t CPU::load_addr_(address_t addr)
 
 inline void CPU::store_stack_(byte_t operand)
 {
-    --stack_pointer_;
     store_(0x0100 + stack_pointer_, operand);
+    --stack_pointer_;
 }
 
 inline void CPU::store_stack_(address_t addr)
 {
-    stack_pointer_ -= 2;
+    --stack_pointer_;
     store_(0x0100 + stack_pointer_, addr);
+    --stack_pointer_;
 }
 
 inline void CPU::load_stack_(byte_t & dest)
 {
-    dest = load_(0x0100 + stack_pointer_);
     ++stack_pointer_;
+    dest = load_(0x0100 + stack_pointer_);
 }
 
 inline void CPU::load_stack_(address_t & dest)
 {
+    ++stack_pointer_;
     dest = load_addr_(0x0100 + stack_pointer_);
-    stack_pointer_ += 2;
+    ++stack_pointer_;
 }
 
 inline void CPU::set_status_(byte_t status_mask, bool set)
@@ -473,6 +475,7 @@ void CPU::bit_(address_t addr)
     set_status_(kOverflow, operand & kOverflow);
     operand &= accumulator_;
     set_status_(kZero, operand == 0);
+    set_status_(0x20, true); // WTF ? nestest needs this
 }
 
 void CPU::bmi_(address_t addr)
@@ -635,7 +638,7 @@ void CPU::jmp_(address_t addr)
 
 void CPU::jsr_(address_t addr)
 {
-    store_stack_(program_counter_);
+    store_stack_(static_cast<address_t>(program_counter_ - 1));
     program_counter_ = addr;
 }
 
@@ -728,38 +731,40 @@ void CPU::pla_()
 void CPU::plp_()
 {
     load_stack_(status_);
-    status_ |= 0x20; // WTF? nestest.nes needs this
+    set_status_(0x20, true); // WTF ? nestest needs this
 }
 
-void CPU::rol_()
+void CPU::rol_(byte_t & operand)
 {
-    set_status_(kCarry, accumulator_ & kNegative);
-    accumulator_ <<= 1;
-    if (get_status_(kCarry)) accumulator_ |= kCarry;
+    byte_t carry = operand & kNegative;
+    operand <<= 1;
+    if (get_status_(kCarry)) operand |= kCarry;
+    set_status_(kCarry, carry != 0);
+    set_status_(kZero, operand == 0);
+    set_status_(kNegative, operand & kNegative);
 }
 
 void CPU::rol_(address_t addr)
 {
     byte_t operand = load_(addr);
-    set_status_(kCarry, operand & kNegative);
-    operand <<= 1;
-    if (get_status_(kCarry)) operand |= kCarry;
+    rol_(operand);
     store_(addr, operand);
 }
 
-void CPU::ror_()
+void CPU::ror_(byte_t & operand)
 {
-    set_status_(kCarry, accumulator_ & kCarry);
-    accumulator_ >>= 1;
-    if (get_status_(kCarry)) accumulator_ |= kNegative;
+    byte_t carry = operand & kCarry;
+    operand >>= 1;
+    if (get_status_(kCarry)) operand |= kNegative;
+    set_status_(kCarry, carry != 0);
+    set_status_(kZero, operand == 0);
+    set_status_(kNegative, operand & kNegative);
 }
 
 void CPU::ror_(address_t addr)
 {
     byte_t operand = load_(addr);
-    set_status_(kCarry, operand & kCarry);
-    operand >>= 1;
-    if (get_status_(kCarry)) operand |= kNegative;
+    ror_(operand);
     store_(addr, operand);
 }
 
@@ -772,6 +777,7 @@ void CPU::rti_()
 void CPU::rts_()
 {
     load_stack_(program_counter_);
+    ++program_counter_;
 }
 
 void CPU::sbc_(byte_t operand)
@@ -854,8 +860,6 @@ void CPU::txa_()
 void CPU::txs_()
 {
     stack_pointer_ = register_x_;
-    set_status_(kZero, stack_pointer_ == 0);
-    set_status_(kNegative, stack_pointer_ & kNegative);
 }
 
 void CPU::tya_()

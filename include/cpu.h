@@ -116,9 +116,9 @@ private:
     void php_();
     void pla_();
     void plp_();
-    void rol_();
+    void rol_(byte_t & operand);
     void rol_(address_t addr);
-    void ror_();
+    void ror_(byte_t & operand);
     void ror_(address_t addr);
     void rti_();
     void rts_();
