@@ -88,8 +88,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kADC4: adc_(absolute_addr(addr));                      break; // addr: $aaaa
         case kADC5: adc_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kADC6: adc_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kADC7: adc_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kADC8: adc_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kADC7: adc_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kADC8: adc_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kAND1: and_(immediate_addr(addr));                     break; // addr: #aa
         case kAND2: and_(page_zero_addr(addr));                     break; // addr: $aa
@@ -97,8 +97,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kAND4: and_(absolute_addr(addr));                      break; // addr: $aaaa
         case kAND5: and_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kAND6: and_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kAND7: and_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kAND8: and_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kAND7: and_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kAND8: and_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kASL1: asl_();                                         break; // addr: A
         case kASL2: asl_(page_zero_addr(addr));                     break; // addr: $aa
@@ -141,8 +141,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kCMP4: cmp_(absolute_addr(addr));                      break; // addr: $aaaa
         case kCMP5: cmp_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kCMP6: cmp_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kCMP7: cmp_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kCMP8: cmp_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kCMP7: cmp_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kCMP8: cmp_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kCPX1: cpx_(immediate_addr(addr)); break; // addr: #aa
         case kCPX2: cpx_(page_zero_addr(addr)); break; // addr: $aa
@@ -167,8 +167,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kEOR4: eor_(absolute_addr(addr));                      break; // addr: $aaaa
         case kEOR5: eor_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kEOR6: eor_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kEOR7: eor_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kEOR8: eor_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kEOR7: eor_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kEOR8: eor_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kINC1: inc_(page_zero_addr(addr));                 break; // addr: $aa
         case kINC2: inc_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
@@ -190,8 +190,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kLDA4: lda_(absolute_addr(addr));                       break; // addr: $aaaa
         case kLDA5: lda_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kLDA6: lda_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kLDA7: lda_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kLDA8: lda_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kLDA7: lda_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kLDA8: lda_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kLDX1: ldx_(immediate_addr(addr)); break; // addr: #aa
         case kLDX2: ldx_(page_zero_addr(addr)); break; // addr: $aa
@@ -219,8 +219,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kORA4: ora_(absolute_addr(addr));                      break; // addr: $aaaa
         case kORA5: ora_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
         case kORA6: ora_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
-        case kORA7: ora_(indirect_indexed_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kORA8: ora_(indexed_indirect_addr(addr, register_y_)); break; // addr: ($aa),Y
+        case kORA7: ora_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
+        case kORA8: ora_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
 
         case kPHA: pha_();  break;
 
@@ -361,42 +361,49 @@ inline bool CPU::get_status_(byte_t status_mask)
     return (status_ & status_mask) != 0;
 }
 
+// #$00
 inline byte_t CPU::immediate_addr(address_t addr)
 {
     return 0xFF & addr;
 }
 
+// $0000
 inline address_t CPU::absolute_addr(address_t addr)
 {
     return addr;
 }
 
+// $0000,X
 inline address_t CPU::indexed_abs_addr(address_t addr, byte_t index)
 {
     return addr + index;
 }
 
+// $(0000)
 inline address_t CPU::indirect_addr(address_t addr)
 {
-    //return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
-    return addr;
+    return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
 }
 
+// $00
 inline address_t CPU::page_zero_addr(address_t addr)
 {
-    return 0xFF & addr;
+    return 0x00FF & addr;
 }
 
+// $(00)
 inline address_t CPU::indexed_pz_addr(address_t addr, byte_t index)
 {
-    return 0xFF & (addr + index);
+    return 0x00FF & (addr + index);
 }
 
+// $(00,X)
 inline address_t CPU::indexed_indirect_addr(address_t addr, byte_t index)
 {
     return indirect_addr(indexed_pz_addr(addr, index));
 }
 
+// $(00),Y
 inline address_t CPU::indirect_indexed_addr(address_t addr, byte_t index)
 {
     return indirect_addr(page_zero_addr(addr)) + index;
