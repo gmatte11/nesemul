@@ -60,6 +60,7 @@ private:
     address_t indexed_abs_addr(address_t addr, byte_t index);
     address_t indirect_addr(address_t addr);
     address_t page_zero_addr(address_t addr);
+    address_t indirect_pz_addr(byte_t addr);
     address_t indexed_pz_addr(address_t addr, byte_t index);
     address_t indexed_indirect_addr(address_t addr, byte_t index);
     address_t indirect_indexed_addr(address_t addr, byte_t index);

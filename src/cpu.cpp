@@ -388,25 +388,30 @@ inline address_t CPU::indirect_addr(address_t addr)
 // $00
 inline address_t CPU::page_zero_addr(address_t addr)
 {
-    return 0x00FF & addr;
+    return 0xFF & addr;
+}
+
+inline address_t CPU::indirect_pz_addr(byte_t addr)
+{
+    return static_cast<address_t>(memory_[static_cast<byte_t>(addr + 1)]) << 8 | memory_[addr];
 }
 
 // $(00)
 inline address_t CPU::indexed_pz_addr(address_t addr, byte_t index)
 {
-    return 0x00FF & (addr + index);
+    return  static_cast<byte_t>(static_cast<byte_t>(0xFF & addr) + index);
 }
 
 // $(00,X)
 inline address_t CPU::indexed_indirect_addr(address_t addr, byte_t index)
 {
-    return indirect_addr(indexed_pz_addr(addr, index));
+    return indirect_pz_addr(0xFF & indexed_pz_addr(addr, index));
 }
 
 // $(00),Y
 inline address_t CPU::indirect_indexed_addr(address_t addr, byte_t index)
 {
-    return indirect_addr(page_zero_addr(addr)) + index;
+    return indirect_pz_addr(0xFF & page_zero_addr(addr)) + index;
 }
 
 void CPU::adc_(byte_t operand)
