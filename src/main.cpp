@@ -104,10 +104,13 @@ int Emulator::run()
 
 int main(int argc, char *argv[])
 {
+	if (argc < 2)
+		return 1;
+
     try
     {
         Emulator emul;
-        emul.read("/home/gmatte11/nestest.nes");
+        emul.read(argv[1]);
 
         return emul.run();
     }
