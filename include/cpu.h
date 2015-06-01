@@ -64,6 +64,7 @@ private:
     address_t indexed_pz_addr(address_t addr, byte_t index);
     address_t indexed_indirect_addr(address_t addr, byte_t index);
     address_t indirect_indexed_addr(address_t addr, byte_t index);
+    std::string debug_addr_(byte_t type, address_t addr);
 
     // operations
     void adc_(byte_t operand);

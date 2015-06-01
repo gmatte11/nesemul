@@ -20,6 +20,30 @@ namespace
     {
         return *reinterpret_cast<sbyte_t *>(&b);
     }
+
+    std::string _str(byte_t operand)
+    {
+        std::ostringstream oss;
+
+        oss << std::hex
+            << std::setw(2)
+            << std::setfill('0')
+            << (int)operand;
+
+        return oss.str();
+    }
+
+    std::string _str(address_t addr)
+    {
+        std::ostringstream oss;
+
+        oss << std::hex
+            << std::setw(4)
+            << std::setfill('0')
+            << addr;
+
+        return oss.str();
+    }
 }
 
 void CPU::next()
@@ -41,34 +65,39 @@ void CPU::next()
         << "  " << std::setw(2) << static_cast<unsigned int>(data.opcode);
 
     if (opcode_data(data.opcode).size > 1)
-        std::cout << "  " << std::setw(2) << static_cast<unsigned int>(data.addr_l);
+        std::cout << "  " << std::setw(2) << _str(data.addr_l);
     else
         std::cout << "    ";
 
     if (opcode_data(data.opcode).size > 2)
-        std::cout << "  " << std::setw(2) << static_cast<unsigned int>(data.addr_h);
+        std::cout << "  " << std::setw(2) << _str(data.addr_h);
     else
         std::cout << "    ";
 
+    std::cout << "  " << opcode_data(data.opcode).str;
+
+    std::cout << " "
+        << std::setfill(' ') << std::left << std::setw(27)
+        << debug_addr_(opcode_data(data.opcode).addressing, addr);
+
     std::cout
-        << "  " << opcode_data(data.opcode).str << " $aaaa"
-        << "\tA:" << std::setw(2) << static_cast<unsigned int>(accumulator_)
-        << " X:" << std::setw(2) << static_cast<unsigned int>(register_x_)
-        << " Y:" << std::setw(2) << static_cast<unsigned int>(register_y_)
-        << " P:" << std::setw(2) << static_cast<unsigned int>(status_)
-        << " SP:" << std::setw(2) << static_cast<unsigned int>(stack_pointer_)
+        << " A:" << std::setw(2) << _str(accumulator_)
+        << " X:" << std::setw(2) << _str(register_x_)
+        << " Y:" << std::setw(2) << _str(register_y_)
+        << " P:" << std::setw(2) << _str(status_)
+        << " SP:" << std::setw(2) << _str(stack_pointer_)
         << '\n';
 
     program_counter_ += opcode_data(data.opcode).size;
 
     exec_(data.opcode, addr);
 
-    if (program_counter_ < 0x8000)
+    /*if (program_counter_ < 0x8000)
     {
         std::ostringstream oss;
         oss << std::hex << "Invalid jump to " << program_counter_;
         throw std::runtime_error(oss.str());
-    }
+    }*/
 
     static int count = 0;
     if (++count > 9000)
@@ -414,6 +443,51 @@ inline address_t CPU::indirect_indexed_addr(address_t addr, byte_t index)
     return indirect_pz_addr(0xFF & page_zero_addr(addr)) + index;
 }
 
+std::string CPU::debug_addr_(byte_t type, address_t addr)
+{
+    std::ostringstream oss;
+
+    byte_t addr_l = static_cast<byte_t>(0xFF & addr);
+
+    switch(type)
+    {
+    case ops::kImmediate:
+        oss << "#$" << _str(addr_l);
+        break;
+
+    case ops::kZeroPage:
+        oss << "$" << _str(addr_l) << " = " << _str(load_(addr));
+        break;
+
+    case ops::kAbsolute:
+        {
+            oss << "$" << _str(addr);
+            if (addr < 0x8000)
+            {
+                oss << " = " << _str(load_(addr));
+            }
+        }
+        break;
+
+    case ops::kIndirect:
+        oss << "($" << _str(addr) << ")"
+            << " = " << _str(indirect_addr(addr));
+        break;
+
+    case ops::kIndirectX:
+        addr = indexed_indirect_addr(addr, register_x_);
+        oss << "($" << _str(addr_l)
+            << ",X) @ " << _str(addr)
+            << " = " << _str(load_(addr));
+        break;
+
+    default:
+        break;
+    }
+
+    return oss.str();
+}
+
 void CPU::adc_(byte_t operand)
 {
     byte_t carry = (get_status_(kCarry)) ? 0x01 : 0x00;
@@ -487,7 +561,7 @@ void CPU::bit_(address_t addr)
     set_status_(kOverflow, operand & kOverflow);
     operand &= accumulator_;
     set_status_(kZero, operand == 0);
-    set_status_(0x20, true); // WTF ? nestest needs this
+    set_status_(0x20, true); // always 1 flag
 }
 
 void CPU::bmi_(address_t addr)
@@ -743,7 +817,7 @@ void CPU::pla_()
 void CPU::plp_()
 {
     load_stack_(status_);
-    set_status_(0x20, true); // WTF ? nestest needs this
+    set_status_(0x20, true); // always 1 flag
 }
 
 void CPU::rol_(byte_t & operand)
@@ -784,6 +858,7 @@ void CPU::rti_()
 {
     load_stack_(status_);
     load_stack_(program_counter_);
+    //set_status_(0x20, true); // always 1 flag
 }
 
 void CPU::rts_()

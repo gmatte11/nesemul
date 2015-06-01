@@ -17,6 +17,20 @@ namespace ops
 
     metadata opcode_data(byte_t opcode);
 
+    enum Addressing : byte_t
+    {
+        kNone       = 0x00,
+        kImmediate  = 0x01,
+        kZeroPage   = 0x02,
+        kZeroPageX  = 0x03,
+        kAbsolute   = 0x04,
+        kAbsoluteX  = 0x05,
+        kAbsoluteY  = 0x06,
+        kIndirect   = 0x07,
+        kIndirectX  = 0x08,
+        kIndirectY  = 0x09
+    };
+
     enum Codes : byte_t
     {
     //ADC - add with carry
