@@ -281,8 +281,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kSBC4: sbc_(absolute_addr(addr));                      break; // addr: $aaaa
         case kSBC5: sbc_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kSBC6: sbc_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kSBC7: sbc_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kSBC8: sbc_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kSBC7: sbc_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kSBC8: sbc_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kSEC: sec_();  break;
 
@@ -295,8 +295,8 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kSTA4: sta_(absolute_addr(addr));                      break; // addr: $aaaa
         case kSTA5: sta_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
         case kSTA6: sta_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kSTA7: sta_(indirect_indexed_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kSTA8: sta_(indexed_indirect_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kSTA7: sta_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
+        case kSTA8: sta_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
 
         case kSTX1: stx_(page_zero_addr(addr));                 break; // addr: $aa
         case kSTX2: stx_(indexed_pz_addr(addr, register_y_));    break; // addr: $aa,Y
@@ -411,7 +411,8 @@ inline address_t CPU::indexed_abs_addr(address_t addr, byte_t index)
 // $(0000)
 inline address_t CPU::indirect_addr(address_t addr)
 {
-    return static_cast<address_t>(memory_[addr + 1]) << 8 | memory_[addr];
+    address_t addr_h = (0xFF00 & addr) | (0xFF & addr + 1);
+    return static_cast<address_t>(memory_[addr_h]) << 8 | memory_[addr];
 }
 
 // $00
