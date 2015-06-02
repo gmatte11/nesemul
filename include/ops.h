@@ -23,6 +23,7 @@ namespace ops
         kImmediate  = 0x01,
         kZeroPage   = 0x02,
         kZeroPageX  = 0x03,
+        kZeroPageY  = 0x0A,
         kAbsolute   = 0x04,
         kAbsoluteX  = 0x05,
         kAbsoluteY  = 0x06,
@@ -294,7 +295,26 @@ namespace ops
         kTXS  = 0x9A, // ops: 1
 
     //TYA - transfer register Y to accumulator
-        kTYA  = 0x98  // ops: 1
+        kTYA  = 0x98, // ops: 1
+
+    // *** Undocumented opcodes ***
+
+    //TYA - transfer register Y to accumulator
+        kALR = 0x4B,
+
+    //LAX - Load accumulator and register x
+        kLAX1 = 0xA3, // ops: 2, addr: ($aa,X)
+        kLAX2 = 0xA7, // ops: 2, addr: $aa
+        kLAX3 = 0xAF, // ops: 3, addr: $aaaa
+        kLAX4 = 0xB3, // ops: 2, addr: ($aa),Y
+        kLAX5 = 0xB7, // ops: 2, addr: $aa,Y
+        kLAX6 = 0xBF, // ops: 3, addr: $aaaa,Y
+
+    // SAX - Store bitwize accumulator and register x
+        kSAX1 = 0x83, // ops: 2, addr: ($aa,X)
+        kSAX2 = 0x87, // ops: 2, addr: $aa
+        kSAX3 = 0x8F, // ops: 3, addr: $aaaa
+        kSAX4 = 0x97, // ops: 2, addr: $aa,Y
     };
 }
 

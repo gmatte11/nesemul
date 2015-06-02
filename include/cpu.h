@@ -55,15 +55,15 @@ private:
     bool get_status_(byte_t flag_mask);
 
     // addressing
-    byte_t immediate_addr(address_t addr);
-    address_t absolute_addr(address_t addr);
-    address_t indexed_abs_addr(address_t addr, byte_t index);
-    address_t indirect_addr(address_t addr);
-    address_t page_zero_addr(address_t addr);
-    address_t indirect_pz_addr(byte_t addr);
-    address_t indexed_pz_addr(address_t addr, byte_t index);
-    address_t indexed_indirect_addr(address_t addr, byte_t index);
-    address_t indirect_indexed_addr(address_t addr, byte_t index);
+    byte_t immediate_addr(address_t addr); // #$aa
+    address_t absolute_addr(address_t addr); // $aaaa
+    address_t indexed_abs_addr(address_t addr, byte_t index);  // $aaaa,X
+    address_t indirect_addr(address_t addr);  // ($aaaa)
+    address_t page_zero_addr(address_t addr);  // $aa
+    address_t indirect_pz_addr(byte_t addr);  // ($aa)
+    address_t indexed_pz_addr(address_t addr, byte_t index);  // $aa,X
+    address_t indexed_indirect_addr(address_t addr, byte_t index); // ($aa,X)
+    address_t indirect_indexed_addr(address_t addr, byte_t index); // ($aa),Y
     std::string debug_addr_(byte_t type, address_t addr);
 
     // operations
@@ -103,6 +103,7 @@ private:
     void iny_();
     void jmp_(address_t addr);
     void jsr_(address_t addr);
+    void lax_(address_t addr);
     void lda_(byte_t operand);
     void lda_(address_t addr);
     void ldx_(byte_t operand);
@@ -124,6 +125,7 @@ private:
     void ror_(address_t addr);
     void rti_();
     void rts_();
+    void sax_(address_t addr);
     void sbc_(byte_t operand);
     void sbc_(address_t addr);
     void sec_();

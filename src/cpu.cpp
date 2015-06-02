@@ -62,7 +62,7 @@ void CPU::next()
     std::cout
         << std::hex << std::setfill('0')
         << std::setw(4) << program_counter_ << "  "
-        << "  " << std::setw(2) << static_cast<unsigned int>(data.opcode);
+        << "  " << std::setw(2) << _str(data.opcode);
 
     if (opcode_data(data.opcode).size > 1)
         std::cout << "  " << std::setw(2) << _str(data.addr_l);
@@ -74,7 +74,7 @@ void CPU::next()
     else
         std::cout << "    ";
 
-    std::cout << "  " << opcode_data(data.opcode).str;
+    std::cout << " " << opcode_data(data.opcode).str;
 
     std::cout << " "
         << std::setfill(' ') << std::left << std::setw(27)
@@ -88,16 +88,16 @@ void CPU::next()
         << " SP:" << std::setw(2) << _str(stack_pointer_)
         << '\n';
 
+    if (opcode_data(data.opcode).size == 0)
+    {
+        std::ostringstream oss;
+        oss << std::hex << "Unrecognized opcode " << _str(data.opcode);
+        throw std::runtime_error(oss.str());
+    }
+
     program_counter_ += opcode_data(data.opcode).size;
 
     exec_(data.opcode, addr);
-
-    /*if (program_counter_ < 0x8000)
-    {
-        std::ostringstream oss;
-        oss << std::hex << "Invalid jump to " << program_counter_;
-        throw std::runtime_error(oss.str());
-    }*/
 
     static int count = 0;
     if (++count > 9000)
@@ -213,6 +213,14 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
         case kJSR: jsr_(absolute_addr(addr));   break; // addr: $aaaa
 
+        case kLAX1: lax_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
+        case kLAX2: lax_(page_zero_addr(addr));                     break; // addr: $aa
+        case kLAX3: lax_(absolute_addr(addr));                      break; // addr: $aaaa
+        case kLAX4: lax_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
+        case kLAX5: lax_(indexed_pz_addr(addr, register_y_));       break; // addr: $aa,Y
+        case kLAX6: lax_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
+
+
         case kLDA1: lda_(immediate_addr(addr));                      break; // addr: #aa
         case kLDA2: lda_(page_zero_addr(addr));                      break; // addr: $aa
         case kLDA3: lda_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
@@ -275,14 +283,19 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
         case kRTS: rts_();  break;
 
+        case kSAX1: sax_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
+        case kSAX2: sax_(page_zero_addr(addr));                     break; // addr: $aa
+        case kSAX3: sax_(absolute_addr(addr));                      break; // addr: $aaaa
+        case kSAX4: sax_(indexed_pz_addr(addr, register_y_));       break; // addr: $aa,Y
+
         case kSBC1: sbc_(immediate_addr(addr));                     break; // addr: #aa
         case kSBC2: sbc_(page_zero_addr(addr));                     break; // addr: $aa
-        case kSBC3: sbc_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
+        case kSBC3: sbc_(indexed_pz_addr(addr, register_x_));       break; // addr: $aa,X
         case kSBC4: sbc_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kSBC5: sbc_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kSBC6: sbc_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kSBC7: sbc_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kSBC8: sbc_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kSBC5: sbc_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
+        case kSBC6: sbc_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
+        case kSBC7: sbc_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
+        case kSBC8: sbc_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
 
         case kSEC: sec_();  break;
 
@@ -291,12 +304,12 @@ void CPU::exec_(byte_t opcode, address_t addr)
         case kSEI: sei_();  break;
 
         case kSTA1: sta_(page_zero_addr(addr));                     break; // addr: $aa
-        case kSTA2: sta_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
+        case kSTA2: sta_(indexed_pz_addr(addr, register_x_));       break; // addr: $aa,X
         case kSTA4: sta_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kSTA5: sta_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kSTA6: sta_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kSTA7: sta_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kSTA8: sta_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+        case kSTA5: sta_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
+        case kSTA6: sta_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
+        case kSTA7: sta_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
+        case kSTA8: sta_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
 
         case kSTX1: stx_(page_zero_addr(addr));                 break; // addr: $aa
         case kSTX2: stx_(indexed_pz_addr(addr, register_y_));    break; // addr: $aa,Y
@@ -318,11 +331,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
         case kTYA: tya_();  break;
 
-        default:
-            std::ostringstream oss;
-                oss << std::hex << "Execution alted on unsupported opcode: " << static_cast<uint16_t>(opcode);
-            throw std::runtime_error(oss.str());
-            break;
+        default: nop_(); break;
     }
 }
 
@@ -349,27 +358,27 @@ inline address_t CPU::load_addr_(address_t addr)
 
 inline void CPU::store_stack_(byte_t operand)
 {
-    store_(0x0100 + stack_pointer_, operand);
+    store_(0x0100 | stack_pointer_, operand);
     --stack_pointer_;
 }
 
 inline void CPU::store_stack_(address_t addr)
 {
     --stack_pointer_;
-    store_(0x0100 + stack_pointer_, addr);
+    store_(0x0100 | stack_pointer_, addr);
     --stack_pointer_;
 }
 
 inline void CPU::load_stack_(byte_t & dest)
 {
     ++stack_pointer_;
-    dest = load_(0x0100 + stack_pointer_);
+    dest = load_(0x0100 | stack_pointer_);
 }
 
 inline void CPU::load_stack_(address_t & dest)
 {
     ++stack_pointer_;
-    dest = load_addr_(0x0100 + stack_pointer_);
+    dest = load_addr_(0x0100 | stack_pointer_);
     ++stack_pointer_;
 }
 
@@ -460,13 +469,18 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
         oss << "$" << _str(addr_l) << " = " << _str(load_(addr));
         break;
 
+    case ops::kZeroPageX:
+        addr = indexed_pz_addr(addr, register_x_);
+        oss << "$" << _str(addr_l) << ",X @ ";
+        addr_l = static_cast<byte_t>(0xFF & addr);
+        oss << _str(addr_l) << " = " << _str(load_(addr));
+        break;
+
     case ops::kAbsolute:
+        oss << "$" << _str(addr);
+        if (addr < 0x8000)
         {
-            oss << "$" << _str(addr);
-            if (addr < 0x8000)
-            {
-                oss << " = " << _str(load_(addr));
-            }
+            oss << " = " << _str(load_(addr));
         }
         break;
 
@@ -729,6 +743,13 @@ void CPU::jsr_(address_t addr)
     program_counter_ = addr;
 }
 
+void CPU::lax_(address_t addr)
+{
+    register_x_ = accumulator_ = load_(addr);
+    set_status_(kZero, accumulator_ == 0);
+    set_status_(kNegative, accumulator_ & kNegative);
+}
+
 void CPU::lda_(byte_t operand)
 {
     accumulator_ = operand;
@@ -866,6 +887,11 @@ void CPU::rts_()
 {
     load_stack_(program_counter_);
     ++program_counter_;
+}
+
+void CPU::sax_(address_t addr)
+{
+    store_(addr, static_cast<byte_t>(accumulator_ & register_x_));
 }
 
 void CPU::sbc_(byte_t operand)
