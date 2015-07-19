@@ -20,8 +20,6 @@ public:
 
 private:
     CPU cpu_;
-    PPU ppu_;
-    SDLRenderer renderer_;
 };
 
 Emulator::Emulator()
@@ -77,7 +75,7 @@ void Emulator::read(const std::string& filename)
 
         std::stringstream ss;
         ss << ifs.rdbuf();
-        std::string buf{ ss.str() };
+        std::string buf{ss.str()};
 
         // Program rom (PRG-ROM) is loaded in $8000
         std::memcpy(cpu_.data() + 0x8000, buf.data(), 0x4000);
@@ -101,8 +99,6 @@ int Emulator::run()
     for (;;)
     {
         cpu_.next();
-        ppu_.next();
-        renderer_.draw(ppu_.getImage());
         //std::getline(std::cin, s);
     }
 
