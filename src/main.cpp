@@ -14,19 +14,21 @@ class Emulator
 public:
     Emulator();
 
-    void read(const std::string & filename);
+    void read(const std::string& filename);
 
     int run();
 
 private:
     CPU cpu_;
+    PPU ppu_;
+    SDLRenderer renderer_;
 };
 
 Emulator::Emulator()
 {
 }
 
-void Emulator::read(const std::string & filename)
+void Emulator::read(const std::string& filename)
 {
     std::ifstream ifs(filename, std::ios_base::binary);
 
@@ -34,7 +36,8 @@ void Emulator::read(const std::string & filename)
     {
         char header[4];
         ifs.read(header, 4);
-        if (std::memcmp(header, "NES", 3) != 0 && header[3] != 0x1a) throw std::runtime_error(std::string("Bad file format"));
+        if (std::memcmp(header, "NES", 3) != 0 && header[3] != 0x1a)
+            throw std::runtime_error(std::string("Bad file format"));
 
         char num_16kb_rom_banks;
         ifs.read(&num_16kb_rom_banks, 1);
@@ -58,7 +61,8 @@ void Emulator::read(const std::string & filename)
 
         char num_8kb_ram_banks;
         ifs.read(&num_8kb_ram_banks, 1);
-        if (num_8kb_ram_banks == 0) num_8kb_ram_banks = 1;
+        if (num_8kb_ram_banks == 0)
+            num_8kb_ram_banks = 1;
         //std::cout << "num_8kb_ram_banks: " << (int)num_8kb_ram_banks << std::endl;
 
         char cartige_type;
@@ -68,11 +72,12 @@ void Emulator::read(const std::string & filename)
         ifs.seekg(16);
 
         // trainer is 512B, skip it for now
-        if (((0x4 & config[0]) >> 2) != 0) ifs.seekg(16 + 512);
+        if (((0x4 & config[0]) >> 2) != 0)
+            ifs.seekg(16 + 512);
 
         std::stringstream ss;
         ss << ifs.rdbuf();
-        std::string buf{ss.str()};
+        std::string buf{ ss.str() };
 
         // Program rom (PRG-ROM) is loaded in $8000
         std::memcpy(cpu_.data() + 0x8000, buf.data(), 0x4000);
@@ -93,19 +98,21 @@ int Emulator::run()
 {
     std::string s;
 
-    for(;;)
+    for (;;)
     {
         cpu_.next();
+        ppu_.next();
+        renderer_.draw(ppu_.getImage());
         //std::getline(std::cin, s);
     }
 
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-	if (argc < 2)
-		return 1;
+    if (argc < 2)
+        return 1;
 
     try
     {
@@ -114,7 +121,7 @@ int main(int argc, char *argv[])
 
         return emul.run();
     }
-    catch(const std::exception & e)
+    catch (const std::exception& e)
     {
         std::cerr << e.what() << std::endl;
         return 1;

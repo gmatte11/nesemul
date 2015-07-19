@@ -12,7 +12,10 @@ public:
     // Execute next instruction from the program
     void next();
 
-    inline byte_t *data() { return memory_.data(); }
+    inline byte_t* data()
+    {
+        return memory_.data();
+    }
 
 private:
     void exec_(byte_t opcode, address_t addr);
@@ -36,19 +39,19 @@ private:
 
     void store_stack_(byte_t operand);
     void store_stack_(address_t addr);
-    void load_stack_(byte_t & dest);
-    void load_stack_(address_t & dest);
+    void load_stack_(byte_t& dest);
+    void load_stack_(address_t& dest);
 
     // status flags
     enum StatusFlags : byte_t
     {
-        kCarry      = 1 << 0,
-        kZero       = 1 << 1,
+        kCarry = 1 << 0,
+        kZero = 1 << 1,
         kIntDisable = 1 << 2,
-        kDecimal    = 1 << 3,
-        kBreak      = 1 << 4,
-        kOverflow   = 1 << 6,
-        kNegative   = 1 << 7,
+        kDecimal = 1 << 3,
+        kBreak = 1 << 4,
+        kOverflow = 1 << 6,
+        kNegative = 1 << 7,
     };
 
     void set_status_(byte_t flag_mask, bool value);
@@ -57,11 +60,11 @@ private:
     // addressing
     byte_t immediate_addr(address_t addr); // #$aa
     address_t absolute_addr(address_t addr); // $aaaa
-    address_t indexed_abs_addr(address_t addr, byte_t index);  // $aaaa,X
-    address_t indirect_addr(address_t addr);  // ($aaaa)
-    address_t page_zero_addr(address_t addr);  // $aa
-    address_t indirect_pz_addr(byte_t addr);  // ($aa)
-    address_t indexed_pz_addr(address_t addr, byte_t index);  // $aa,X
+    address_t indexed_abs_addr(address_t addr, byte_t index); // $aaaa,X
+    address_t indirect_addr(address_t addr); // ($aaaa)
+    address_t page_zero_addr(address_t addr); // $aa
+    address_t indirect_pz_addr(byte_t addr); // ($aa)
+    address_t indexed_pz_addr(address_t addr, byte_t index); // $aa,X
     address_t indexed_indirect_addr(address_t addr, byte_t index); // ($aa,X)
     address_t indirect_indexed_addr(address_t addr, byte_t index); // ($aa),Y
     std::string debug_addr_(byte_t type, address_t addr);
@@ -119,9 +122,9 @@ private:
     void php_();
     void pla_();
     void plp_();
-    void rol_(byte_t & operand);
+    void rol_(byte_t& operand);
     void rol_(address_t addr);
-    void ror_(byte_t & operand);
+    void ror_(byte_t& operand);
     void ror_(address_t addr);
     void rti_();
     void rts_();

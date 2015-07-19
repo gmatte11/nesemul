@@ -15,35 +15,35 @@ using namespace ops;
 
 namespace
 {
-    typedef int8_t sbyte_t;
-    inline sbyte_t sign(byte_t b)
-    {
-        return *reinterpret_cast<sbyte_t *>(&b);
-    }
+typedef int8_t sbyte_t;
+inline sbyte_t sign(byte_t b)
+{
+    return *reinterpret_cast<sbyte_t*>(&b);
+}
 
-    std::string _str(byte_t operand)
-    {
-        std::ostringstream oss;
+std::string _str(byte_t operand)
+{
+    std::ostringstream oss;
 
-        oss << std::hex
-            << std::setw(2)
-            << std::setfill('0')
-            << (int)operand;
+    oss << std::hex
+        << std::setw(2)
+        << std::setfill('0')
+        << (int)operand;
 
-        return oss.str();
-    }
+    return oss.str();
+}
 
-    std::string _str(address_t addr)
-    {
-        std::ostringstream oss;
+std::string _str(address_t addr)
+{
+    std::ostringstream oss;
 
-        oss << std::hex
-            << std::setw(4)
-            << std::setfill('0')
-            << addr;
+    oss << std::hex
+        << std::setw(4)
+        << std::setfill('0')
+        << addr;
 
-        return oss.str();
-    }
+    return oss.str();
+}
 }
 
 void CPU::next()
@@ -77,8 +77,8 @@ void CPU::next()
     std::cout << " " << opcode_data(data.opcode).str;
 
     std::cout << " "
-        << std::setfill(' ') << std::left << std::setw(27)
-        << debug_addr_(opcode_data(data.opcode).addressing, addr);
+              << std::setfill(' ') << std::left << std::setw(27)
+              << debug_addr_(opcode_data(data.opcode).addressing, addr);
 
     std::cout
         << " A:" << std::setw(2) << _str(accumulator_)
@@ -111,227 +111,550 @@ void CPU::exec_(byte_t opcode, address_t addr)
     // execute operation
     switch (opcode)
     {
-        case kADC1: adc_(immediate_addr(addr));                     break; // addr: #aa
-        case kADC2: adc_(page_zero_addr(addr));                     break; // addr: $aa
-        case kADC3: adc_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
-        case kADC4: adc_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kADC5: adc_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kADC6: adc_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kADC7: adc_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kADC8: adc_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+    case kADC1:
+        adc_(immediate_addr(addr));
+        break; // addr: #aa
+    case kADC2:
+        adc_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kADC3:
+        adc_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kADC4:
+        adc_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kADC5:
+        adc_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kADC6:
+        adc_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kADC7:
+        adc_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kADC8:
+        adc_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kAND1: and_(immediate_addr(addr));                     break; // addr: #aa
-        case kAND2: and_(page_zero_addr(addr));                     break; // addr: $aa
-        case kAND3: and_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
-        case kAND4: and_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kAND5: and_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kAND6: and_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kAND7: and_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kAND8: and_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+    case kAND1:
+        and_(immediate_addr(addr));
+        break; // addr: #aa
+    case kAND2:
+        and_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kAND3:
+        and_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kAND4:
+        and_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kAND5:
+        and_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kAND6:
+        and_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kAND7:
+        and_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kAND8:
+        and_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kASL1: asl_();                                         break; // addr: A
-        case kASL2: asl_(page_zero_addr(addr));                     break; // addr: $aa
-        case kASL3: asl_(indexed_pz_addr(addr,  register_x_));       break; // addr: $aa,X
-        case kASL4: asl_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kASL5: asl_(indexed_abs_addr(addr,  register_x_));      break; // addr: $aaaa,X
+    case kASL1:
+        asl_();
+        break; // addr: A
+    case kASL2:
+        asl_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kASL3:
+        asl_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kASL4:
+        asl_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kASL5:
+        asl_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kBCC: bcc_(page_zero_addr(addr)); break; // addr: $aa
+    case kBCC:
+        bcc_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBCS: bcs_(page_zero_addr(addr)); break; // addr: $aa
+    case kBCS:
+        bcs_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBEQ: beq_(page_zero_addr(addr)); break; // addr: $aa
+    case kBEQ:
+        beq_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBIT1: bit_(page_zero_addr(addr)); break; // addr: $aa
-        case kBIT2: bit_(absolute_addr(addr));  break; // addr: $aaaa
+    case kBIT1:
+        bit_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kBIT2:
+        bit_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kBMI: bmi_(page_zero_addr(addr)); break; // addr: $aa
+    case kBMI:
+        bmi_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBNE: bne_(page_zero_addr(addr)); break; // addr: $aa
+    case kBNE:
+        bne_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBPL: bpl_(page_zero_addr(addr)); break; // addr: $aa
+    case kBPL:
+        bpl_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBRK: brk_();  break;
+    case kBRK:
+        brk_();
+        break;
 
-        case kBVC: bvc_(page_zero_addr(addr)); break; // addr: $aa
+    case kBVC:
+        bvc_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kBVS: bvs_(page_zero_addr(addr)); break; // addr: $aa
+    case kBVS:
+        bvs_(page_zero_addr(addr));
+        break; // addr: $aa
 
-        case kCLC: clc_();  break;
+    case kCLC:
+        clc_();
+        break;
 
-        case kCLD: cld_();  break;
+    case kCLD:
+        cld_();
+        break;
 
-        case kCLI: cli_();  break;
+    case kCLI:
+        cli_();
+        break;
 
-        case kCLV: clv_();  break;
+    case kCLV:
+        clv_();
+        break;
 
-        case kCMP1: cmp_(immediate_addr(addr));                     break; // addr: #aa
-        case kCMP2: cmp_(page_zero_addr(addr));                     break; // addr: $aa
-        case kCMP3: cmp_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
-        case kCMP4: cmp_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kCMP5: cmp_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kCMP6: cmp_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kCMP7: cmp_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kCMP8: cmp_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+    case kCMP1:
+        cmp_(immediate_addr(addr));
+        break; // addr: #aa
+    case kCMP2:
+        cmp_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kCMP3:
+        cmp_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kCMP4:
+        cmp_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kCMP5:
+        cmp_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kCMP6:
+        cmp_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kCMP7:
+        cmp_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kCMP8:
+        cmp_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kCPX1: cpx_(immediate_addr(addr)); break; // addr: #aa
-        case kCPX2: cpx_(page_zero_addr(addr)); break; // addr: $aa
-        case kCPX3: cpx_(absolute_addr(addr));  break; // addr: $aaaa
+    case kCPX1:
+        cpx_(immediate_addr(addr));
+        break; // addr: #aa
+    case kCPX2:
+        cpx_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kCPX3:
+        cpx_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kCPY1: cpy_(immediate_addr(addr)); break; // addr: #aa
-        case kCPY2: cpy_(page_zero_addr(addr)); break; // addr: $aa
-        case kCPY3: cpy_(absolute_addr(addr));  break; // addr: $aaaa
+    case kCPY1:
+        cpy_(immediate_addr(addr));
+        break; // addr: #aa
+    case kCPY2:
+        cpy_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kCPY3:
+        cpy_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kDEC1: dec_(page_zero_addr(addr));                 break; // addr: $aa
-        case kDEC2: dec_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
-        case kDEC3: dec_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kDEC4: dec_(indexed_abs_addr(addr, register_x_));   break; // addr: $aaaa,X
+    case kDEC1:
+        dec_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kDEC2:
+        dec_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kDEC3:
+        dec_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kDEC4:
+        dec_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kDEX: dex_();  break;
+    case kDEX:
+        dex_();
+        break;
 
-        case kDEY: dey_();  break;
+    case kDEY:
+        dey_();
+        break;
 
-        case kEOR1: eor_(immediate_addr(addr));                     break; // addr: #aa
-        case kEOR2: eor_(page_zero_addr(addr));                     break; // addr: $aa
-        case kEOR3: eor_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
-        case kEOR4: eor_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kEOR5: eor_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kEOR6: eor_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kEOR7: eor_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kEOR8: eor_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+    case kEOR1:
+        eor_(immediate_addr(addr));
+        break; // addr: #aa
+    case kEOR2:
+        eor_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kEOR3:
+        eor_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kEOR4:
+        eor_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kEOR5:
+        eor_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kEOR6:
+        eor_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kEOR7:
+        eor_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kEOR8:
+        eor_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kINC1: inc_(page_zero_addr(addr));                 break; // addr: $aa
-        case kINC2: inc_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
-        case kINC3: inc_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kINC4: inc_(indexed_abs_addr(addr, register_x_));   break; // addr: $aaaa,X
+    case kINC1:
+        inc_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kINC2:
+        inc_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kINC3:
+        inc_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kINC4:
+        inc_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kINX: inx_();  break;
+    case kINX:
+        inx_();
+        break;
 
-        case kINY: iny_();  break;
+    case kINY:
+        iny_();
+        break;
 
-        case kJMP1: jmp_(absolute_addr(addr)); break; // addr: $aaaa
-        case kJMP2: jmp_(indirect_addr(addr)); break; // addr: ($aaaa)
+    case kJMP1:
+        jmp_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kJMP2:
+        jmp_(indirect_addr(addr));
+        break; // addr: ($aaaa)
 
-        case kJSR: jsr_(absolute_addr(addr));   break; // addr: $aaaa
+    case kJSR:
+        jsr_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kLAX1: lax_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kLAX2: lax_(page_zero_addr(addr));                     break; // addr: $aa
-        case kLAX3: lax_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kLAX4: lax_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
-        case kLAX5: lax_(indexed_pz_addr(addr, register_y_));       break; // addr: $aa,Y
-        case kLAX6: lax_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
+    case kLAX1:
+        lax_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kLAX2:
+        lax_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kLAX3:
+        lax_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kLAX4:
+        lax_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
+    case kLAX5:
+        lax_(indexed_pz_addr(addr, register_y_));
+        break; // addr: $aa,Y
+    case kLAX6:
+        lax_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
 
+    case kLDA1:
+        lda_(immediate_addr(addr));
+        break; // addr: #aa
+    case kLDA2:
+        lda_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kLDA3:
+        lda_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kLDA4:
+        lda_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kLDA5:
+        lda_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kLDA6:
+        lda_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kLDA7:
+        lda_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kLDA8:
+        lda_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kLDA1: lda_(immediate_addr(addr));                      break; // addr: #aa
-        case kLDA2: lda_(page_zero_addr(addr));                      break; // addr: $aa
-        case kLDA3: lda_(indexed_pz_addr(addr, register_x_));        break; // addr: $aa,X
-        case kLDA4: lda_(absolute_addr(addr));                       break; // addr: $aaaa
-        case kLDA5: lda_(indexed_abs_addr(addr, register_x_));       break; // addr: $aaaa,X
-        case kLDA6: lda_(indexed_abs_addr(addr, register_y_));       break; // addr: $aaaa,Y
-        case kLDA7: lda_(indexed_indirect_addr(addr, register_x_));  break; // addr: ($aa,X)
-        case kLDA8: lda_(indirect_indexed_addr(addr, register_y_));  break; // addr: ($aa),Y
+    case kLDX1:
+        ldx_(immediate_addr(addr));
+        break; // addr: #aa
+    case kLDX2:
+        ldx_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kLDX3:
+        ldx_(indexed_pz_addr(addr, register_y_));
+        break; // addr: $aa,Y
+    case kLDX4:
+        ldx_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kLDX5:
+        ldx_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
 
-        case kLDX1: ldx_(immediate_addr(addr)); break; // addr: #aa
-        case kLDX2: ldx_(page_zero_addr(addr)); break; // addr: $aa
-        case kLDX3: ldx_(indexed_pz_addr(addr, register_y_)); break; // addr: $aa,Y
-        case kLDX4: ldx_(absolute_addr(addr)); break; // addr: $aaaa
-        case kLDX5: ldx_(indexed_abs_addr(addr, register_y_)); break; // addr: $aaaa,Y
+    case kLDY1:
+        ldy_(immediate_addr(addr));
+        break; // addr: #aa
+    case kLDY2:
+        ldy_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kLDY3:
+        ldy_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kLDY4:
+        ldy_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kLDY5:
+        ldy_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kLDY1: ldy_(immediate_addr(addr)); break; // addr: #aa
-        case kLDY2: ldy_(page_zero_addr(addr)); break; // addr: $aa
-        case kLDY3: ldy_(indexed_pz_addr(addr, register_x_)); break; // addr: $aa,X
-        case kLDY4: ldy_(absolute_addr(addr)); break; // addr: $aaaa
-        case kLDY5: ldy_(indexed_abs_addr(addr, register_x_)); break; // addr: $aaaa,X
+    case kLSR1:
+        lsr_();
+        break; // addr: A
+    case kLSR2:
+        lsr_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kLSR3:
+        lsr_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kLSR4:
+        lsr_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kLSR5:
+        lsr_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kLSR1: lsr_();                                     break; // addr: A
-        case kLSR2: lsr_(page_zero_addr(addr));                 break; // addr: $aa
-        case kLSR3: lsr_(indexed_pz_addr(addr, register_x_));   break; // addr: $aa,X
-        case kLSR4: lsr_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kLSR5: lsr_(indexed_abs_addr(addr, register_x_));  break; // addr: $aaaa,X
+    case kNOP:
+        nop_();
+        break;
 
-        case kNOP: nop_();  break;
+    case kORA1:
+        ora_(immediate_addr(addr));
+        break; // addr: #aa
+    case kORA2:
+        ora_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kORA3:
+        ora_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kORA4:
+        ora_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kORA5:
+        ora_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kORA6:
+        ora_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kORA7:
+        ora_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kORA8:
+        ora_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kORA1: ora_(immediate_addr(addr));                     break; // addr: #aa
-        case kORA2: ora_(page_zero_addr(addr));                     break; // addr: $aa
-        case kORA3: ora_(indexed_pz_addr(addr, register_x_));       break; // addr: $aa,X
-        case kORA4: ora_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kORA5: ora_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
-        case kORA6: ora_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
-        case kORA7: ora_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kORA8: ora_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
+    case kPHA:
+        pha_();
+        break;
 
-        case kPHA: pha_();  break;
+    case kPHP:
+        php_();
+        break;
 
-        case kPHP: php_();  break;
+    case kPLA:
+        pla_();
+        break;
 
-        case kPLA: pla_();  break;
+    case kPLP:
+        plp_();
+        break;
 
-        case kPLP: plp_();  break;
+    case kROL1:
+        rol_(accumulator_);
+        break; // addr: A
+    case kROL2:
+        rol_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kROL3:
+        rol_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kROL4:
+        rol_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kROL5:
+        rol_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kROL1: rol_(accumulator_);                         break; // addr: A
-        case kROL2: rol_(page_zero_addr(addr));                 break; // addr: $aa
-        case kROL3: rol_(indexed_pz_addr(addr, register_x_));   break; // addr: $aa,X
-        case kROL4: rol_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kROL5: rol_(indexed_abs_addr(addr, register_x_));  break; // addr: $aaaa,X
+    case kROR1:
+        ror_(accumulator_);
+        break; // addr: A
+    case kROR2:
+        ror_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kROR3:
+        ror_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kROR4:
+        ror_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kROR5:
+        ror_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
 
-        case kROR1: ror_(accumulator_);                         break; // addr: A
-        case kROR2: ror_(page_zero_addr(addr));                 break; // addr: $aa
-        case kROR3: ror_(indexed_pz_addr(addr, register_x_));   break; // addr: $aa,X
-        case kROR4: ror_(absolute_addr(addr));                  break; // addr: $aaaa
-        case kROR5: ror_(indexed_abs_addr(addr, register_x_));  break; // addr: $aaaa,X
+    case kRTI:
+        rti_();
+        break;
 
-        case kRTI: rti_();  break;
+    case kRTS:
+        rts_();
+        break;
 
-        case kRTS: rts_();  break;
+    case kSAX1:
+        sax_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kSAX2:
+        sax_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kSAX3:
+        sax_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kSAX4:
+        sax_(indexed_pz_addr(addr, register_y_));
+        break; // addr: $aa,Y
 
-        case kSAX1: sax_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kSAX2: sax_(page_zero_addr(addr));                     break; // addr: $aa
-        case kSAX3: sax_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kSAX4: sax_(indexed_pz_addr(addr, register_y_));       break; // addr: $aa,Y
+    case kSBC1:
+        sbc_(immediate_addr(addr));
+        break; // addr: #aa
+    case kSBC2:
+        sbc_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kSBC3:
+        sbc_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kSBC4:
+        sbc_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kSBC5:
+        sbc_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kSBC6:
+        sbc_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kSBC7:
+        sbc_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kSBC8:
+        sbc_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kSBC1: sbc_(immediate_addr(addr));                     break; // addr: #aa
-        case kSBC2: sbc_(page_zero_addr(addr));                     break; // addr: $aa
-        case kSBC3: sbc_(indexed_pz_addr(addr, register_x_));       break; // addr: $aa,X
-        case kSBC4: sbc_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kSBC5: sbc_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
-        case kSBC6: sbc_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
-        case kSBC7: sbc_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kSBC8: sbc_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
+    case kSEC:
+        sec_();
+        break;
 
-        case kSEC: sec_();  break;
+    case kSED:
+        sed_();
+        break;
 
-        case kSED: sed_();  break;
+    case kSEI:
+        sei_();
+        break;
 
-        case kSEI: sei_();  break;
+    case kSTA1:
+        sta_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kSTA2:
+        sta_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kSTA4:
+        sta_(absolute_addr(addr));
+        break; // addr: $aaaa
+    case kSTA5:
+        sta_(indexed_abs_addr(addr, register_x_));
+        break; // addr: $aaaa,X
+    case kSTA6:
+        sta_(indexed_abs_addr(addr, register_y_));
+        break; // addr: $aaaa,Y
+    case kSTA7:
+        sta_(indexed_indirect_addr(addr, register_x_));
+        break; // addr: ($aa,X)
+    case kSTA8:
+        sta_(indirect_indexed_addr(addr, register_y_));
+        break; // addr: ($aa),Y
 
-        case kSTA1: sta_(page_zero_addr(addr));                     break; // addr: $aa
-        case kSTA2: sta_(indexed_pz_addr(addr, register_x_));       break; // addr: $aa,X
-        case kSTA4: sta_(absolute_addr(addr));                      break; // addr: $aaaa
-        case kSTA5: sta_(indexed_abs_addr(addr, register_x_));      break; // addr: $aaaa,X
-        case kSTA6: sta_(indexed_abs_addr(addr, register_y_));      break; // addr: $aaaa,Y
-        case kSTA7: sta_(indexed_indirect_addr(addr, register_x_)); break; // addr: ($aa,X)
-        case kSTA8: sta_(indirect_indexed_addr(addr, register_y_)); break; // addr: ($aa),Y
+    case kSTX1:
+        stx_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kSTX2:
+        stx_(indexed_pz_addr(addr, register_y_));
+        break; // addr: $aa,Y
+    case kSTX3:
+        stx_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kSTX1: stx_(page_zero_addr(addr));                 break; // addr: $aa
-        case kSTX2: stx_(indexed_pz_addr(addr, register_y_));    break; // addr: $aa,Y
-        case kSTX3: stx_(absolute_addr(addr));                  break; // addr: $aaaa
+    case kSTY1:
+        sty_(page_zero_addr(addr));
+        break; // addr: $aa
+    case kSTY2:
+        sty_(indexed_pz_addr(addr, register_x_));
+        break; // addr: $aa,X
+    case kSTY3:
+        sty_(absolute_addr(addr));
+        break; // addr: $aaaa
 
-        case kSTY1: sty_(page_zero_addr(addr));                 break; // addr: $aa
-        case kSTY2: sty_(indexed_pz_addr(addr, register_x_));    break; // addr: $aa,X
-        case kSTY3: sty_(absolute_addr(addr));                  break; // addr: $aaaa
+    case kTAX:
+        tax_();
+        break;
 
-        case kTAX: tax_();  break;
+    case kTAY:
+        tay_();
+        break;
 
-        case kTAY: tay_();  break;
+    case kTSX:
+        tsx_();
+        break;
 
-        case kTSX: tsx_();  break;
+    case kTXA:
+        txa_();
+        break;
 
-        case kTXA: txa_();  break;
+    case kTXS:
+        txs_();
+        break;
 
-        case kTXS: txs_();  break;
+    case kTYA:
+        tya_();
+        break;
 
-        case kTYA: tya_();  break;
-
-        default: nop_(); break;
+    default:
+        nop_();
+        break;
     }
 }
 
@@ -369,13 +692,13 @@ inline void CPU::store_stack_(address_t addr)
     --stack_pointer_;
 }
 
-inline void CPU::load_stack_(byte_t & dest)
+inline void CPU::load_stack_(byte_t& dest)
 {
     ++stack_pointer_;
     dest = load_(0x0100 | stack_pointer_);
 }
 
-inline void CPU::load_stack_(address_t & dest)
+inline void CPU::load_stack_(address_t& dest)
 {
     ++stack_pointer_;
     dest = load_addr_(0x0100 | stack_pointer_);
@@ -438,7 +761,7 @@ inline address_t CPU::indirect_pz_addr(byte_t addr)
 // $(00)
 inline address_t CPU::indexed_pz_addr(address_t addr, byte_t index)
 {
-    return  static_cast<byte_t>(static_cast<byte_t>(0xFF & addr) + index);
+    return static_cast<byte_t>(static_cast<byte_t>(0xFF & addr) + index);
 }
 
 // $(00,X)
@@ -459,7 +782,7 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
 
     byte_t addr_l = static_cast<byte_t>(0xFF & addr);
 
-    switch(type)
+    switch (type)
     {
     case ops::kImmediate:
         oss << "#$" << _str(addr_l);
@@ -842,11 +1165,12 @@ void CPU::plp_()
     set_status_(0x20, true); // always 1 flag
 }
 
-void CPU::rol_(byte_t & operand)
+void CPU::rol_(byte_t& operand)
 {
     byte_t carry = operand & kNegative;
     operand <<= 1;
-    if (get_status_(kCarry)) operand |= kCarry;
+    if (get_status_(kCarry))
+        operand |= kCarry;
     set_status_(kCarry, carry != 0);
     set_status_(kZero, operand == 0);
     set_status_(kNegative, operand & kNegative);
@@ -859,11 +1183,12 @@ void CPU::rol_(address_t addr)
     store_(addr, operand);
 }
 
-void CPU::ror_(byte_t & operand)
+void CPU::ror_(byte_t& operand)
 {
     byte_t carry = operand & kCarry;
     operand >>= 1;
-    if (get_status_(kCarry)) operand |= kNegative;
+    if (get_status_(kCarry))
+        operand |= kNegative;
     set_status_(kCarry, carry != 0);
     set_status_(kZero, operand == 0);
     set_status_(kNegative, operand & kNegative);
