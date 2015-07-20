@@ -8,6 +8,7 @@
 
 #include <types.h>
 #include <cpu.h>
+#include <ppu.h>
 
 class Emulator
 {
@@ -20,9 +21,11 @@ public:
 
 private:
     CPU cpu_;
+    PPU ppu_;
 };
 
 Emulator::Emulator()
+    : ppu_(cpu_.data() + 0x2000, cpu_.data() + 0x4014)
 {
 }
 
@@ -84,7 +87,7 @@ void Emulator::read(const std::string& filename)
             std::memcpy(cpu_.data() + 0xC000, buf.data(), 0x4000);
 
         // Character rom (CHR-ROM) is loaded in ppu $0000
-        //std::memcpy(ppu_memory_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
+        std::memcpy(ppu_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
     }
     else
     {
@@ -96,9 +99,13 @@ int Emulator::run()
 {
     std::string s;
 
+    cpu_.reset();
+    ppu_.reset();
+
     for (;;)
     {
         cpu_.next();
+        ppu_.next();
         //std::getline(std::cin, s);
     }
 

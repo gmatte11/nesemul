@@ -6,7 +6,7 @@ LD=clang++
 LDFLAGS=
 LDLIBS=
 
-SRCS=ops.cpp cpu.cpp main.cpp
+SRCS=ops.cpp cpu.cpp ppu.cpp main.cpp
 OBJS=$(patsubst %.cpp,build/%.o,$(SRCS))
 TARGET=nesemul
 

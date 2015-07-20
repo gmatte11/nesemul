@@ -11,6 +11,7 @@ class CPU
 public:
     // Execute next instruction from the program
     void next();
+    void reset();
 
     inline byte_t* data()
     {
@@ -20,12 +21,14 @@ public:
 private:
     void exec_(byte_t opcode, address_t addr);
 
+    byte_t timing_ = 0x0;
+
     // registers
     byte_t accumulator_ = 0x0;
     byte_t register_x_ = 0x0;
     byte_t register_y_ = 0x0;
     byte_t status_ = 0x24;
-    address_t program_counter_ = 0x8000;
+    address_t program_counter_ = 0x0000;
     byte_t stack_pointer_ = 0xFD;
 
     // memory buffer

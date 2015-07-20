@@ -53,57 +53,77 @@ void CPU::next()
         byte_t opcode;
         byte_t addr_l;
         byte_t addr_h;
-    } data;
+    } static data;
 
-    std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
+    static address_t addr = 0x0;
 
-    address_t addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
-
-    std::cout
-        << std::hex << std::setfill('0')
-        << std::setw(4) << program_counter_ << "  "
-        << "  " << std::setw(2) << _str(data.opcode);
-
-    if (opcode_data(data.opcode).size > 1)
-        std::cout << "  " << std::setw(2) << _str(data.addr_l);
-    else
-        std::cout << "    ";
-
-    if (opcode_data(data.opcode).size > 2)
-        std::cout << "  " << std::setw(2) << _str(data.addr_h);
-    else
-        std::cout << "    ";
-
-    std::cout << " " << opcode_data(data.opcode).str;
-
-    std::cout << " "
-              << std::setfill(' ') << std::left << std::setw(27)
-              << debug_addr_(opcode_data(data.opcode).addressing, addr);
-
-    std::cout
-        << " A:" << std::setw(2) << _str(accumulator_)
-        << " X:" << std::setw(2) << _str(register_x_)
-        << " Y:" << std::setw(2) << _str(register_y_)
-        << " P:" << std::setw(2) << _str(status_)
-        << " SP:" << std::setw(2) << _str(stack_pointer_)
-        << '\n';
-
-    if (opcode_data(data.opcode).size == 0)
+    if (timing_ == 0x0)
     {
-        std::ostringstream oss;
-        oss << std::hex << "Unrecognized opcode " << _str(data.opcode);
-        throw std::runtime_error(oss.str());
+        std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
+
+        addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
+
+        std::cout
+            << std::hex << std::setfill('0')
+            << std::setw(4) << program_counter_ << "  "
+            << "  " << std::setw(2) << _str(data.opcode);
+
+        if (opcode_data(data.opcode).size > 1)
+            std::cout << "  " << std::setw(2) << _str(data.addr_l);
+        else
+            std::cout << "    ";
+
+        if (opcode_data(data.opcode).size > 2)
+            std::cout << "  " << std::setw(2) << _str(data.addr_h);
+        else
+            std::cout << "    ";
+
+        std::cout << " " << opcode_data(data.opcode).str;
+
+        std::cout << " "
+                  << std::setfill(' ') << std::left << std::setw(27)
+                  << debug_addr_(opcode_data(data.opcode).addressing, addr);
+
+        std::cout
+            << " A:" << std::setw(2) << _str(accumulator_)
+            << " X:" << std::setw(2) << _str(register_x_)
+            << " Y:" << std::setw(2) << _str(register_y_)
+            << " P:" << std::setw(2) << _str(status_)
+            << " SP:" << std::setw(2) << _str(stack_pointer_)
+            << '\n';
+
+        if (opcode_data(data.opcode).size == 0)
+        {
+            std::ostringstream oss;
+            oss << std::hex << "Unrecognized opcode " << _str(data.opcode);
+            throw std::runtime_error(oss.str());
+        }
+
+        program_counter_ += opcode_data(data.opcode).size;
+        timing_ = opcode_data(data.opcode).timing;
     }
 
-    program_counter_ += opcode_data(data.opcode).size;
+    if (timing_ <= 1)
+        exec_(data.opcode, addr);
 
-    exec_(data.opcode, addr);
+    if (timing_ > 0)
+        --timing_;
 
+    // This is only for developement. It will be removed once basic tests pass without infinite loops.
     static int count = 0;
     if (++count > 9000)
     {
         throw std::runtime_error("too many operations");
     }
+}
+
+void CPU::reset()
+{
+    timing_ = 0;
+
+    program_counter_ = load_addr_(0xFFFC);
+    //program_counter_ = 0x8000; //for CPU tests with nestest.nes
+    set_status_(kIntDisable, false);
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
@@ -676,7 +696,7 @@ inline byte_t CPU::load_(address_t addr)
 
 inline address_t CPU::load_addr_(address_t addr)
 {
-    return static_cast<address_t>(memory_[addr + 1]) << 8 | (0xFF & static_cast<address_t>(memory_[addr]));
+    return (static_cast<address_t>(memory_[addr + 1]) << 8) | (0xFF & static_cast<address_t>(memory_[addr]));
 }
 
 inline void CPU::store_stack_(byte_t operand)
