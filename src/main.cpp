@@ -9,6 +9,7 @@
 #include <types.h>
 #include <cpu.h>
 #include <ppu.h>
+#include <sdl_renderer.h>
 
 class Emulator
 {
@@ -99,6 +100,8 @@ int Emulator::run()
 {
     std::string s;
 
+    SDLRenderer renderer(340, 240);
+
     cpu_.reset();
     ppu_.reset();
 
@@ -106,7 +109,13 @@ int Emulator::run()
     {
         cpu_.next();
         ppu_.next();
-        //std::getline(std::cin, s);
+
+        if (renderer.timeout())
+        {
+            if (!renderer.update())
+                break;
+            renderer.draw(ppu_.output());
+        }
     }
 
     return 0;

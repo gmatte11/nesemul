@@ -110,11 +110,11 @@ void CPU::next()
         --timing_;
 
     // This is only for developement. It will be removed once basic tests pass without infinite loops.
-    static int count = 0;
+    /*static int count = 0;
     if (++count > 9000)
     {
         throw std::runtime_error("too many operations");
-    }
+    }*/
 }
 
 void CPU::reset()

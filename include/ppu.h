@@ -4,6 +4,8 @@
 #include <types.h>
 #include <array>
 
+#include <image.h>
+
 class PPU
 {
 public:
@@ -17,9 +19,17 @@ public:
         return memory_.data();
     }
 
+    inline const Image& output()
+    {
+        return output_;
+    }
+
 private:
     int scanline_ = -1;
     unsigned int cycle_ = 0;
+
+    // Output image
+    Image output_;
 
     // memory
     std::array<byte_t, 0x4000> memory_{};
