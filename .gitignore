@@ -4,6 +4,7 @@ nesemul
 # Folders
 bin/
 build/
+data/
 
 # log files
 *.log

@@ -8,7 +8,7 @@ SDLRenderer::SDLRenderer(int width, int height)
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         throw std::runtime_error("Can't initialize SDL.");
 
-    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, 0)) == nullptr)
+    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 4, height * 4, 0)) == nullptr)
         throw std::runtime_error("Can't initialize SDL window.");
 
     if ((renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED)) == nullptr)
@@ -41,13 +41,16 @@ bool SDLRenderer::update()
     return true;
 }
 
-void SDLRenderer::draw(const Image& img)
+void SDLRenderer::draw(const PPU& ppu)
 {
     static void* pixels;
-    static int pitch;
-    SDL_LockTexture(display_, NULL, &pixels, &pitch);
-    std::memcpy(pixels, img.data(), img.size());
+    static int pitch = 0;
+
+    SDL_Rect rect{0, 0, 120, 15};
+    SDL_LockTexture(display_, &rect, &pixels, &pitch);
+    ppu.pattern_table((byte_t*)pixels, pitch);
     SDL_UnlockTexture(display_);
+
     SDL_RenderCopy(renderer_, display_, nullptr, nullptr);
     SDL_RenderPresent(renderer_);
 }

@@ -100,7 +100,7 @@ int Emulator::run()
 {
     std::string s;
 
-    SDLRenderer renderer(340, 240);
+    SDLRenderer renderer(256, 240);
 
     cpu_.reset();
     ppu_.reset();
@@ -114,7 +114,7 @@ int Emulator::run()
         {
             if (!renderer.update())
                 break;
-            renderer.draw(ppu_.output());
+            renderer.draw(ppu_);
         }
     }
 

@@ -5,6 +5,6 @@
 
 #include <array>
 
-using Image = std::array<byte_t, 3 * 340 * 240>;
+using Image = std::array<byte_t, 3 * 256 * 240>;
 
 #endif // __NESEMUL_IMAGE_H__

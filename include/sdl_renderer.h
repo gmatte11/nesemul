@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h>
 
 #include <image.h>
+#include <ppu.h>
 
 class SDLRenderer
 {
@@ -11,7 +12,7 @@ public:
     ~SDLRenderer();
 
     bool update();
-    void draw(const Image& img);
+    void draw(const PPU& ppu);
     bool timeout();
 
 private:

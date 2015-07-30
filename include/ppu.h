@@ -24,6 +24,8 @@ public:
         return output_;
     }
 
+    void pattern_table(byte_t* buf, int pitch) const;
+
 private:
     int scanline_ = -1;
     unsigned int cycle_ = 0;
@@ -34,6 +36,12 @@ private:
     // memory
     std::array<byte_t, 0x4000> memory_{};
     std::array<byte_t, 0xFF> oam_{};
+
+    // shift registers
+    uint16_t register_1;
+    uint16_t register_2;
+    uint8_t register_3;
+    uint8_t register_4;
 
     // registers mapped to CPU's memory
     byte_t& ppuctrl_;
