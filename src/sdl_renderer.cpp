@@ -8,7 +8,7 @@ SDLRenderer::SDLRenderer(int width, int height)
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         throw std::runtime_error("Can't initialize SDL.");
 
-    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 4, height * 4, 0)) == nullptr)
+    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 3, height * 3, SDL_WINDOW_MINIMIZED)) == nullptr)
         throw std::runtime_error("Can't initialize SDL window.");
 
     if ((renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED)) == nullptr)
@@ -46,9 +46,25 @@ void SDLRenderer::draw(const PPU& ppu)
     static void* pixels;
     static int pitch = 0;
 
-    SDL_Rect rect{0, 0, 120, 15};
+    // NAM (todo)
+    SDL_Rect rect{0, 0, 256, 256};
     SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.pattern_table((byte_t*)pixels, pitch);
+    for (int i = 0; i < pitch / 3 * rect.h; ++i)
+    {
+        std::memcpy(static_cast<byte_t *>(pixels) + (i * 3), std::array<byte_t, 3>{0x92, 0x90, 0xff}.data(), 3);
+    }
+    SDL_UnlockTexture(display_);
+
+    // PAT 0000
+    rect = {32 * 8 + 10, 0, 128, 128};
+    SDL_LockTexture(display_, &rect, &pixels, &pitch);
+    ppu.pattern_table((byte_t*)pixels, pitch, 0);
+    SDL_UnlockTexture(display_);
+
+    // PAT 1000
+    rect.y += 128 + 10;
+    SDL_LockTexture(display_, &rect, &pixels, &pitch);
+    ppu.pattern_table((byte_t*)pixels, pitch, 1);
     SDL_UnlockTexture(display_);
 
     SDL_RenderCopy(renderer_, display_, nullptr, nullptr);

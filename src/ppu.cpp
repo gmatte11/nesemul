@@ -1,5 +1,7 @@
 #include <ppu.h>
 
+#include <cstring>
+
 struct Color
 {
     byte_t r, g, b;
@@ -78,7 +80,6 @@ void PPU::next()
 
     //for (int c = 0; c < 3; ++c)
     {
-
         ppustatus_ = 0xA0;
 
         if (ppuaddr_ != 0)
@@ -140,19 +141,19 @@ void PPU::next()
     }
 }
 
-void PPU::pattern_table(byte_t* buf, int pitch) const
+void PPU::pattern_table(byte_t* buf, int pitch, int index) const
 {
     size_t row_len = pitch / 3;
 
-    address_t ptaddr = patttable_addr[0x10 & ppuctrl_ ? 1 : 0];
-    ;
+    address_t ptaddr = patttable_addr[index];
+    
     byte_t lpat;
     byte_t hpat;
 
     for (unsigned int i = 0; i < 0xff; ++i)
     {
-        size_t tile = i / 8;
-        size_t tile_row = tile / 15;
+        size_t tile = i;
+        size_t tile_row = tile / 16;
 
         for (unsigned int row = 0; row < 8; ++row)
         {
@@ -161,21 +162,24 @@ void PPU::pattern_table(byte_t* buf, int pitch) const
             lpat = memory_[laddr];
             hpat = memory_[haddr];
 
-            size_t x_off = (tile % 15) * 8;
+            size_t x_off = (tile % 16) * 8;
             size_t y_off = tile_row * row_len * 8 + row * row_len;
 
             for (unsigned int col = 0; col < 8; ++col)
             {
                 size_t pixel = (y_off + x_off + col) * 3;
-                byte_t val = (0x1 & hpat >> (8 - col)) | (0x2 & lpat >> (8 - col));
+                byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
 
-                //00 = black
-                //10 = cyan
-                //01 = yellow
-                //11 = green
-                buf[pixel + 0] = (val == 1) ? 0xff : 0x00;
-                buf[pixel + 1] = (val == 1 || val == 3) ? 0xff : 0x00;
-                buf[pixel + 2] = (val == 2) ? 0xff : 0x00;
+                // temporary RGB pallet
+                static std::array<byte_t, 12> tmp_pallet = 
+                    {
+                        0x92, 0x90, 0xff, // pale blue
+                        0x88, 0xd8, 0x00, // green
+                        0x0c, 0x93, 0x00, // dark green
+                        0x00, 0x00, 0x00 // black
+                    };
+
+                std::memcpy(buf + pixel, tmp_pallet.data() + (val * 3), 3);
             }
         }
     }

@@ -24,7 +24,7 @@ public:
         return output_;
     }
 
-    void pattern_table(byte_t* buf, int pitch) const;
+    void pattern_table(byte_t* buf, int pitch, int index) const;
 
 private:
     int scanline_ = -1;
