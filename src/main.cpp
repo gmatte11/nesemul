@@ -26,7 +26,7 @@ private:
 };
 
 Emulator::Emulator()
-    : ppu_(cpu_.data() + 0x2000, cpu_.data() + 0x4014)
+    : ppu_(cpu_, cpu_.data() + 0x2000, cpu_.data() + 0x4014)
 {
 }
 
@@ -100,7 +100,9 @@ int Emulator::run()
 {
     std::string s;
 
+#ifndef NO_RENDERING
     SDLRenderer renderer(420, 280);
+#endif
 
     cpu_.reset();
     ppu_.reset();
@@ -108,14 +110,16 @@ int Emulator::run()
     for (;;)
     {
         cpu_.next();
-        ppu_.next();
+        for (int i = 0; i < 3; ++i) ppu_.next();
 
+#ifndef NO_RENDERING
         if (renderer.timeout())
         {
             if (!renderer.update())
                 break;
             renderer.draw(ppu_);
         }
+#endif
     }
 
     return 0;

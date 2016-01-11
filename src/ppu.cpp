@@ -18,8 +18,9 @@ const Color& _palette(address_t key)
     return gPalette[0x1F | key];
 }
 
-PPU::PPU(byte_t* registers, byte_t* oamdma)
-    : ppuctrl_(registers[0x0])
+PPU::PPU(CPU & cpu, byte_t* registers, byte_t* oamdma)
+    : cpu_(cpu)
+    , ppuctrl_(registers[0x0])
     , ppumask_(registers[0x1])
     , ppustatus_(registers[0x2])
     , oamaddr_(registers[0x3])
@@ -36,8 +37,8 @@ address_t patttable_addr[] = {0x0000, 0x1000};
 
 void PPU::next()
 {
-    if (cycle_ % 89342 == 0 && (0x80 | ppuctrl_) != 0)
-        ; // generate NMI
+    if (cycle_ == 0 && scanline_ == 241 && (0x80 | ppuctrl_) != 0)
+        cpu_.interrupt(true); // generate NMI
 
     address_t ntaddr = nametable_addr[0x03 & ppuctrl_];
     address_t ataddr = ntaddr + 0x03C0;
@@ -141,48 +142,67 @@ void PPU::next()
     }
 }
 
-void PPU::pattern_table(byte_t* buf, int pitch, int index) const
+void PPU::patterntable_img(byte_t* buf, int pitch, int index) const 
 {
     size_t row_len = pitch / 3;
 
     address_t ptaddr = patttable_addr[index];
-    
-    byte_t lpat;
-    byte_t hpat;
 
     for (unsigned int i = 0; i < 0xff; ++i)
     {
-        size_t tile = i;
-        size_t tile_row = tile / 16;
+        Tile tile = get_pattern_tile(ptaddr | i);
+        size_t tile_row = i / 16;
 
         for (unsigned int row = 0; row < 8; ++row)
         {
-            address_t laddr = ptaddr + (i << 4) + row;
-            address_t haddr = laddr + 8;
-            lpat = memory_[laddr];
-            hpat = memory_[haddr];
-
-            size_t x_off = (tile % 16) * 8;
+            size_t x_off = (i % 16) * 8;
             size_t y_off = tile_row * row_len * 8 + row * row_len;
 
             for (unsigned int col = 0; col < 8; ++col)
             {
                 size_t pixel = (y_off + x_off + col) * 3;
-                byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
-
-                // temporary RGB pallet
-                static std::array<byte_t, 12> tmp_pallet = 
-                    {
-                        0x92, 0x90, 0xff, // pale blue
-                        0x88, 0xd8, 0x00, // green
-                        0x0c, 0x93, 0x00, // dark green
-                        0x00, 0x00, 0x00 // black
-                    };
-
-                std::memcpy(buf + pixel, tmp_pallet.data() + (val * 3), 3);
+                tile.pixel(row * 8 + col, buf + pixel);
             }
         }
     }
+}
+
+Tile PPU::get_pattern_tile(address_t address) const
+{
+    Tile t;
+    t.address_ = address;
+    t.ppu_ = this;
+    return t;
+}
+
+void PPU::nametable_img(byte_t *buf, int pitch, int index) const
+{
+    size_t pixel_size = pitch / 3;
+
+    address_t ntaddr = nametable_addr[index];
+    address_t ptaddr = patttable_addr[1];
+
+    for (unsigned int row = 0; row < 30; ++row)
+    {
+        for (unsigned int col = 0; col < 32; ++col)
+        {
+            byte_t pattern = memory_[ntaddr + row * 32 + col];
+            Tile tile = get_pattern_tile(ptaddr | pattern);
+
+            for (unsigned int y = 0; y < 8; ++y)
+            {
+                size_t x_off = col * 8;
+                size_t y_off = row * pixel_size * 8 + y * pixel_size;
+
+                for (unsigned int x = 0; x < 8; ++x)
+                {
+                    size_t pixel = (y_off + x_off + x) * 3;
+                    tile.pixel(y * 8 + x, buf + pixel);
+                }
+            }
+        }
+    }
+
 }
 
 void PPU::reset()

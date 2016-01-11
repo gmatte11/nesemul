@@ -18,6 +18,8 @@ public:
         return memory_.data();
     }
 
+    void interrupt(bool nmi = false);
+
 private:
     void exec_(byte_t opcode, address_t addr);
 
@@ -30,6 +32,9 @@ private:
     byte_t status_ = 0x24;
     address_t program_counter_ = 0x0000;
     byte_t stack_pointer_ = 0xFD;
+
+    //interrupt
+    std::pair<bool, bool> int_ = {false, false};
 
     // memory buffer
     std::array<byte_t, 0x10000> memory_{};
@@ -45,7 +50,7 @@ private:
     void load_stack_(byte_t& dest);
     void load_stack_(address_t& dest);
 
-    // status flags
+    // status flags (NOxxDIZC)
     enum StatusFlags : byte_t
     {
         kCarry = 1 << 0,

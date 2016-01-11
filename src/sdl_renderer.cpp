@@ -49,22 +49,19 @@ void SDLRenderer::draw(const PPU& ppu)
     // NAM (todo)
     SDL_Rect rect{0, 0, 256, 256};
     SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    for (int i = 0; i < pitch / 3 * rect.h; ++i)
-    {
-        std::memcpy(static_cast<byte_t *>(pixels) + (i * 3), std::array<byte_t, 3>{0x92, 0x90, 0xff}.data(), 3);
-    }
+    ppu.nametable_img((byte_t*)pixels, pitch, 0);
     SDL_UnlockTexture(display_);
 
     // PAT 0000
     rect = {32 * 8 + 10, 0, 128, 128};
     SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.pattern_table((byte_t*)pixels, pitch, 0);
+    ppu.patterntable_img((byte_t*)pixels, pitch, 0);
     SDL_UnlockTexture(display_);
 
     // PAT 1000
     rect.y += 128 + 10;
     SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.pattern_table((byte_t*)pixels, pitch, 1);
+    ppu.patterntable_img((byte_t*)pixels, pitch, 1);
     SDL_UnlockTexture(display_);
 
     SDL_RenderCopy(renderer_, display_, nullptr, nullptr);

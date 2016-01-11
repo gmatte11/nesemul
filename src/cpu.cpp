@@ -59,6 +59,18 @@ void CPU::next()
 
     if (timing_ == 0x0)
     {
+        if (int_.first)
+        {
+            store_stack_(program_counter_);
+            store_stack_(status_);
+
+            address_t vector = (int_.second) ? 0xfffa : 0xfffe;
+            program_counter_ = load_addr_(vector);
+            set_status_(kIntDisable, true);
+            timing_ = 0;
+            int_ = {false, false};
+        }
+
         std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
@@ -99,8 +111,11 @@ void CPU::next()
             throw std::runtime_error(oss.str());
         }
 
-        program_counter_ += opcode_data(data.opcode).size;
-        timing_ = opcode_data(data.opcode).timing;
+        if (!int_.first)
+        {
+            program_counter_ += opcode_data(data.opcode).size;
+            timing_ = opcode_data(data.opcode).timing;
+        }
     }
 
     if (timing_ <= 1)
@@ -124,6 +139,11 @@ void CPU::reset()
     program_counter_ = load_addr_(0xFFFC);
     //program_counter_ = 0x8000; //for CPU tests with nestest.nes
     set_status_(kIntDisable, false);
+}
+
+void CPU::interrupt(bool nmi /*= false*/)
+{
+    int_ = {true, nmi};
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
