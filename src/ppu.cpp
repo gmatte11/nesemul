@@ -37,76 +37,65 @@ address_t patttable_addr[] = {0x0000, 0x1000};
 
 void PPU::next()
 {
+    auto events = cpu_.ppu_writes();
+    for(auto & op : events)
+    {
+        switch(std::get<0>(op))
+        {
+            case 0x2000:
+            {
+                // only for debugging
+                std::get<1>(op) = 0;
+            }
+
+            case 0x2005:
+            {
+                //TODO handle scroll
+            }
+            break;
+
+            case 0x2006:
+            {
+                static bool addr_set = false;
+                if (!addr_set)
+                {
+                    vram_.bytes.l = std::get<1>(op);
+                    addr_set = true;
+                }
+                else
+                {
+                    vram_.bytes.h = std::get<1>(op);
+                    addr_set = false;
+                }
+
+                ppuaddr_ = 0;
+            }
+            break;
+
+            case 0x2007:
+            {
+                memory_[vram_.addr] = std::get<1>(op);
+                vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+                vram_.addr %= 0x3FFF;
+                ppudata_ = 0;
+            }
+            break;
+        }
+    }
+
     if (cycle_ == 0 && scanline_ == 241 && (0x80 | ppuctrl_) != 0)
+    {
+        ppustatus_ |= 0x80; // start of vblank
         cpu_.interrupt(true); // generate NMI
+    }
 
-    address_t ntaddr = nametable_addr[0x03 & ppuctrl_];
-    address_t ataddr = ntaddr + 0x03C0;
-    address_t ptaddr = patttable_addr[0x10 | ppuctrl_];
-    byte_t attr;
-    byte_t name;
-    byte_t lpat;
-    byte_t hpat;
-
-    /*for (int row = 0; row <= 240; ++row)
+    if (cycle_ == 340 && scanline_ == 262)
     {
-        for (int col = 0; col < 256; ++col)
-        {
-            int pix = row * 256 + col;
-            if (col % 8 == 0)
-            {
-                byte_t index = col \ 8;
-                name = memory_[ntaddr + index];
-                attr = memory_[ataddr + index];
-                lpat = memory_[ptaddr + index];
-                hpat = memory_[ptaddr + index + 8];
-            }
+        ppustatus_ |= ~0x80; // end of vblank
+    }
 
-            address_t pal_addr = 0;
-            std::memset(output_.data() + pix * 3, &_palette(pal_addr), sizeof(Color));
-        }
-    }*/
-
-    static union
+    
     {
-        address_t addr;
-        struct
-        {
-            byte_t h;
-            byte_t l;
-        } bytes;
-    } vram{};
-
-    static bool addr_set = false;
-
-    //for (int c = 0; c < 3; ++c)
-    {
-        ppustatus_ = 0xA0;
-
-        if (ppuaddr_ != 0)
-        {
-            if (!addr_set)
-            {
-                vram.bytes.h = ppuaddr_;
-                addr_set = true;
-            }
-            else
-            {
-                vram.bytes.l = ppuaddr_;
-                addr_set = false;
-            }
-
-            ppuaddr_ = 0;
-        }
-
-        if (ppudata_ != 0)
-        {
-            memory_[vram.addr] = ppudata_;
-            vram.addr += (ppuctrl_ & 0x4) ? 32 : 1;
-            vram.addr %= 0x3fff;
-            ppudata_ = 0;
-        }
-
         /*if ((scanline_ >= 0 && scanline_ < 240) || scanline_ == 261)
         {
             if (cycle_ > 0 && cycle_ <= 256)
@@ -180,7 +169,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
     size_t pixel_size = pitch / 3;
 
     address_t ntaddr = nametable_addr[index];
-    address_t ptaddr = patttable_addr[1];
+    address_t ptaddr = patttable_addr[ppuctrl_ & 0x10];
 
     for (unsigned int row = 0; row < 30; ++row)
     {
@@ -214,4 +203,6 @@ void PPU::reset()
     ppumask_ = 0x0;
     ppuscroll_ = 0x0;
     ppudata_ = 0x0;
+
+    vram_.addr = 0x0;
 }

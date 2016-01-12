@@ -4,6 +4,8 @@
 #include <types.h>
 
 #include <array>
+#include <vector>
+#include <tuple>
 
 // Emulate 6502 CPU
 class CPU
@@ -19,6 +21,7 @@ public:
     }
 
     void interrupt(bool nmi = false);
+    std::vector<std::tuple<address_t, byte_t>> ppu_writes();
 
 private:
     void exec_(byte_t opcode, address_t addr);
@@ -35,6 +38,9 @@ private:
 
     //interrupt
     std::pair<bool, bool> int_ = {false, false};
+
+    // ppu registers writes from cpu
+    std::vector<std::tuple<address_t, byte_t>> ppu_events_;
 
     // memory buffer
     std::array<byte_t, 0x10000> memory_{};

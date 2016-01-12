@@ -64,7 +64,7 @@ void CPU::next()
             store_stack_(program_counter_);
             store_stack_(status_);
 
-            address_t vector = (int_.second) ? 0xfffa : 0xfffe;
+            address_t vector = (int_.second) ? 0xFFFC : 0xFFFE;
             program_counter_ = load_addr_(vector);
             set_status_(kIntDisable, true);
             timing_ = 0;
@@ -144,6 +144,11 @@ void CPU::reset()
 void CPU::interrupt(bool nmi /*= false*/)
 {
     int_ = {true, nmi};
+}
+
+std::vector<std::tuple<address_t, byte_t>> CPU::ppu_writes()
+{
+    return decltype(ppu_events_){std::move(ppu_events_)};
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
@@ -701,6 +706,10 @@ void CPU::exec_(byte_t opcode, address_t addr)
 inline void CPU::store_(address_t addr, byte_t operand)
 {
     memory_[addr] = operand;
+    if ((addr >= 0x2000 && addr <= 0x2007) || addr == 0x4014)
+    {
+        ppu_events_.emplace_back(addr, operand);
+    }
 }
 
 inline void CPU::store_(address_t addr, address_t addr_value)

@@ -68,6 +68,9 @@ private:
     byte_t& ppuaddr_;
     byte_t& ppudata_;
     byte_t& oamdma_;
+
+    // vram cursor
+    cursor_t vram_;
 };
 
 struct Tile
