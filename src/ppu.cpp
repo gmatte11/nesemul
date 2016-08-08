@@ -42,18 +42,35 @@ void PPU::next()
     {
         switch(std::get<0>(op))
         {
+            // ppuctrl
             case 0x2000:
             {
                 // only for debugging
                 std::get<1>(op) = 0;
             }
 
+            // oamaddr
+            case 0x2003:
+            {
+                // ??
+            }
+            break;
+
+            //oamdata
+            case 0x2004:
+            {
+                ++oamaddr_;
+            }
+            break;
+
+            // ppuscroll
             case 0x2005:
             {
                 //TODO handle scroll
             }
             break;
 
+            // ppuaddr
             case 0x2006:
             {
                 static bool addr_set = false;
@@ -72,6 +89,7 @@ void PPU::next()
             }
             break;
 
+            // ppudata
             case 0x2007:
             {
                 memory_[vram_.addr] = std::get<1>(op);
@@ -79,21 +97,29 @@ void PPU::next()
                 vram_.addr %= 0x3FFF;
                 ppudata_ = 0;
             }
+
+            // oamdma
+            case 0x4014:
+            {
+                address_t addr{};
+                addr = std::get<1>(op) << 8;
+                
+                std::memcpy(oam_.data(), cpu_.data() + addr, 0xFF * sizeof(byte_t));
+            }
             break;
         }
     }
 
-    if (cycle_ == 0 && scanline_ == 241 && (0x80 | ppuctrl_) != 0)
+    if (cycle_ == 0 && scanline_ == 0)
+    {
+        ppustatus_ |= ~0xE0; // end of vblank
+    }
+
+    if (cycle_ == 0 && scanline_ == 243 && (0x80 | ppuctrl_) != 0)
     {
         ppustatus_ |= 0x80; // start of vblank
         cpu_.interrupt(true); // generate NMI
     }
-
-    if (cycle_ == 340 && scanline_ == 262)
-    {
-        ppustatus_ |= ~0x80; // end of vblank
-    }
-
     
     {
         /*if ((scanline_ >= 0 && scanline_ < 240) || scanline_ == 261)
@@ -169,7 +195,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
     size_t pixel_size = pitch / 3;
 
     address_t ntaddr = nametable_addr[index];
-    address_t ptaddr = patttable_addr[ppuctrl_ & 0x10];
+    address_t ptaddr = patttable_addr[ppuctrl_ & 0x10 ? 1 : 0];
 
     for (unsigned int row = 0; row < 30; ++row)
     {
@@ -191,7 +217,42 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
             }
         }
     }
+}
 
+void PPU::sprite_img(byte_t *buf, int pitch) const
+{
+    for (int i = 0; i < 64; ++i)
+    {
+        const byte_t *data = oam_.data() + i * 4;
+        byte_t ypos = data[0];
+        byte_t indx = data[1];
+        byte_t attr = data[2];
+        byte_t xpos = data[3];
+
+        if (ypos < 0xEF)
+        {
+            Tile tile = get_pattern_tile(indx);
+            size_t pixel_size = pitch / 3;
+
+            bool vflip = (0x80 & attr);
+            bool hflip = (0x40 & attr);
+
+            for (unsigned int y = 0; y < 8; ++y)
+            {
+                size_t x_off = xpos;
+                size_t y_off = ypos * pixel_size + y * pixel_size;
+
+                for (unsigned int x = 0; x < 8; ++x)
+                {
+                    unsigned int xd = (!hflip) ? x : 8 - x;
+                    unsigned int yd = (!vflip) ? y : 8 - y;
+
+                    size_t pixel = (y_off + x_off + x) * 3;
+                    tile.pixel(yd * 8 + xd, buf + pixel);
+                }
+            }
+        }
+    }
 }
 
 void PPU::reset()
@@ -205,4 +266,6 @@ void PPU::reset()
     ppudata_ = 0x0;
 
     vram_.addr = 0x0;
+
+    oam_.fill(0xFF);
 }

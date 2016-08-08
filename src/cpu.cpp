@@ -75,6 +75,7 @@ void CPU::next()
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 
+#if 1
         std::cout
             << std::hex << std::setfill('0')
             << std::setw(4) << program_counter_ << "  "
@@ -103,6 +104,7 @@ void CPU::next()
             << " P:" << std::setw(2) << _str(status_)
             << " SP:" << std::setw(2) << _str(stack_pointer_)
             << '\n';
+#endif
 
         if (opcode_data(data.opcode).size == 0)
         {
@@ -148,7 +150,9 @@ void CPU::interrupt(bool nmi /*= false*/)
 
 std::vector<std::tuple<address_t, byte_t>> CPU::ppu_writes()
 {
-    return decltype(ppu_events_){std::move(ppu_events_)};
+    auto events = ppu_events_;
+    ppu_events_.clear();
+    return events;
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)

@@ -46,10 +46,15 @@ void SDLRenderer::draw(const PPU& ppu)
     static void* pixels;
     static int pitch = 0;
 
-    // NAM (todo)
+    // NAM
     SDL_Rect rect{0, 0, 256, 256};
     SDL_LockTexture(display_, &rect, &pixels, &pitch);
     ppu.nametable_img((byte_t*)pixels, pitch, 0);
+    SDL_UnlockTexture(display_);
+
+    // OAM
+    SDL_LockTexture(display_, &rect, &pixels, &pitch);
+    ppu.sprite_img((byte_t*)pixels, pitch);
     SDL_UnlockTexture(display_);
 
     // PAT 0000
@@ -64,6 +69,8 @@ void SDLRenderer::draw(const PPU& ppu)
     ppu.patterntable_img((byte_t*)pixels, pitch, 1);
     SDL_UnlockTexture(display_);
 
+    SDL_SetRenderDrawColor(renderer_, 0x0, 0x0, 0x0, 0xFF);
+    SDL_RenderClear(renderer_);
     SDL_RenderCopy(renderer_, display_, nullptr, nullptr);
     SDL_RenderPresent(renderer_);
 }

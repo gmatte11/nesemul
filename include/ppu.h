@@ -38,6 +38,8 @@ public:
 
     void nametable_img(byte_t *buf, int pitch, int index) const;
 
+    void sprite_img(byte_t *buf, int pitch) const;
+
 private:
     int scanline_ = -1;
     unsigned int cycle_ = 0;
