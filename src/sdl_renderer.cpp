@@ -8,7 +8,7 @@ SDLRenderer::SDLRenderer(int width, int height)
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         throw std::runtime_error("Can't initialize SDL.");
 
-    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 3, height * 3, SDL_WINDOW_MINIMIZED)) == nullptr)
+    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 3, height * 3, 0)) == nullptr)
         throw std::runtime_error("Can't initialize SDL window.");
 
     if ((renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED)) == nullptr)
@@ -38,6 +38,7 @@ bool SDLRenderer::update()
     }
 
     lastUpdate_ = SDL_GetTicks();
+    SDL_Delay((1000 / CLOCKS_PER_SEC) / 30);
     return true;
 }
 

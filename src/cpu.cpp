@@ -75,7 +75,7 @@ void CPU::next()
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 
-#if 1
+#if 0
         std::cout
             << std::hex << std::setfill('0')
             << std::setw(4) << program_counter_ << "  "

@@ -231,8 +231,10 @@ void PPU::sprite_img(byte_t *buf, int pitch) const
 
         if (ypos < 0xEF)
         {
-            Tile tile = get_pattern_tile(indx);
-            size_t pixel_size = pitch / 3;
+            address_t ptaddr = patttable_addr[indx & 0x1];
+            Tile tile = get_pattern_tile(ptaddr | (indx >> 1));
+
+            size_t const pixel_size = pitch / 3;
 
             bool vflip = (0x80 & attr);
             bool hflip = (0x40 & attr);

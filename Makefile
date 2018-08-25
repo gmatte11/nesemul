@@ -1,8 +1,8 @@
 .PHONY=all clean
 
-CXX=clang++
+CXX=g++
 CXXFLAGS=-std=c++11 -g -Iinclude `sdl2-config --cflags`
-LD=clang++
+LD=g++
 LDFLAGS=
 LDLIBS=`sdl2-config --libs`
 
@@ -13,7 +13,7 @@ TARGET=nesemul
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) $(LDLIBS) $(OBJS) -o $@
+	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 build/%.o: src/%.cpp | build
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
