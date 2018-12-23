@@ -2,30 +2,111 @@
 
 #include <cstring>
 
-SDLRenderer::SDLRenderer(int width, int height)
+void draw_nam(SDL_Texture* tex, const PPU & ppu)
+{
+    void* pixels;
+    int pitch = 0;
+
+    SDL_LockTexture(tex, nullptr, &pixels, &pitch);
+    ppu.nametable_img((byte_t*)pixels, pitch, 0);
+    SDL_UnlockTexture(tex);
+}
+
+void draw_pat(SDL_Texture* tex, const PPU & ppu)
+{
+    void* pixels;
+    int pitch = 0;
+
+    // PAT 0000
+    SDL_Rect rect = {0, 0, 128, 128};
+    SDL_LockTexture(tex, &rect, &pixels, &pitch);
+    ppu.patterntable_img((byte_t*)pixels, pitch, 0);
+    SDL_UnlockTexture(tex);
+
+    // PAT 1000
+    rect.y += 128 + 10;
+    SDL_LockTexture(tex, &rect, &pixels, &pitch);
+    ppu.patterntable_img((byte_t*)pixels, pitch, 1);
+    SDL_UnlockTexture(tex);
+}
+
+void draw_oam(SDL_Texture* tex, const PPU & ppu)
+{   
+    void* pixels;
+    int pitch = 0;
+
+    SDL_LockTexture(tex, nullptr, &pixels, &pitch);
+    ppu.sprite_img((byte_t*)pixels, pitch);
+    SDL_UnlockTexture(tex);
+}
+
+Viewport::Viewport(SDL_Window* window)
+{
+    if ((renderer_ = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED)) == nullptr)
+        throw std::runtime_error("Can't initialize SDL renderer.");
+}
+
+Viewport::~Viewport()
+{
+    if (tex_ != nullptr)
+    {
+        SDL_DestroyTexture(tex_);
+    }
+
+    SDL_DestroyRenderer(renderer_);
+}
+
+void Viewport::init_texture(int width, int height)
+{
+    if (tex_ != nullptr)
+    {
+        SDL_DestroyTexture(tex_);
+    }
+
+    tex_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, width, height);
+}
+
+void Viewport::flip()
+{
+    SDL_SetRenderDrawColor(renderer_, 0x0, 0x0, 0x0, 0xFF);
+    SDL_RenderClear(renderer_);
+    SDL_RenderCopy(renderer_, tex_, nullptr, nullptr);
+    SDL_RenderPresent(renderer_);
+}
+
+SDLRenderer::SDLRenderer()
     : lastUpdate_(0ul)
 {
     if (SDL_Init(SDL_INIT_VIDEO) < 0)
         throw std::runtime_error("Can't initialize SDL.");
 
-    if ((window_ = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * 3, height * 3, 0)) == nullptr)
-        throw std::runtime_error("Can't initialize SDL window.");
+    Viewport *v;
 
-    if ((renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED)) == nullptr)
-        throw std::runtime_error("Can't initialize SDL renderer.");
+    // Main game
+    // TODO
 
-    display_ = SDL_CreateTexture(renderer_, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, width, height);
+    // Name table (debug)
+    v = init_window(256*3, 256*3);
+    v->init_texture(256, 256);
+    resources_.emplace_back(std::make_pair(draw_nam, v->get_texture()));
+
+    // Pattern table (debug)
+    v = init_window(128*3, (128*2+10)*3);
+    v->init_texture(128, 128*2+10);
+    resources_.emplace_back(std::make_pair(draw_pat, v->get_texture()));
 }
 
 SDLRenderer::~SDLRenderer()
 {
-    SDL_DestroyTexture(display_);
-    SDL_DestroyRenderer(renderer_);
-    SDL_DestroyWindow(window_);
+    for(auto & v : viewports_)
+    {
+        delete v.second;
+        SDL_DestroyWindow(v.first);
+    }
     SDL_Quit();
 }
 
-bool SDLRenderer::update()
+bool SDLRenderer::update(const PPU& ppu)
 {
     static SDL_Event event;
     while (SDL_PollEvent(&event))
@@ -34,8 +115,14 @@ bool SDLRenderer::update()
         {
         case SDL_QUIT:
             return false;
+
+        case SDL_WINDOWEVENT:
+            if (event.window.event == SDL_WINDOWEVENT_CLOSE)
+                return false;
         }
     }
+
+    draw(ppu);
 
     lastUpdate_ = SDL_GetTicks();
     SDL_Delay((1000 / CLOCKS_PER_SEC) / 30);
@@ -44,36 +131,24 @@ bool SDLRenderer::update()
 
 void SDLRenderer::draw(const PPU& ppu)
 {
-    static void* pixels;
-    static int pitch = 0;
+    for (auto & r : resources_)
+    {
+        r.first(r.second, ppu);
+    }
 
-    // NAM
-    SDL_Rect rect{0, 0, 256, 256};
-    SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.nametable_img((byte_t*)pixels, pitch, 0);
-    SDL_UnlockTexture(display_);
+    for(auto & v : viewports_)
+    {
+        v.second->flip();
+    }
+}
 
-    // OAM
-    SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.sprite_img((byte_t*)pixels, pitch);
-    SDL_UnlockTexture(display_);
+Viewport* SDLRenderer::init_window(int width, int height)
+{
+    SDL_Window* window;
+    if ((window = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width , height, 0)) == nullptr)
+        throw std::runtime_error("Can't initialize SDL window.");
 
-    // PAT 0000
-    rect = {32 * 8 + 10, 0, 128, 128};
-    SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.patterntable_img((byte_t*)pixels, pitch, 0);
-    SDL_UnlockTexture(display_);
-
-    // PAT 1000
-    rect.y += 128 + 10;
-    SDL_LockTexture(display_, &rect, &pixels, &pitch);
-    ppu.patterntable_img((byte_t*)pixels, pitch, 1);
-    SDL_UnlockTexture(display_);
-
-    SDL_SetRenderDrawColor(renderer_, 0x0, 0x0, 0x0, 0xFF);
-    SDL_RenderClear(renderer_);
-    SDL_RenderCopy(renderer_, display_, nullptr, nullptr);
-    SDL_RenderPresent(renderer_);
+    return viewports_.emplace_back(std::make_pair(window, new Viewport{window})).second;
 }
 
 bool SDLRenderer::timeout()

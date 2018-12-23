@@ -98,11 +98,7 @@ void Emulator::read(const std::string& filename)
 
 int Emulator::run()
 {
-    std::string s;
-
-#ifndef NO_RENDERING
-    SDLRenderer renderer(420, 280);
-#endif
+    SDLRenderer renderer;
 
     cpu_.reset();
     ppu_.reset();
@@ -112,14 +108,11 @@ int Emulator::run()
         cpu_.next();
         for (int i = 0; i < 3; ++i) ppu_.next();
 
-#ifndef NO_RENDERING
         if (renderer.timeout())
         {
-            if (!renderer.update())
+            if (!renderer.update(ppu_))
                 break;
-            renderer.draw(ppu_);
         }
-#endif
     }
 
     return 0;
