@@ -64,7 +64,7 @@ void CPU::next()
             store_stack_(program_counter_);
             store_stack_(status_);
 
-            address_t vector = (int_.second) ? 0xFFFC : 0xFFFE;
+            address_t vector = (int_.second) ? 0xFFFA : 0xFFFE;
             program_counter_ = load_addr_(vector);
             set_status_(kIntDisable, true);
             timing_ = 0;
@@ -724,6 +724,10 @@ inline void CPU::store_(address_t addr, address_t addr_value)
 
 inline byte_t CPU::load_(address_t addr)
 {
+    if (addr == 0x2002)
+    {
+        ppu_events_.emplace_back(0x2002, 0);
+    }
     return memory_[addr];
 }
 
@@ -835,6 +839,8 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
 
     byte_t addr_l = static_cast<byte_t>(0xFF & addr);
 
+    auto read = [this](address_t addr){ return memory_[addr]; };
+
     switch (type)
     {
     case ops::kImmediate:
@@ -842,21 +848,21 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
         break;
 
     case ops::kZeroPage:
-        oss << "$" << _str(addr_l) << " = " << _str(load_(addr));
+        oss << "$" << _str(addr_l) << " = " << _str(read(addr));
         break;
 
     case ops::kZeroPageX:
         addr = indexed_pz_addr(addr, register_x_);
         oss << "$" << _str(addr_l) << ",X @ ";
         addr_l = static_cast<byte_t>(0xFF & addr);
-        oss << _str(addr_l) << " = " << _str(load_(addr));
+        oss << _str(addr_l) << " = " << _str(read(addr));
         break;
 
     case ops::kAbsolute:
         oss << "$" << _str(addr);
         if (addr < 0x8000)
         {
-            oss << " = " << _str(load_(addr));
+            oss << " = " << _str(read(addr));
         }
         break;
 
@@ -869,7 +875,7 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
         addr = indexed_indirect_addr(addr, register_x_);
         oss << "($" << _str(addr_l)
             << ",X) @ " << _str(addr)
-            << " = " << _str(load_(addr));
+            << " = " << _str(read(addr));
         break;
 
     default:

@@ -91,9 +91,9 @@ SDLRenderer::SDLRenderer()
     resources_.emplace_back(std::make_pair(draw_nam, v->get_texture()));
 
     // Pattern table (debug)
-    v = init_window(128*2, (128*2+10)*2);
-    v->init_texture(128, 128*2+10);
-    resources_.emplace_back(std::make_pair(draw_pat, v->get_texture()));
+    //v = init_window(128*2, (128*2+10)*2);
+    //v->init_texture(128, 128*2+10);
+    //resources_.emplace_back(std::make_pair(draw_pat, v->get_texture()));
 }
 
 SDLRenderer::~SDLRenderer()

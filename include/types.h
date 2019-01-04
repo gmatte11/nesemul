@@ -16,4 +16,6 @@ union cursor_t
     } bytes;
 };
 
+#define BREAKPOINT __asm__("int $3")
+
 #endif // __NESEMUL_TYPES_H__

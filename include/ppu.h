@@ -73,6 +73,7 @@ private:
 
     // vram cursor
     cursor_t vram_;
+    bool vram_hilo_ = false; //switch between reading hi or low byte from vram
 };
 
 struct Tile

@@ -48,6 +48,16 @@ void PPU::next()
                 // only for debugging
                 std::get<1>(op) = 0;
             }
+            break;
+
+            // ppustatus (read)
+            case 0x2002:
+            {
+                ppustatus_ &= 0x7F;
+                // TODO reset scroll
+                vram_hilo_ = false;
+            }
+            break;
 
             // oamaddr
             case 0x2003:
@@ -73,16 +83,15 @@ void PPU::next()
             // ppuaddr
             case 0x2006:
             {
-                static bool addr_set = false;
-                if (!addr_set)
+                if (!vram_hilo_)
                 {
                     vram_.bytes.l = std::get<1>(op);
-                    addr_set = true;
+                    vram_hilo_ = true;
                 }
                 else
                 {
                     vram_.bytes.h = std::get<1>(op);
-                    addr_set = false;
+                    vram_hilo_ = false;
                 }
 
                 ppuaddr_ = 0;
@@ -110,15 +119,16 @@ void PPU::next()
         }
     }
 
-    if (cycle_ == 0 && scanline_ == 0)
+    if (cycle_ == 1 && scanline_ == 0)
     {
-        ppustatus_ |= ~0xE0; // end of vblank
+        ppustatus_ &= 0x1f; // end of vblank
     }
 
-    if (cycle_ == 0 && scanline_ == 243 && (0x80 | ppuctrl_) != 0)
+    if (cycle_ == 1 && scanline_ == 243)
     {
         ppustatus_ |= 0x80; // start of vblank
-        cpu_.interrupt(true); // generate NMI
+        if ((ppuctrl_ & 0x80) != 0)
+            cpu_.interrupt(true); // generate NMI
     }
     
     {
