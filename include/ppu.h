@@ -8,6 +8,13 @@
 
 #include <image.h>
 
+enum class Mirroring
+{
+    None,
+    Horizontal,
+    Vertical
+};
+
 struct Tile;
 
 class PPU
@@ -33,6 +40,8 @@ public:
         return output_;
     }
 
+    void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
+
     void patterntable_img(byte_t* buf, int pitch, int index) const;
     Tile get_pattern_tile(address_t address) const;
 
@@ -47,9 +56,18 @@ private:
     // Output image
     Image output_;
 
+    // Nametable mirroring
+    Mirroring mirroring_;
+
     // memory
     std::array<byte_t, 0x4000> memory_{};
     std::array<byte_t, 0xFF> oam_{};
+
+    // memory access
+    byte_t load_(address_t addr) const;
+    void store_(address_t addr, byte_t value);
+
+    address_t mirror_addr_(address_t addr) const;
 
     // shift registers
     uint16_t register_1;

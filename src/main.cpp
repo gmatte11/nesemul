@@ -61,6 +61,13 @@ void Emulator::read(const std::string& filename)
         byte_t mapper = (byte_t)(config[1] & 0xf0 + (config[0] & 0xf0 >> 4));
         std::cout << "mapper: " << (int)mapper << std::endl;
 
+        Mirroring mir = Mirroring::None;
+        if (!((0x8 & config[0]) >> 3))
+        {
+            mir = (0x1 & config[0]) ? Mirroring::Vertical : Mirroring::Horizontal;
+        }
+        ppu_.set_mirroring(mir);
+
         char num_8kb_ram_banks;
         ifs.read(&num_8kb_ram_banks, 1);
         if (num_8kb_ram_banks == 0)

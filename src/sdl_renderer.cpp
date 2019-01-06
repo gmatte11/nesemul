@@ -2,7 +2,7 @@
 
 #include <cstring>
 
-void draw_nam(SDL_Texture* tex, const PPU & ppu)
+void draw_naive(SDL_Texture* tex, const PPU & ppu)
 {
     void* pixels;
     int pitch = 0;
@@ -10,6 +10,26 @@ void draw_nam(SDL_Texture* tex, const PPU & ppu)
     SDL_LockTexture(tex, nullptr, &pixels, &pitch);
     ppu.nametable_img((byte_t*)pixels, pitch, 0);
     SDL_UnlockTexture(tex);
+}
+
+void draw_nam(SDL_Texture* tex, const PPU & ppu)
+{
+    void* pixels;
+    int pitch = 0;
+
+    SDL_Rect rects[] = {
+        {0  , 0  , 256, 240},
+        {257, 0  , 512, 240},
+        {0  , 241, 256, 480},
+        {257, 241, 512, 480}
+    };
+
+    for (int i = 0; i < 4; ++i)
+    {
+        SDL_LockTexture(tex, &rects[i], &pixels, &pitch);
+        ppu.nametable_img((byte_t*)pixels, pitch, i);
+        SDL_UnlockTexture(tex);
+    }
 }
 
 void draw_pat(SDL_Texture* tex, const PPU & ppu)
@@ -83,15 +103,17 @@ SDLRenderer::SDLRenderer()
     Viewport *v;
 
     // Main game
-    // TODO
+    v = init_window("NESEMUL", 256*2, 240*2);
+    v->init_texture(256, 240);
+    resources_.emplace_back(std::make_pair(draw_naive, v->get_texture()));
 
     // Name table (debug)
-    v = init_window(256*2, 240*2);
-    v->init_texture(256, 240);
-    resources_.emplace_back(std::make_pair(draw_nam, v->get_texture()));
+    //v = init_window("Nametables", 512, 480);
+    //v->init_texture(512, 480);
+    //resources_.emplace_back(std::make_pair(draw_nam, v->get_texture()));
 
     // Pattern table (debug)
-    //v = init_window(128*2, (128*2+10)*2);
+    //v = init_window("Pattern tables", 128*2, (128*2+10)*2);
     //v->init_texture(128, 128*2+10);
     //resources_.emplace_back(std::make_pair(draw_pat, v->get_texture()));
 }
@@ -142,10 +164,10 @@ void SDLRenderer::draw(const PPU& ppu)
     }
 }
 
-Viewport* SDLRenderer::init_window(int width, int height)
+Viewport* SDLRenderer::init_window(const char* name, int width, int height)
 {
     SDL_Window* window;
-    if ((window = SDL_CreateWindow("NESEMUL", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width , height, 0)) == nullptr)
+    if ((window = SDL_CreateWindow(name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width , height, SDL_WINDOW_RESIZABLE)) == nullptr)
         throw std::runtime_error("Can't initialize SDL window.");
 
     return viewports_.emplace_back(std::make_pair(window, new Viewport{window})).second;

@@ -101,7 +101,7 @@ void PPU::next()
             // ppudata
             case 0x2007:
             {
-                memory_[vram_.addr] = std::get<1>(op);
+                store_(vram_.addr, std::get<1>(op));
                 vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
                 vram_.addr %= 0x3FFF;
                 ppudata_ = 0;
@@ -211,7 +211,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
     {
         for (unsigned int col = 0; col < 32; ++col)
         {
-            byte_t pattern = memory_[ntaddr + row * 32 + col];
+            byte_t pattern = load_(ntaddr + row * 32 + col);
             Tile tile = get_pattern_tile(ptaddr | pattern);
 
             for (unsigned int y = 0; y < 8; ++y)
@@ -280,4 +280,36 @@ void PPU::reset()
     vram_.addr = 0x0;
 
     oam_.fill(0xFF);
+}
+
+byte_t PPU::load_(address_t addr) const
+{
+    return memory_[mirror_addr_(addr)];
+}
+
+void PPU::store_(address_t addr, byte_t value)
+{
+    memory_[mirror_addr_(addr)] = value;
+}
+
+address_t PPU::mirror_addr_(address_t addr) const
+{
+    // $3F20-$3FFF mirrors $3F00-$3F1F
+    //TODO if (addr >= 0x3F20 && addr < 0x4000) 
+
+    // $3000-$3EFF mirrors $2000-$2EFF;
+    if (addr >= 0x3000 && addr < 0x3F00) addr -= 0x1000;
+
+    switch(mirroring_)
+    {
+    case Mirroring::Horizontal:
+        if (addr >= 0x2800 && addr < 0x3000) addr -= 0x0800;
+        break;
+    case Mirroring::Vertical:
+        if (addr >= 0x2400 && addr < 0x2800) addr -= 0x0400;
+        if (addr >= 0x2C00 && addr < 0x3000) addr -= 0x0400;
+        break;
+    }
+
+    return addr;
 }
