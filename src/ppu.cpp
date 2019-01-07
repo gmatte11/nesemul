@@ -2,20 +2,26 @@
 
 #include <cstring>
 
-struct Color
-{
-    byte_t r, g, b;
+static Color g_palette[] = {
+    {84, 84, 84}, {152, 150, 152}, {236, 238, 236}, {236, 238, 236},
+    {0, 30, 116}, {8, 76, 196},    {76, 154, 236},  {168, 204, 236},
+    {8, 16, 144}, {48, 50, 236},   {120, 124, 236}, {188, 188, 236},
+    {48, 0, 136}, {92, 30, 228},   {176, 98, 236},  {212, 178, 236},
+    {68, 0, 100}, {136, 20, 176},  {228, 84, 236},  {236, 174, 236}, 
+    {92, 0, 48},  {160, 20, 100},  {236, 88, 180},  {236, 174, 212},
+    {84, 4, 0},   {152, 34, 32},   {236, 106, 100}, {236, 180, 176}, 
+    {60, 24, 0},  {120, 60, 0},    {212, 136, 32},  {228, 196, 144},
+    {32, 42, 0},  {84, 90, 0},     {160, 170, 0},   {204, 210, 120},
+    {8, 58, 0},   {40, 114, 0},    {116, 196, 0},   {180, 222, 120},
+    {0, 64, 0},   {8, 124, 0},     {76, 208, 32},   {168, 226, 144}, 
+    {0, 60, 0},   {0, 118, 40},    {56, 204, 108},  {152, 226, 180}, 
+    {0, 50, 60},  {0, 102, 120},   {56, 180, 204},  {160, 214, 228}, 
+    {0, 0, 0},    {0, 0, 0},       {60, 60, 60},    {160, 162, 160}
 };
-
-static std::array<Color, 0x40> gPalette /*= {
-    {84, 84, 84}, {0, 30, 116}, {8, 16, 144}, {48, 0, 136}, {68, 0, 100}, {92, 0, 48}, {84, 4, 0}, {60, 24, 0}, {32, 42, 0}, {8, 58, 0}, {0, 64, 0}, {0, 60, 0}, {0, 50, 60}, {0, 0, 0},
-    {152, 150, 152}, {8, 76, 196}, {48, 50, 236}, {92, 30, 228}, {136, 20, 176}, {160, 20, 100}, {152, 34, 32}, {120, 60, 0}, {84, 90, 0}, {40, 114, 0}, {8, 124, 0}, {0, 118, 40}, {0, 102, 120}, {0, 0, 0},
-    {236, 238, 236}, {76, 154, 236}, {120, 124, 236}, {176, 98, 236}, {228, 84, 236}, {236, 88, 180}, {236, 106, 100}, {212, 136, 32}, {160, 170, 0}, {116, 196, 0}, {76, 208, 32}, {56, 204, 108}, {56, 180, 204}, {60, 60, 60},
-    {236, 238, 236}, {168, 204, 236}, {188, 188, 236}, {212, 178, 236}, {236, 174, 236}, {236, 174, 212}, {236, 180, 176}, {228, 196, 144}, {204, 210, 120}, {180, 222, 120}, {168, 226, 144}, {152, 226, 180}, {160, 214, 228}, {160, 162, 160}}*/;
 
 const Color& _palette(address_t key)
 {
-    return gPalette[0x1F | key];
+    return g_palette[0x1F | key];
 }
 
 PPU::PPU(CPU & cpu, byte_t* registers, byte_t* oamdma)
@@ -169,6 +175,17 @@ void PPU::next()
 
 void PPU::patterntable_img(byte_t* buf, int pitch, int index) const 
 {
+    // temporary RGB palette
+    static Color tmp_palette[] = 
+        {
+            {0x92, 0x90, 0xff}, // pale blue
+            {0x88, 0xd8, 0x00}, // green
+            {0x0c, 0x93, 0x00}, // dark green
+            {0x00, 0x00, 0x00} // black
+        };
+
+    Palette palette(tmp_palette);
+
     size_t row_len = pitch / 3;
 
     address_t ptaddr = patttable_addr[index];
@@ -186,7 +203,7 @@ void PPU::patterntable_img(byte_t* buf, int pitch, int index) const
             for (unsigned int col = 0; col < 8; ++col)
             {
                 size_t pixel = (y_off + x_off + col) * 3;
-                tile.pixel(row * 8 + col, buf + pixel);
+                tile.pixel(row * 8 + col, buf + pixel, palette);
             }
         }
     }
@@ -202,6 +219,15 @@ Tile PPU::get_pattern_tile(address_t address) const
 
 void PPU::nametable_img(byte_t *buf, int pitch, int index) const
 {
+    // temporary RGB palette
+    static Color tmp_palette[] = 
+        {
+            {0x92, 0x90, 0xff}, // pale blue
+            {0x88, 0xd8, 0x00}, // green
+            {0x0c, 0x93, 0x00}, // dark green
+            {0x00, 0x00, 0x00} // black
+        };
+
     size_t pixel_size = pitch / 3;
 
     address_t ntaddr = nametable_addr[index];
@@ -213,6 +239,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
         {
             byte_t pattern = load_(ntaddr + row * 32 + col);
             Tile tile = get_pattern_tile(ptaddr | pattern);
+            Palette palette(g_palette + 4 * 12);
 
             for (unsigned int y = 0; y < 8; ++y)
             {
@@ -222,7 +249,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
                 for (unsigned int x = 0; x < 8; ++x)
                 {
                     size_t pixel = (y_off + x_off + x) * 3;
-                    tile.pixel(y * 8 + x, buf + pixel);
+                    tile.pixel(y * 8 + x, buf + pixel, palette);
                 }
             }
         }
@@ -231,6 +258,16 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
 
 void PPU::sprite_img(byte_t *buf, int pitch) const
 {
+    // temporary RGB palette
+    static Color tmp_palette[] = 
+        {
+            {0x92, 0x90, 0xff}, // pale blue
+            {0x88, 0xd8, 0x00}, // green
+            {0x0c, 0x93, 0x00}, // dark green
+            {0x00, 0x00, 0x00} // black
+        };
+    Palette palette(tmp_palette);
+
     for (int i = 0; i < 64; ++i)
     {
         const byte_t *data = oam_.data() + i * 4;
@@ -260,7 +297,7 @@ void PPU::sprite_img(byte_t *buf, int pitch) const
                     unsigned int yd = (!vflip) ? y : 8 - y;
 
                     size_t pixel = (y_off + x_off + x) * 3;
-                    tile.pixel(yd * 8 + xd, buf + pixel);
+                    tile.pixel(yd * 8 + xd, buf + pixel, palette);
                 }
             }
         }
@@ -312,4 +349,18 @@ address_t PPU::mirror_addr_(address_t addr) const
     }
 
     return addr;
+}
+
+byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
+{
+    // The attribute table is located at the end of the nametable (offset $03C0)
+    address_t ataddr = ntaddr + 0x03C0;
+
+    // Offset of the requested byte
+    ataddr += static_cast<address_t>((row / 2) * 0x8 + (col / 2));
+
+    byte_t metatile = load_(ataddr);
+
+    int quadrant = ((col % 2) << 1) | (row % 2);
+    return 0x3 & (metatile << quadrant);
 }

@@ -69,6 +69,9 @@ private:
 
     address_t mirror_addr_(address_t addr) const;
 
+    // attribute tables access (palettes)
+    byte_t get_attribute_(address_t ntaddr, int row, int col) const;
+
     // shift registers
     uint16_t register_1;
     uint16_t register_2;
@@ -94,19 +97,26 @@ private:
     bool vram_hilo_ = false; //switch between reading hi or low byte from vram
 };
 
+struct Color
+{
+    byte_t r, g, b;
+};
+
+class Palette
+{
+public:
+    Palette(Color *first) : color_(first) {}
+
+    byte_t* raw(int index) const { return reinterpret_cast<byte_t*>(color_ + index); }
+
+private:
+    Color* color_;
+};
+
 struct Tile
 {
-    void pixel(int index, byte_t *pixels)
+    void pixel(int index, byte_t *pixels, const Palette & palette)
     {
-        // temporary RGB pallet
-        static std::array<byte_t, 12> tmp_pallet = 
-            {
-                0x92, 0x90, 0xff, // pale blue
-                0x88, 0xd8, 0x00, // green
-                0x0c, 0x93, 0x00, // dark green
-                0x00, 0x00, 0x00 // black
-            };
-
         int row = index / 8;
         int col = index % 8;
 
@@ -116,7 +126,7 @@ struct Tile
         byte_t hpat = *(ppu_->data() + haddr);
 
         byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
-        std::memcpy(pixels, tmp_pallet.data() + (val * 3), 3);
+        std::memcpy(pixels, palette.raw(val), 3);
     }
     address_t address_;
     const PPU* ppu_;
