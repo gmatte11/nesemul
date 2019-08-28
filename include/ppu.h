@@ -35,7 +35,7 @@ public:
         return memory_.data();
     }
 
-    inline const Image& output()
+    inline const Image& output() const
     {
         return output_;
     }

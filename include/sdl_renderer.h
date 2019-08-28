@@ -37,7 +37,7 @@ public:
 private:
     void draw(const PPU& ppu);
 
-    Viewport* init_window(const char* name, int width, int height);
+    Viewport* init_window(const char* name, int width, int height, int posx, int posy);
 
     std::vector<std::pair<SDL_Window*, Viewport*>> viewports_;
     std::vector<std::pair<std::function<void(SDL_Texture*, const PPU &)>, SDL_Texture*>> resources_;

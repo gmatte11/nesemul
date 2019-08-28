@@ -12,6 +12,16 @@ void draw_naive(SDL_Texture* tex, const PPU & ppu)
     SDL_UnlockTexture(tex);
 }
 
+void draw_scanlines(SDL_Texture* tex, const PPU & ppu)
+{
+   void* pixels;
+   int pitch = 0;
+
+   SDL_LockTexture(tex, nullptr, &pixels, &pitch);
+   std::memcpy(pixels, ppu.output().data(), ppu.output().size());
+   SDL_UnlockTexture(tex);
+}
+
 void draw_nam(SDL_Texture* tex, const PPU & ppu)
 {
     void* pixels;
@@ -103,17 +113,17 @@ SDLRenderer::SDLRenderer()
     Viewport *v;
 
     // Main game
-    v = init_window("NESEMUL", 256*2, 240*2);
+    v = init_window("NESEMUL", 256*2, 240*2, 8, 32);
     v->init_texture(256, 240);
-    resources_.emplace_back(std::make_pair(draw_naive, v->get_texture()));
+    resources_.emplace_back(std::make_pair(draw_scanlines, v->get_texture()));
 
     // Name table (debug)
-    v = init_window("Nametables", 512, 480);
+    v = init_window("Nametables", 512, 480, 512 + 16, 32);
     v->init_texture(512, 480);
     resources_.emplace_back(std::make_pair(draw_nam, v->get_texture()));
 
     // Pattern table (debug)
-    v = init_window("Pattern tables", 128*2, (128*2+10)*2);
+    v = init_window("Pattern tables", 128*2, (128*2+10)*2, 1024 + 24, 32);
     v->init_texture(128, 128*2+10);
     resources_.emplace_back(std::make_pair(draw_pat, v->get_texture()));
 }
@@ -163,10 +173,10 @@ void SDLRenderer::draw(const PPU& ppu)
     }
 }
 
-Viewport* SDLRenderer::init_window(const char* name, int width, int height)
+Viewport* SDLRenderer::init_window(const char* name, int width, int height, int posx, int posy)
 {
     SDL_Window* window;
-    if ((window = SDL_CreateWindow(name, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width , height, SDL_WINDOW_RESIZABLE)) == nullptr)
+    if ((window = SDL_CreateWindow(name, posx, posy, width , height, SDL_WINDOW_RESIZABLE)) == nullptr)
         throw std::runtime_error("Can't initialize SDL window.");
 
     return viewports_.emplace_back(std::make_pair(window, new Viewport{window})).second;

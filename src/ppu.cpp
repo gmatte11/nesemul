@@ -137,7 +137,33 @@ void PPU::next()
             cpu_.interrupt(true); // generate NMI
     }
     
+    if (scanline_ > 0 && scanline_ <= 240)
     {
+        if (cycle_ > 0 && cycle_ <= 256)
+        {
+            //if (cycle_ % 8 == 0)
+            {
+                int row = scanline_ - 1;
+                int col = cycle_ - 1;
+
+                address_t ntaddr = nametable_addr[0];
+                address_t ptaddr = patttable_addr[ppuctrl_ & 0x10 ? 1 : 0];
+
+                int ntrow = row / 8;
+                int ntcol = col / 8;
+                byte_t pattern = load_(ntaddr + ntrow * 32 + ntcol);
+                Tile tile = get_pattern_tile(ptaddr | pattern);
+
+                Palette palette(g_palette + 4 * 12);
+
+                int trow = row % 8;
+                int tcol = col % 8;
+                int tpx = trow * 8 + tcol;
+
+                int index = (row * 256 + col) * 3;
+                tile.pixel(tpx, output_.data() + index, palette);
+            }
+        }
         /*if ((scanline_ >= 0 && scanline_ < 240) || scanline_ == 261)
         {
             if (cycle_ > 0 && cycle_ <= 256)
@@ -159,17 +185,17 @@ void PPU::next()
             if (cycle_ == 1)
                 ; // set VBlank flag
         }*/
+    }
 
-        if (cycle_ < 340)
-            ++cycle_;
-        else
-        {
-            cycle_ = 0;
-            ++scanline_;
+    if (cycle_ < 340)
+        ++cycle_;
+    else
+    {
+        cycle_ = 0;
+        ++scanline_;
 
-            if (scanline_ == 262)
-                scanline_ = 0;
-        }
+        if (scanline_ == 262)
+            scanline_ = 0;
     }
 }
 

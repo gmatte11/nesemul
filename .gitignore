@@ -37,3 +37,6 @@ data/
 *.exe
 *.out
 *.app
+
+#Swap files
+*.swp
