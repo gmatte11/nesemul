@@ -7,9 +7,22 @@
 #include <cstring>
 
 #include <types.h>
+#include <bus.h>
 #include <cpu.h>
 #include <ppu.h>
 #include <sdl_renderer.h>
+
+class RAM : public Device
+{
+public:
+    RAM(BUS& bus) { bus.register_device(this); }
+
+    bool on_write(address_t addr, byte_t value) override { memory_[addr] = value; return true; }
+    bool on_read(address_t addr, byte_t& value) override { value = memory_[addr]; return true; }
+
+private:
+    std::array<byte_t, 0x10000> memory_{};
+};
 
 class Emulator
 {
@@ -21,12 +34,16 @@ public:
     int run();
 
 private:
+    BUS bus_;
     CPU cpu_;
     PPU ppu_;
+    RAM ram_;
 };
 
 Emulator::Emulator()
-    : ppu_(cpu_, cpu_.data() + 0x2000, cpu_.data() + 0x4014)
+    : cpu_(bus_)
+    , ppu_(bus_, cpu_)
+    , ram_(bus_)
 {
 }
 

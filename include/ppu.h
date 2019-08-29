@@ -2,6 +2,7 @@
 #define __NESEMUL_PPU_H__
 
 #include <types.h>
+#include <bus.h>
 #include <cpu.h>
 #include <array>
 #include <cstring>
@@ -17,13 +18,16 @@ enum class Mirroring
 
 struct Tile;
 
-class PPU
+class PPU : public Device
 {
 public:
-    PPU(CPU & cpu, byte_t* registers, byte_t* oamdma);
+    PPU(BUS& bus);
 
     void next();
     void reset();
+
+    bool on_write(address_t addr, byte_t value) override;
+    bool on_read(address_t addr, byte_t& value) override;
 
     byte_t* data()
     {
@@ -78,19 +82,20 @@ private:
     uint8_t register_3;
     uint8_t register_4;
 
-    // CPU
-    CPU & cpu_;
+    // Connected devices
+    BUS& bus_;
+    CPU& cpu_;
 
-    // registers mapped to CPU's memory
-    byte_t& ppuctrl_;
-    byte_t& ppumask_;
-    byte_t& ppustatus_;
-    byte_t& oamaddr_;
-    byte_t& oamdata_;
-    byte_t& ppuscroll_;
-    byte_t& ppuaddr_;
-    byte_t& ppudata_;
-    byte_t& oamdma_;
+    // registers
+    byte_t ppuctrl_;
+    byte_t ppumask_;
+    byte_t ppustatus_;
+    byte_t oamaddr_;
+    byte_t oamdata_;
+    byte_t ppuscroll_;
+    byte_t ppuaddr_;
+    byte_t ppudata_;
+    byte_t oamdma_;
 
     // vram cursor
     cursor_t vram_;

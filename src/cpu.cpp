@@ -709,31 +709,26 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
 inline void CPU::store_(address_t addr, byte_t operand)
 {
-    memory_[addr] = operand;
-    if ((addr >= 0x2000 && addr <= 0x2007) || addr == 0x4014)
-    {
-        ppu_events_.emplace_back(addr, operand);
-    }
+    bus_.write(addr, operand);
 }
 
 inline void CPU::store_(address_t addr, address_t addr_value)
 {
-    memory_[addr + 1] = static_cast<byte_t>(addr_value >> 8);
-    memory_[addr] = static_cast<byte_t>(0xFF & addr_value);
+    bus_.write(addr + 1, static_cast<byte_t>(addr_value >> 8));
+    bus_.write(addr, static_cast<byte_t>(0xFF & addr_value));
 }
 
 inline byte_t CPU::load_(address_t addr)
 {
-    if (addr == 0x2002)
-    {
-        ppu_events_.emplace_back(0x2002, 0);
-    }
-    return memory_[addr];
+    return bus_.read(addr);
 }
 
 inline address_t CPU::load_addr_(address_t addr)
 {
-    return (static_cast<address_t>(memory_[addr + 1]) << 8) | (0xFF & static_cast<address_t>(memory_[addr]));
+    address_t value;
+    value = static_cast<address_t>(bus_.read(addr + 1)) << 8
+    value |= 0xFF & static_cast<address_t>(bus_.write(addr));
+    return value;
 }
 
 inline void CPU::store_stack_(byte_t operand)

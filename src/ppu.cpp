@@ -24,18 +24,11 @@ const Color& _palette(address_t key)
     return g_palette[0x1F | key];
 }
 
-PPU::PPU(CPU & cpu, byte_t* registers, byte_t* oamdma)
-    : cpu_(cpu)
-    , ppuctrl_(registers[0x0])
-    , ppumask_(registers[0x1])
-    , ppustatus_(registers[0x2])
-    , oamaddr_(registers[0x3])
-    , oamdata_(registers[0x4])
-    , ppuscroll_(registers[0x5])
-    , ppuaddr_(registers[0x6])
-    , ppudata_(registers[0x7])
-    , oamdma_(*oamdma)
+PPU::PPU(BUS& bus, CPU& cpu_)
+    : bus_(bus)
+    , cpu_(cpu)
 {
+    bus_.register_device(this);
 }
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
@@ -43,95 +36,15 @@ address_t patttable_addr[] = {0x0000, 0x1000};
 
 void PPU::next()
 {
-    auto events = cpu_.ppu_writes();
-    for(auto & op : events)
-    {
-        switch(std::get<0>(op))
-        {
-            // ppuctrl
-            case 0x2000:
-            {
-                // only for debugging
-                std::get<1>(op) = 0;
-            }
-            break;
-
-            // ppustatus (read)
-            case 0x2002:
-            {
-                ppustatus_ &= 0x7F;
-                // TODO reset scroll
-                vram_hilo_ = false;
-            }
-            break;
-
-            // oamaddr
-            case 0x2003:
-            {
-                // ??
-            }
-            break;
-
-            //oamdata
-            case 0x2004:
-            {
-                ++oamaddr_;
-            }
-            break;
-
-            // ppuscroll
-            case 0x2005:
-            {
-                //TODO handle scroll
-            }
-            break;
-
-            // ppuaddr
-            case 0x2006:
-            {
-                if (!vram_hilo_)
-                {
-                    vram_.bytes.l = std::get<1>(op);
-                    vram_hilo_ = true;
-                }
-                else
-                {
-                    vram_.bytes.h = std::get<1>(op);
-                    vram_hilo_ = false;
-                }
-
-                ppuaddr_ = 0;
-            }
-            break;
-
-            // ppudata
-            case 0x2007:
-            {
-                store_(vram_.addr, std::get<1>(op));
-                vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
-                vram_.addr %= 0x3FFF;
-                ppudata_ = 0;
-            }
-
-            // oamdma
-            case 0x4014:
-            {
-                address_t addr{};
-                addr = std::get<1>(op) << 8;
-                
-                std::memcpy(oam_.data(), cpu_.data() + addr, 0xFF * sizeof(byte_t));
-            }
-            break;
-        }
-    }
 
     if (cycle_ == 1 && scanline_ == 0)
     {
         ppustatus_ &= 0x1f; // end of vblank
     }
 
-    if (cycle_ == 1 && scanline_ == 243)
+    if (cycle_ == 1 && scanline_ == 240)
     {
+            //if (cycle_ % 8 == 0)
         ppustatus_ |= 0x80; // start of vblank
         if ((ppuctrl_ & 0x80) != 0)
             cpu_.interrupt(true); // generate NMI
@@ -141,7 +54,6 @@ void PPU::next()
     {
         if (cycle_ > 0 && cycle_ <= 256)
         {
-            //if (cycle_ % 8 == 0)
             {
                 int row = scanline_ - 1;
                 int col = cycle_ - 1;
@@ -155,6 +67,8 @@ void PPU::next()
                 Tile tile = get_pattern_tile(ptaddr | pattern);
 
                 Palette palette(g_palette + 4 * 12);
+                if (ppuctrl_ & 0x10)
+                    palette = Palette(g_palette + 8 * 12);
 
                 int trow = row % 8;
                 int tcol = col % 8;
@@ -197,6 +111,100 @@ void PPU::next()
         if (scanline_ == 262)
             scanline_ = 0;
     }
+}
+
+bool PPU::on_write(address_t addr, byte_t value)
+{
+    switch (addr)
+    {
+        case 0x2000: 
+            ppuctrl_ = value;
+            return true;
+
+        case 0x2001:
+            ppumask_ = value;
+            return true;
+
+            // oamaddr
+        case 0x2003:
+            // TODO
+            return true;
+
+            //oamdata
+        case 0x2004:
+            // TODO
+            ++oamaddr_;
+            return true;
+
+            // ppuscroll
+        case 0x2005:
+            //TODO handle scroll
+            return true;
+
+            // ppuaddr
+        case 0x2006:
+            {
+                if (!vram_hilo_)
+                {
+                    vram_.bytes.l = value;
+                    vram_hilo_ = true;
+                }
+                else
+                {
+                    vram_.bytes.h = value;
+                    vram_hilo_ = false;
+                }
+
+                ppuaddr_ = 0;
+            }
+            return true;
+
+            // ppudata
+        case 0x2007:
+            {
+                store_(vram_.addr, value);
+                vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+                vram_.addr %= 0x3FFF;
+                ppudata_ = 0;
+            }
+            return true;
+
+            // oamdma
+        case 0x4014:
+            {
+                address_t addr = value << 8;
+                //std::memcpy(oam_.data(), cpu_.data() + addr, 0xFF * sizeof(byte_t));
+            }
+            return true;
+    }
+
+    return false;
+}
+
+bool PPU::on_read(address_t addr, byte_t& value)
+{
+    switch (addr)
+    {
+        case 0x2002:
+            value = ppustatus_;
+            ppustatus_ &= 0x7F;
+            // TODO reset scroll
+            vram_hilo_ = false;
+            return true;
+
+        case 0x2004:
+            value = oamdata_;
+            return true;
+
+        case 0x2007:
+            value = ppudata_;
+            vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+            vram_.addr %= 0x3FFF;
+            ppudata_ = 0;
+            return true;
+    }
+
+    return false;
 }
 
 void PPU::patterntable_img(byte_t* buf, int pitch, int index) const 
@@ -245,19 +253,10 @@ Tile PPU::get_pattern_tile(address_t address) const
 
 void PPU::nametable_img(byte_t *buf, int pitch, int index) const
 {
-    // temporary RGB palette
-    static Color tmp_palette[] = 
-        {
-            {0x92, 0x90, 0xff}, // pale blue
-            {0x88, 0xd8, 0x00}, // green
-            {0x0c, 0x93, 0x00}, // dark green
-            {0x00, 0x00, 0x00} // black
-        };
-
     size_t pixel_size = pitch / 3;
 
     address_t ntaddr = nametable_addr[index];
-    address_t ptaddr = patttable_addr[ppuctrl_ & 0x10 ? 1 : 0];
+    address_t ptaddr = patttable_addr[0];
 
     for (unsigned int row = 0; row < 30; ++row)
     {

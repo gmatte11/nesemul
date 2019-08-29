@@ -6,7 +6,7 @@ LD=g++
 LDFLAGS=
 LDLIBS=`sdl2-config --libs`
 
-SRCS=ops.cpp cpu.cpp ppu.cpp sdl_renderer.cpp main.cpp
+SRCS=ops.cpp bus.cpp cpu.cpp ppu.cpp sdl_renderer.cpp main.cpp
 OBJS=$(patsubst %.cpp,build/%.o,$(SRCS))
 TARGET=nesemul
 

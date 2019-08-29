@@ -7,18 +7,17 @@
 #include <vector>
 #include <tuple>
 
+class BUS;
+
 // Emulate 6502 CPU
 class CPU
 {
 public:
+    CPU(BUS& bus) : bus_(bus) {}
+
     // Execute next instruction from the program
     void next();
     void reset();
-
-    inline byte_t* data()
-    {
-        return memory_.data();
-    }
 
     void interrupt(bool nmi = false);
     std::vector<std::tuple<address_t, byte_t>> ppu_writes();
@@ -41,11 +40,11 @@ private:
 
     // ppu registers writes from cpu
     std::vector<std::tuple<address_t, byte_t>> ppu_events_;
+    
+    //
+    BUS& bus_;
 
-    // memory buffer
-    std::array<byte_t, 0x10000> memory_{};
-
-    // memory access
+    // bus access
     void store_(address_t addr, byte_t operand);
     void store_(address_t addr, address_t addr_value);
     byte_t load_(address_t addr);
