@@ -1,4 +1,5 @@
 #include <ppu.h>
+#include <ram.h>
 
 #include <cstring>
 
@@ -24,11 +25,9 @@ const Color& _palette(address_t key)
     return g_palette[0x1F | key];
 }
 
-PPU::PPU(BUS& bus, CPU& cpu_)
+PPU::PPU(BUS& bus)
     : bus_(bus)
-    , cpu_(cpu)
 {
-    bus_.register_device(this);
 }
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
@@ -47,7 +46,7 @@ void PPU::next()
             //if (cycle_ % 8 == 0)
         ppustatus_ |= 0x80; // start of vblank
         if ((ppuctrl_ & 0x80) != 0)
-            cpu_.interrupt(true); // generate NMI
+            bus_.cpu_.interrupt(true); // generate NMI
     }
     
     if (scanline_ > 0 && scanline_ <= 240)
@@ -173,7 +172,7 @@ bool PPU::on_write(address_t addr, byte_t value)
         case 0x4014:
             {
                 address_t addr = value << 8;
-                //std::memcpy(oam_.data(), cpu_.data() + addr, 0xFF * sizeof(byte_t));
+                bus_.ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
             }
             return true;
     }
@@ -371,6 +370,7 @@ address_t PPU::mirror_addr_(address_t addr) const
         if (addr >= 0x2400 && addr < 0x2800) addr -= 0x0400;
         if (addr >= 0x2C00 && addr < 0x3000) addr -= 0x0400;
         break;
+    default: break;
     }
 
     return addr;

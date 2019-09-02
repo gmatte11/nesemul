@@ -2,22 +2,19 @@
 
 #include <types.h>
 
-#include <array>
-
-struct Device
-{
-    virtual bool on_write(address_t addr, byte_t operand) = 0;
-    virtual bool on_read(address_t addr, byte_t& output) = 0;
-};
+class CPU;
+class PPU;
+class RAM;
 
 class BUS
 {
 public:
-    void register_device(Device* device);
+    BUS(CPU& cpu, PPU& ppu, RAM& ram);
 
     void write(address_t addr, byte_t value);
     byte_t read(address_t addr);
 
-private:
-    std::array<Device*, 2> devices_ = { nullptr };
+    CPU& cpu_;
+    PPU& ppu_;
+    RAM& ram_;
 };

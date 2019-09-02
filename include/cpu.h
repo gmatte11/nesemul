@@ -1,5 +1,4 @@
-#ifndef __NESEMUL_CPU_H__
-#define __NESEMUL_CPU_H__
+#pragma once
 
 #include <types.h>
 
@@ -157,5 +156,3 @@ private:
     void txs_();
     void tya_();
 };
-
-#endif // __NESEMUL_CPU_H__

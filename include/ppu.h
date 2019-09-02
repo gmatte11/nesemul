@@ -18,7 +18,7 @@ enum class Mirroring
 
 struct Tile;
 
-class PPU : public Device
+class PPU
 {
 public:
     PPU(BUS& bus);
@@ -26,8 +26,8 @@ public:
     void next();
     void reset();
 
-    bool on_write(address_t addr, byte_t value) override;
-    bool on_read(address_t addr, byte_t& value) override;
+    bool on_write(address_t addr, byte_t value);
+    bool on_read(address_t addr, byte_t& value);
 
     byte_t* data()
     {
@@ -77,14 +77,13 @@ private:
     byte_t get_attribute_(address_t ntaddr, int row, int col) const;
 
     // shift registers
-    uint16_t register_1;
-    uint16_t register_2;
-    uint8_t register_3;
-    uint8_t register_4;
+    //uint16_t register_1;
+    //uint16_t register_2;
+    //uint8_t register_3;
+    //uint8_t register_4;
 
     // Connected devices
     BUS& bus_;
-    CPU& cpu_;
 
     // registers
     byte_t ppuctrl_;
@@ -95,7 +94,7 @@ private:
     byte_t ppuscroll_;
     byte_t ppuaddr_;
     byte_t ppudata_;
-    byte_t oamdma_;
+    //byte_t oamdma_;
 
     // vram cursor
     cursor_t vram_;

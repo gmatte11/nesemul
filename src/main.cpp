@@ -10,19 +10,8 @@
 #include <bus.h>
 #include <cpu.h>
 #include <ppu.h>
+#include <ram.h>
 #include <sdl_renderer.h>
-
-class RAM : public Device
-{
-public:
-    RAM(BUS& bus) { bus.register_device(this); }
-
-    bool on_write(address_t addr, byte_t value) override { memory_[addr] = value; return true; }
-    bool on_read(address_t addr, byte_t& value) override { value = memory_[addr]; return true; }
-
-private:
-    std::array<byte_t, 0x10000> memory_{};
-};
 
 class Emulator
 {
@@ -41,9 +30,9 @@ private:
 };
 
 Emulator::Emulator()
-    : cpu_(bus_)
-    , ppu_(bus_, cpu_)
-    , ram_(bus_)
+    : bus_(cpu_, ppu_, ram_)
+    , cpu_(bus_)
+    , ppu_(bus_)
 {
 }
 

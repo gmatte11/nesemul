@@ -2,6 +2,8 @@
 
 #include <types.h>
 #include <ops.h>
+#include <bus.h>
+#include <ram.h>
 
 #include <stdexcept>
 #include <sstream>
@@ -12,14 +14,6 @@
 #include <iostream>
 
 using namespace ops;
-
-namespace
-{
-typedef int8_t sbyte_t;
-inline sbyte_t sign(byte_t b)
-{
-    return *reinterpret_cast<sbyte_t*>(&b);
-}
 
 std::string _str(byte_t operand)
 {
@@ -43,7 +37,6 @@ std::string _str(address_t addr)
         << addr;
 
     return oss.str();
-}
 }
 
 void CPU::next()
@@ -71,7 +64,7 @@ void CPU::next()
             int_ = {false, false};
         }
 
-        std::memcpy(&data, memory_.data() + program_counter_, sizeof(data));
+        bus_.ram_.memcpy(&data, program_counter_, sizeof(data));
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 
@@ -726,8 +719,8 @@ inline byte_t CPU::load_(address_t addr)
 inline address_t CPU::load_addr_(address_t addr)
 {
     address_t value;
-    value = static_cast<address_t>(bus_.read(addr + 1)) << 8
-    value |= 0xFF & static_cast<address_t>(bus_.write(addr));
+    value = static_cast<address_t>(bus_.read(addr + 1)) << 8;
+    value |= 0xFF & static_cast<address_t>(bus_.read(addr));
     return value;
 }
 
@@ -796,7 +789,7 @@ inline address_t CPU::indexed_abs_addr(address_t addr, byte_t index)
 inline address_t CPU::indirect_addr(address_t addr)
 {
     address_t addr_h = (0xFF00 & addr) | (0xFF & addr + 1);
-    return static_cast<address_t>(memory_[addr_h]) << 8 | memory_[addr];
+    return static_cast<address_t>(bus_.read(addr_h)) << 8 | bus_.read(addr);
 }
 
 // $00
@@ -807,7 +800,7 @@ inline address_t CPU::page_zero_addr(address_t addr)
 
 inline address_t CPU::indirect_pz_addr(byte_t addr)
 {
-    return static_cast<address_t>(memory_[static_cast<byte_t>(addr + 1)]) << 8 | memory_[addr];
+    return static_cast<address_t>(bus_.read(static_cast<byte_t>(addr + 1))) << 8 | bus_.read(addr);
 }
 
 // $(00)
@@ -834,7 +827,7 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
 
     byte_t addr_l = static_cast<byte_t>(0xFF & addr);
 
-    auto read = [this](address_t addr){ return memory_[addr]; };
+    auto read = [this](address_t addr){ return bus_.read(addr); };
 
     switch (type)
     {
