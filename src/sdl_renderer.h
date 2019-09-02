@@ -2,8 +2,9 @@
 #define __SDL_RENDERER_H__
 #include <SDL2/SDL.h>
 
-#include <image.h>
-#include <ppu.h>
+#include "image.h"
+#include "ppu.h"
+
 #include <vector>
 #include <functional>
 

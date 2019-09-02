@@ -1,9 +1,9 @@
-#include <cpu.h>
+#include "cpu.h"
 
-#include <types.h>
-#include <ops.h>
-#include <bus.h>
-#include <ram.h>
+#include "types.h"
+#include "ops.h"
+#include "bus.h"
+#include "ram.h"
 
 #include <stdexcept>
 #include <sstream>

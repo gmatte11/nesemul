@@ -1,13 +1,13 @@
 #ifndef __NESEMUL_PPU_H__
 #define __NESEMUL_PPU_H__
 
-#include <types.h>
-#include <bus.h>
-#include <cpu.h>
+#include "types.h"
+#include "bus.h"
+#include "cpu.h"
+#include "image.h"
+
 #include <array>
 #include <cstring>
-
-#include <image.h>
 
 enum class Mirroring
 {

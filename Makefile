@@ -1,7 +1,7 @@
 .PHONY=all clean
 
 CXX=g++
-CXXFLAGS=-std=c++17 -g -Iinclude `sdl2-config --cflags`
+CXXFLAGS=-std=c++17 -g `sdl2-config --cflags`
 LD=g++
 LDFLAGS=
 LDLIBS=`sdl2-config --libs`

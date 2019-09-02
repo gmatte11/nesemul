@@ -1,7 +1,7 @@
 #ifndef __NESEMUL_IMAGE_H__
 #define __NESEMUL_IMAGE_H__
 
-#include <types.h>
+#include "types.h"
 
 #include <array>
 

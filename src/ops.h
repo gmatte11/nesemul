@@ -1,7 +1,7 @@
 #ifndef __NESEMUL_OPS_H__
 #define __NESEMUL_OPS_H__
 
-#include <types.h>
+#include "types.h"
 
 #include <string>
 
