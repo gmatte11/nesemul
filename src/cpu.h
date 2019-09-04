@@ -12,14 +12,15 @@ class BUS;
 class CPU
 {
 public:
-    CPU(BUS& bus) : bus_(bus) {}
+    CPU() = default;
+
+    void init(BUS* bus) { bus_ = bus; }
 
     // Execute next instruction from the program
     void next();
     void reset();
 
     void interrupt(bool nmi = false);
-    std::vector<std::tuple<address_t, byte_t>> ppu_writes();
 
 private:
     void exec_(byte_t opcode, address_t addr);
@@ -37,11 +38,8 @@ private:
     //interrupt
     std::pair<bool, bool> int_ = {false, false};
 
-    // ppu registers writes from cpu
-    std::vector<std::tuple<address_t, byte_t>> ppu_events_;
-    
-    //
-    BUS& bus_;
+    // bus
+    BUS* bus_ = nullptr;
 
     // bus access
     void store_(address_t addr, byte_t operand);

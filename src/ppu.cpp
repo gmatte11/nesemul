@@ -25,36 +25,31 @@ const Color& _palette(address_t key)
     return g_palette[0x1F | key];
 }
 
-PPU::PPU(BUS& bus)
-    : bus_(bus)
-{
-}
-
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 address_t patttable_addr[] = {0x0000, 0x1000};
 
 void PPU::next()
 {
-
-    if (cycle_ == 1 && scanline_ == 0)
+    // status checks
+    if (cycle_ == 1 && scanline_ == 261)
     {
         ppustatus_ &= 0x1f; // end of vblank
     }
 
-    if (cycle_ == 1 && scanline_ == 240)
+    if (cycle_ == 1 && scanline_ == 241)
     {
-            //if (cycle_ % 8 == 0)
         ppustatus_ |= 0x80; // start of vblank
         if ((ppuctrl_ & 0x80) != 0)
-            bus_.cpu_.interrupt(true); // generate NMI
+            bus_->cpu_.interrupt(true); // generate NMI
     }
-    
-    if (scanline_ > 0 && scanline_ <= 240)
+
+    // rendering    
+    if (scanline_ >= 0 && scanline_ < 240)
     {
         if (cycle_ > 0 && cycle_ <= 256)
         {
             {
-                int row = scanline_ - 1;
+                int row = scanline_;
                 int col = cycle_ - 1;
 
                 address_t ntaddr = nametable_addr[0];
@@ -65,9 +60,7 @@ void PPU::next()
                 byte_t pattern = load_(ntaddr + ntrow * 32 + ntcol);
                 Tile tile = get_pattern_tile(ptaddr | pattern);
 
-                Palette palette(g_palette + 4 * 12);
-                if (ppuctrl_ & 0x10)
-                    palette = Palette(g_palette + 8 * 12);
+                Palette palette(g_palette[0], g_palette[2], g_palette[8], g_palette[6]);
 
                 int trow = row % 8;
                 int tcol = col % 8;
@@ -100,15 +93,21 @@ void PPU::next()
         }*/
     }
 
-    if (cycle_ < 340)
+    // skip one cycle on odd frame at scanline 261
+    if (cycle_ < 340 /*&& !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339)*/)
+    {
         ++cycle_;
+    }
     else
     {
         cycle_ = 0;
         ++scanline_;
 
         if (scanline_ == 262)
+        {
             scanline_ = 0;
+            //++frame_;
+        }
     }
 }
 
@@ -172,7 +171,7 @@ bool PPU::on_write(address_t addr, byte_t value)
         case 0x4014:
             {
                 address_t addr = value << 8;
-                bus_.ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
+                bus_->ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
             }
             return true;
     }
@@ -252,6 +251,15 @@ Tile PPU::get_pattern_tile(address_t address) const
 
 void PPU::nametable_img(byte_t *buf, int pitch, int index) const
 {
+    // temporary RGB palette
+    static Color tmp_palette[] = 
+        {
+            {0x92, 0x90, 0xff}, // pale blue
+            {0x88, 0xd8, 0x00}, // green
+            {0x0c, 0x93, 0x00}, // dark green
+            {0x00, 0x00, 0x00} // black
+        };
+    Palette palette(tmp_palette);
     size_t pixel_size = pitch / 3;
 
     address_t ntaddr = nametable_addr[index];
@@ -263,7 +271,6 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
         {
             byte_t pattern = load_(ntaddr + row * 32 + col);
             Tile tile = get_pattern_tile(ptaddr | pattern);
-            Palette palette(g_palette + 4 * 12);
 
             for (unsigned int y = 0; y < 8; ++y)
             {
@@ -332,6 +339,7 @@ void PPU::reset()
 {
     scanline_ = 261;
     cycle_ = 0;
+    //frame_ = 0;
 
     ppuctrl_ = 0x0;
     ppumask_ = 0x0;

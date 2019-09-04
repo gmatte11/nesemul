@@ -21,7 +21,9 @@ struct Tile;
 class PPU
 {
 public:
-    PPU(BUS& bus);
+    PPU() = default;
+
+    void init(BUS* bus) { bus_ = bus; }
 
     void next();
     void reset();
@@ -54,8 +56,9 @@ public:
     void sprite_img(byte_t *buf, int pitch) const;
 
 private:
-    int scanline_ = -1;
+    unsigned int scanline_ = 261;
     unsigned int cycle_ = 0;
+    unsigned int frame_ = 0;
 
     // Output image
     Image output_;
@@ -83,7 +86,7 @@ private:
     //uint8_t register_4;
 
     // Connected devices
-    BUS& bus_;
+    BUS* bus_ = nullptr;
 
     // registers
     byte_t ppuctrl_;
@@ -109,12 +112,16 @@ struct Color
 class Palette
 {
 public:
-    Palette(Color *first) : color_(first) {}
+    Palette(Color *first) { std::memcpy(color_.data(), first, sizeof(color_)); }
+    Palette(Color const& c1, Color const& c2, Color const& c3, Color const& c4)
+    {
+        color_ = {c1, c2, c3, c4};
+    }
 
-    byte_t* raw(int index) const { return reinterpret_cast<byte_t*>(color_ + index); }
+    byte_t const* raw(int index) const { return reinterpret_cast<byte_t const*>(&color_[index]); }
 
 private:
-    Color* color_;
+    std::array<Color, 4> color_;
 };
 
 struct Tile

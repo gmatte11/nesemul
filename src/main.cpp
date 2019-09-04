@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <sstream>
 #include <cstring>
+#include <memory>
 
 #include "types.h"
 #include "bus.h"
@@ -23,17 +24,20 @@ public:
     int run();
 
 private:
-    BUS bus_;
-    CPU cpu_;
-    PPU ppu_;
-    RAM ram_;
+    std::unique_ptr<BUS> bus_;
+    std::unique_ptr<CPU> cpu_;
+    std::unique_ptr<PPU> ppu_;
+    std::unique_ptr<RAM> ram_;
 };
 
 Emulator::Emulator()
-    : bus_(cpu_, ppu_, ram_)
-    , cpu_(bus_)
-    , ppu_(bus_)
+    : cpu_(new CPU)
+    , ppu_(new PPU)
+    , ram_(new RAM)
 {
+    bus_.reset(new BUS(*cpu_, *ppu_, *ram_));
+    cpu_->init(bus_.get());
+    ppu_->init(bus_.get());
 }
 
 void Emulator::read(const std::string& filename)
@@ -72,7 +76,7 @@ void Emulator::read(const std::string& filename)
         {
             mir = (0x1 & config[0]) ? Mirroring::Vertical : Mirroring::Horizontal;
         }
-        ppu_.set_mirroring(mir);
+        ppu_->set_mirroring(mir);
 
         char num_8kb_ram_banks;
         ifs.read(&num_8kb_ram_banks, 1);
@@ -95,13 +99,13 @@ void Emulator::read(const std::string& filename)
         std::string buf{ss.str()};
 
         // Program rom (PRG-ROM) is loaded in $8000
-        std::memcpy(ram_.data() + 0x8000, buf.data(), 0x8000);
+        std::memcpy(ram_->data() + 0x8000, buf.data(), 0x8000);
 
         if (num_16kb_rom_banks == 1)
-            std::memcpy(ram_.data() + 0xC000, buf.data(), 0x4000);
+            std::memcpy(ram_->data() + 0xC000, buf.data(), 0x4000);
 
         // Character rom (CHR-ROM) is loaded in ppu $0000
-        std::memcpy(ppu_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
+        std::memcpy(ppu_->data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
     }
     else
     {
@@ -113,17 +117,17 @@ int Emulator::run()
 {
     SDLRenderer renderer;
 
-    cpu_.reset();
-    ppu_.reset();
+    cpu_->reset();
+    ppu_->reset();
 
     for (;;)
     {
-        cpu_.next();
-        for (int i = 0; i < 3; ++i) ppu_.next();
+        cpu_->next();
+        for (int i = 0; i < 3; ++i) ppu_->next();
 
         if (renderer.timeout())
         {
-            if (!renderer.update(ppu_))
+            if (!renderer.update(*ppu_))
                 break;
         }
     }
