@@ -101,7 +101,7 @@ void Emulator::read(const std::string& filename)
             std::memcpy(ram_.data() + 0xC000, buf.data(), 0x4000);
 
         // Character rom (CHR-ROM) is loaded in ppu $0000
-        std::memcpy(ram_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
+        std::memcpy(ppu_.data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
     }
     else
     {
