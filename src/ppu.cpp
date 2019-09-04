@@ -94,7 +94,7 @@ void PPU::next()
     }
 
     // skip one cycle on odd frame at scanline 261
-    if (cycle_ < 340 /*&& !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339)*/)
+    if (cycle_ < 340 && !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339))
     {
         ++cycle_;
     }
@@ -106,7 +106,7 @@ void PPU::next()
         if (scanline_ == 262)
         {
             scanline_ = 0;
-            //++frame_;
+            ++frame_;
         }
     }
 }
@@ -339,7 +339,7 @@ void PPU::reset()
 {
     scanline_ = 261;
     cycle_ = 0;
-    //frame_ = 0;
+    frame_ = 0;
 
     ppuctrl_ = 0x0;
     ppumask_ = 0x0;
