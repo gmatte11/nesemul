@@ -5,7 +5,7 @@
 
 SFMLRenderer::SFMLRenderer()
 {
-    window_.reset(new sf::RenderWindow(sf::VideoMode(1024, 480), "NESEMUL"));
+    window_.reset(new sf::RenderWindow(sf::VideoMode(1024, 480 + 32), "NESEMUL"));
     font_.loadFromFile("data/Emulogic-zrEw.ttf");
 }
 
@@ -50,19 +50,50 @@ bool SFMLRenderer::timeout()
 void SFMLRenderer::draw(PPU const& ppu)
 {
     static sf::Texture tex;
+    static sf::Texture debugTex;
     if (tex.getSize().x == 0)
+    {
         tex.create(256, 240);
+        debugTex.create(512, 480 + 128);
+    }
 
     window_->clear();
 
-    tex.update(ppu.output().data(), 256, 240, 0, 0);
+    tex.update(ppu.output().data());
     sf::RectangleShape shape(sf::Vector2f(256.f * 2, 240.f * 2));
     shape.setTexture(&tex);
     shape.setPosition(512.f, 0.f);
     window_->draw(shape);
 
-    sf::Text text(sf::String("FRAME: ") += std::to_string(ppu.frame()), font_, 24);
+    sf::Uint8 buffer[256 * 240 * 4];
+    ppu.patterntable_img(buffer, 128*4, 0);
+    debugTex.update(buffer, 128, 128, 0, 0);
+
+    ppu.patterntable_img(buffer, 128*4, 1);
+    debugTex.update(buffer, 128, 128, 128, 0);
+
+    ppu.nametable_img(buffer, 256 * 4, 0);
+    debugTex.update(buffer, 256, 240, 0, 128);
+    
+    //ppu.nametable_img(buffer, 256 * 4, 1);
+    //debugTex.update(buffer, 256, 240, 256, 128);
+    
+    //ppu.nametable_img(buffer, 256 * 4, 2);
+    //debugTex.update(buffer, 256, 240, 0, 128 + 240);
+    
+    //ppu.nametable_img(buffer, 256 * 4, 3);
+    //debugTex.update(buffer, 256, 240, 256, 128 + 240);
+
+    sf::Sprite pat(debugTex, {0, 0, 128 * 2, 128});
+    pat.setPosition(0.f, 32.f);
+    pat.setScale(2, 2);
+    window_->draw(pat);
+
+    sf::Sprite nam(debugTex, {0, 128, 512, 480});
+    nam.setPosition(0.f, 32.f + 128.f * 2);
+    window_->draw(nam);
+
+    sf::Text text(sf::String("FRAME: ") += std::to_string(ppu.frame()), font_, 12);
     text.setFillColor(sf::Color::Green);
-    text.scale(.5f, .5f);
     window_->draw(text);
 }

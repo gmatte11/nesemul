@@ -218,7 +218,7 @@ void PPU::patterntable_img(byte_t* buf, int pitch, int index) const
 
     Palette palette(tmp_palette);
 
-    size_t row_len = pitch / 3;
+    size_t row_len = pitch / 4;
 
     address_t ptaddr = patttable_addr[index];
 
@@ -234,7 +234,7 @@ void PPU::patterntable_img(byte_t* buf, int pitch, int index) const
 
             for (unsigned int col = 0; col < 8; ++col)
             {
-                size_t pixel = (y_off + x_off + col) * 3;
+                size_t pixel = (y_off + x_off + col) * 4;
                 tile.pixel(row * 8 + col, buf + pixel, palette);
             }
         }
@@ -260,7 +260,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
             {0x00, 0x00, 0x00} // black
         };
     Palette palette(tmp_palette);
-    size_t pixel_size = pitch / 3;
+    size_t pixel_size = pitch / 4;
 
     address_t ntaddr = nametable_addr[index];
     address_t ptaddr = patttable_addr[0];
@@ -279,7 +279,7 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
 
                 for (unsigned int x = 0; x < 8; ++x)
                 {
-                    size_t pixel = (y_off + x_off + x) * 3;
+                    size_t pixel = (y_off + x_off + x) * 4;
                     tile.pixel(y * 8 + x, buf + pixel, palette);
                 }
             }
@@ -312,7 +312,7 @@ void PPU::sprite_img(byte_t *buf, int pitch) const
             address_t ptaddr = patttable_addr[indx & 0x1];
             Tile tile = get_pattern_tile(ptaddr | (indx >> 1));
 
-            size_t const pixel_size = pitch / 3;
+            size_t const pixel_size = pitch / 4;
 
             bool vflip = (0x80 & attr);
             bool hflip = (0x40 & attr);
