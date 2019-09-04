@@ -66,7 +66,7 @@ void PPU::next()
                 int tcol = col % 8;
                 int tpx = trow * 8 + tcol;
 
-                int index = (row * 256 + col) * 3;
+                int index = (row * 256 + col) * 4;
                 tile.pixel(tpx, output_.data() + index, palette);
             }
         }

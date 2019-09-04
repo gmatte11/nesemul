@@ -12,7 +12,7 @@
 #include "cpu.h"
 #include "ppu.h"
 #include "ram.h"
-#include "sdl_renderer.h"
+#include "sfml_renderer.h"
 
 class Emulator
 {
@@ -115,7 +115,7 @@ void Emulator::read(const std::string& filename)
 
 int Emulator::run()
 {
-    SDLRenderer renderer;
+    SFMLRenderer renderer;
 
     cpu_->reset();
     ppu_->reset();

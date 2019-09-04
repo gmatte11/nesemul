@@ -1,12 +1,12 @@
 .PHONY=all clean
 
 CXX=g++
-CXXFLAGS=-std=c++17 -g `sdl2-config --cflags`
+CXXFLAGS=-std=c++17 -g
 LD=g++
 LDFLAGS=
-LDLIBS=`sdl2-config --libs`
+LDLIBS=-lsfml-graphics -lsfml-window -lsfml-system
 
-SRCS=ops.cpp bus.cpp cpu.cpp ppu.cpp sdl_renderer.cpp main.cpp
+SRCS=ops.cpp bus.cpp cpu.cpp ppu.cpp sfml_renderer.cpp main.cpp
 OBJS=$(patsubst %.cpp,build/%.o,$(SRCS))
 TARGET=nesemul
 

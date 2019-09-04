@@ -46,6 +46,8 @@ public:
         return output_;
     }
 
+    inline int frame() const { return frame_; }
+
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
     void patterntable_img(byte_t* buf, int pitch, int index) const;
@@ -106,7 +108,7 @@ private:
 
 struct Color
 {
-    byte_t r, g, b;
+    byte_t r, g, b, a = 255;
 };
 
 class Palette
@@ -137,7 +139,7 @@ struct Tile
         byte_t hpat = *(ppu_->data() + haddr);
 
         byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
-        std::memcpy(pixels, palette.raw(val), 3);
+        std::memcpy(pixels, palette.raw(val), 4);
     }
     address_t address_;
     const PPU* ppu_;
