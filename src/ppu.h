@@ -34,7 +34,7 @@ private:
 
 struct Tile
 {
-    byte_t pixel(uint8_t x, uint8_t y) const;
+    byte_t pixel(uint8_t x, uint8_t y, byte_t flip = 0) const;
     byte_t ntbyte_ = 0;
     byte_t atbyte_ = 0;
     byte_t half_ = 0;

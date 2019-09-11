@@ -91,9 +91,11 @@ void PPU::next()
                     {
                         byte_t pattern = sprite.tile_;
                         Tile tile = get_pattern_tile(pattern, ppuctrl_ & 0x08 ? 1 : 0);
+                        
+                        byte_t pal = sprite.att_ & 0x3;
+                        byte_t flip = sprite.att_ >> 5;
 
                         static address_t sprite_palette_addr[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
-                        byte_t pal = sprite.att_ & 0x3;
                         address_t paladdr = sprite_palette_addr[pal];
                         Palette palette(
                             {0xFF, 0xFF, 0xFF, 0x00},
@@ -103,7 +105,7 @@ void PPU::next()
 
                         int ty = (row - sprite.y_ - 2);
                         int tx = (col - sprite.x_ - 1);
-                        byte_t pixel = tile.pixel(tx, ty);
+                        byte_t pixel = tile.pixel(tx, ty, flip);
                         if (pixel != 0 && (sprite.att_ & 0x20) == 0)
                             output_.set(col, row, palette.get(pixel));
                     }
@@ -407,8 +409,11 @@ byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
     return 0b11 & (metatile >> (quadrant * 2));
 }
 
-byte_t Tile::pixel(uint8_t x, uint8_t y) const
+byte_t Tile::pixel(uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
 {
+    if (0b10 & flip) x = 7 - x; //vert flip
+    if (0b01 & flip) y = 7 - y; //hori flip
+
     address_t addr =
         static_cast<address_t>(half_ & 0x1) << 12 |
         static_cast<address_t>(ntbyte_) << 4 |
