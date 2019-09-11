@@ -48,7 +48,7 @@ void PPU::next()
             bus_->cpu_.interrupt(true); // generate NMI
     }
 
-    // rendering    
+    // rendering
     if (scanline_ >= 0 && scanline_ < 240)
     {
         if (cycle_ > 0 && cycle_ <= 256)
@@ -69,9 +69,9 @@ void PPU::next()
                 static address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
                 address_t paladdr = bg_palette_addr[tile.atbyte_];
                 Palette palette(
-                    g_palette[load_(0x3F00)], 
+                    g_palette[load_(0x3F00)],
                     g_palette[load_(paladdr + 0)],
-                    g_palette[load_(paladdr + 1)], 
+                    g_palette[load_(paladdr + 1)],
                     g_palette[load_(paladdr + 2)]);
 
                 byte_t pixel = tile.pixel(tcol, trow);
@@ -91,7 +91,7 @@ void PPU::next()
                     {
                         byte_t pattern = sprite.tile_;
                         Tile tile = get_pattern_tile(pattern, ppuctrl_ & 0x08 ? 1 : 0);
-                        
+
                         byte_t pal = sprite.att_ & 0x3;
                         byte_t flip = sprite.att_ >> 5;
 
@@ -158,41 +158,41 @@ void PPU::next()
             break;
             }
         }
-            }
+    }
 
-            // sprite eval
+    // sprite eval
     if (scanline_ >= 0 && scanline_ < 240)
     {
-            if (cycle_ == 1)
-            {
-                secondary_oam_.flip();
-                secondary_oam_.store().count_ = 0;
-                secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
-            }
+        if (cycle_ == 1)
+        {
+            secondary_oam_.flip();
+            secondary_oam_.store().count_ = 0;
+            secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
+        }
 
-            if (cycle_ > 64 && cycle_ <= 256)
+        if (cycle_ > 64 && cycle_ <= 256)
+        {
+            if (cycle_ % 2 == 1)
             {
-                if (cycle_ % 2 == 1)
+                auto& sprites = secondary_oam_.store();
+                int n = (cycle_ - 65) / 2;
+                Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
+
+                if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) < 8)
                 {
-                    auto& sprites = secondary_oam_.store();
-                    int n = (cycle_ - 65) / 2;
-                    Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
-
-                    if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) < 8)
+                    if (sprites.count_ < 8)
                     {
-                        if (sprites.count_ < 8)
-                        {
-                            sprites.list_[sprites.count_] = *sprite;
-                            ++sprites.count_;
-                        }
-                        else
-                        {
-                            // TODO Sprite overflow bug
-                            ppustatus_ |= 0x20;
-                        }
+                        sprites.list_[sprites.count_] = *sprite;
+                        ++sprites.count_;
+                    }
+                    else
+                    {
+                        // TODO Sprite overflow bug
+                        ppustatus_ |= 0x20;
                     }
                 }
             }
+        }
     }
 
     // skip one cycle on odd frame at scanline 261
@@ -233,65 +233,65 @@ bool PPU::on_write(address_t addr, byte_t value)
 {
     switch (addr)
     {
-        case 0x2000: 
-            ppuctrl_ = value;
-            return true;
+    case 0x2000:
+        ppuctrl_ = value;
+        return true;
 
-        case 0x2001:
-            ppumask_ = value;
-            return true;
+    case 0x2001:
+        ppumask_ = value;
+        return true;
 
-            // oamaddr
-        case 0x2003:
-            // TODO
-            return true;
+        // oamaddr
+    case 0x2003:
+        // TODO
+        return true;
 
-            //oamdata
-        case 0x2004:
-            // TODO
-            ++oamaddr_;
-            return true;
+        //oamdata
+    case 0x2004:
+        // TODO
+        ++oamaddr_;
+        return true;
 
-            // ppuscroll
-        case 0x2005:
-            //TODO handle scroll
-            return true;
+        // ppuscroll
+    case 0x2005:
+        //TODO handle scroll
+        return true;
 
-            // ppuaddr
-        case 0x2006:
-            {
-                if (!vram_hilo_)
-                {
-                    vram_.bytes.l = value;
-                    vram_hilo_ = true;
-                }
-                else
-                {
-                    vram_.bytes.h = value;
-                    vram_hilo_ = false;
-                }
+        // ppuaddr
+    case 0x2006:
+    {
+        if (!vram_hilo_)
+        {
+            vram_.bytes.l = value;
+            vram_hilo_ = true;
+        }
+        else
+        {
+            vram_.bytes.h = value;
+            vram_hilo_ = false;
+        }
 
-                ppuaddr_ = 0;
-            }
-            return true;
+        ppuaddr_ = 0;
+    }
+        return true;
 
-            // ppudata
-        case 0x2007:
-            {
-                store_(vram_.addr, value);
-                vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
-                vram_.addr %= 0x3FFF;
-                ppudata_ = 0;
-            }
-            return true;
+        // ppudata
+    case 0x2007:
+    {
+        store_(vram_.addr, value);
+        vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+        vram_.addr %= 0x3FFF;
+        ppudata_ = 0;
+    }
+        return true;
 
-            // oamdma
-        case 0x4014:
-            {
-                address_t addr = value << 8;
-                bus_->ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
-            }
-            return true;
+        // oamdma
+    case 0x4014:
+    {
+        address_t addr = value << 8;
+        bus_->ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
+    }
+        return true;
     }
 
     return false;
@@ -301,37 +301,37 @@ bool PPU::on_read(address_t addr, byte_t& value)
 {
     switch (addr)
     {
-        case 0x2002:
-            value = ppustatus_;
-            ppustatus_ &= 0x7F;
-            // TODO reset scroll
-            vram_hilo_ = false;
-            return true;
+    case 0x2002:
+        value = ppustatus_;
+        ppustatus_ &= 0x7F;
+        // TODO reset scroll
+        vram_hilo_ = false;
+        return true;
 
-        case 0x2004:
-            value = oamdata_;
-            return true;
+    case 0x2004:
+        value = oamdata_;
+        return true;
 
-        case 0x2007:
-            value = ppudata_;
-            vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
-            vram_.addr %= 0x3FFF;
-            ppudata_ = 0;
-            return true;
+    case 0x2007:
+        value = ppudata_;
+        vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+        vram_.addr %= 0x3FFF;
+        ppudata_ = 0;
+        return true;
     }
 
     return false;
 }
 
-void PPU::patterntable_img(Image<128, 128>& image, byte_t index) const 
+void PPU::patterntable_img(Image<128, 128>& image, byte_t index) const
 {
     // temporary RGB palette
     static Color tmp_palette[] = {
-            {0x92, 0x90, 0xff}, // pale blue
-            {0x88, 0xd8, 0x00}, // green
-            {0x0c, 0x93, 0x00}, // dark green
-            {0x00, 0x00, 0x00} // black
-        };
+        {0x92, 0x90, 0xff}, // pale blue
+        {0x88, 0xd8, 0x00}, // green
+        {0x0c, 0x93, 0x00}, // dark green
+        {0x00, 0x00, 0x00} // black
+    };
 
     Palette palette(tmp_palette);
 
@@ -346,9 +346,9 @@ void PPU::patterntable_img(Image<128, 128>& image, byte_t index) const
             Tile tile = get_pattern_tile(ntbyte, index);
             byte_t pixel = tile.pixel(x % 8, y % 8);
             image.set(x, y, palette.get(pixel));
-            }
         }
     }
+}
 
 Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
 {
@@ -372,7 +372,7 @@ void PPU::store_(address_t addr, byte_t value)
 address_t PPU::mirror_addr_(address_t addr) const
 {
     // $3F20-$3FFF mirrors $3F00-$3F1F
-    //TODO if (addr >= 0x3F20 && addr < 0x4000) 
+    //TODO if (addr >= 0x3F20 && addr < 0x4000)
 
     // $3000-$3EFF mirrors $2000-$2EFF;
     if (addr >= 0x3000 && addr < 0x3F00) addr -= 0x1000;
@@ -403,9 +403,7 @@ byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
 
     byte_t metatile = load_(ataddr);
 
-    int quadrant =
-        ((row % 2 == 1) ? 0b10 : 0) |
-        ((col % 2 == 1) ? 0b01 : 0);
+    int quadrant = ((row % 2 == 1) ? 0b10 : 0) | ((col % 2 == 1) ? 0b01 : 0);
     return 0b11 & (metatile >> (quadrant * 2));
 }
 
@@ -414,18 +412,13 @@ byte_t Tile::pixel(uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
     if (0b10 & flip) x = 7 - x; //vert flip
     if (0b01 & flip) y = 7 - y; //hori flip
 
-    address_t addr =
-        static_cast<address_t>(half_ & 0x1) << 12 |
-        static_cast<address_t>(ntbyte_) << 4 |
-        static_cast<address_t>(y & 0b111) << 0;
+    address_t addr = static_cast<address_t>(half_ & 0x1) << 12 | static_cast<address_t>(ntbyte_) << 4 | static_cast<address_t>(y & 0b111) << 0;
 
     byte_t lpat = ppu_->load(addr);
     byte_t hpat = ppu_->load(addr + 8);
 
     byte_t mask = 1 << (7 - x);
-    byte_t pixel = 
-        (((hpat & mask) != 0) ? 0b10 : 0) |
-        (((lpat & mask) != 0) ? 0b01 : 0);
+    byte_t pixel = (((hpat & mask) != 0) ? 0b10 : 0) | (((lpat & mask) != 0) ? 0b01 : 0);
 
     return pixel;
 }
