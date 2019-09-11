@@ -122,11 +122,15 @@ int Emulator::run()
 
     for (;;)
     {
-        cpu_->next();
-        for (int i = 0; i < 3; ++i) ppu_->next();
-
         if (renderer.timeout())
         {
+            // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
+            for (int i = 0; i < 29780; ++i)
+            {
+                cpu_->next();
+                for (int i = 0; i < 3; ++i) ppu_->next();
+            }
+
             if (!renderer.update(*ppu_))
                 break;
         }

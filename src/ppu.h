@@ -128,19 +128,7 @@ private:
 
 struct Tile
 {
-    void pixel(int index, byte_t *pixels, const Palette & palette)
-    {
-        int row = index / 8;
-        int col = index % 8;
-
-        address_t laddr = (0xff00 & address_) + ((0x00ff & address_) << 4) + row;
-        address_t haddr = laddr + 8;
-        byte_t lpat = *(ppu_->data() + laddr);
-        byte_t hpat = *(ppu_->data() + haddr);
-
-        byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
-        std::memcpy(pixels, palette.raw(val), 4);
-    }
+    void pixel(int index, byte_t *pixels, const Palette & palette);
     address_t address_;
     const PPU* ppu_;
 };

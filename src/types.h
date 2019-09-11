@@ -17,5 +17,6 @@ union cursor_t
 };
 
 #define BREAKPOINT __asm__("int $3")
+#define DEOPTIMIZE __pragma(optimize("",off))
 
 #endif // __NESEMUL_TYPES_H__
