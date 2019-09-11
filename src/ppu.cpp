@@ -32,7 +32,7 @@ const Color& _palette(address_t key)
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 address_t patttable_addr[] = {0x0000, 0x1000};
-DEOPTIMIZE
+
 void PPU::next()
 {
     // status checks

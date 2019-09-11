@@ -75,14 +75,14 @@ bool SFMLRenderer::update(PPU const& ppu)
         window_->display();
     }
 
-    lastUpdate_  = t;
     return window_->isOpen();
 }
 
 bool SFMLRenderer::timeout()
 {
     sf::Time t = clock_.getElapsedTime();
-    bool tick = (t - lastUpdate_).asMilliseconds() >= 14;
+    bool tick = (t - lastUpdate_) >= sf::microseconds(16'667);
+    if (tick) lastUpdate_ = t;
     return tick;
 }
 
@@ -103,14 +103,14 @@ void SFMLRenderer::draw(PPU const& ppu)
     view.setPosition(512.f, 0.f);
     view.setTexture(&tex);
     window_->draw(view);
-
+/*
     Image<128, 128> buffer;
     ppu.patterntable_img(buffer, 0);
     debugTex.update(buffer.data(), 128, 128, 0, 0);
 
     ppu.patterntable_img(buffer, 1);
     debugTex.update(buffer.data(), 128, 128, 128, 0);
-
+*/
     //ppu.nametable_img(buffer, 256 * 4, 0);
     //debugTex.update(buffer, 256, 240, 0, 128);
     
