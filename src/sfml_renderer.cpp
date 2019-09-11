@@ -132,7 +132,12 @@ void SFMLRenderer::draw(PPU const& ppu)
     //nam.setPosition(0.f, 32.f + 128.f * 2);
     //window_->draw(nam);
 
-    sf::Text text(sf::String("FRAME: ") += std::to_string(ppu.frame()), font_, 12);
+    static sf::String empty;
+    sf::Text text(empty, font_, 12);
     text.setFillColor(sf::Color::Green);
+    if (!is_paused())
+        text.setString(sf::String("FRAME: ") += std::to_string(ppu.frame()));
+    else
+        text.setString("PAUSED");
     window_->draw(text);
 }
