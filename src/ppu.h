@@ -16,7 +16,51 @@ enum class Mirroring
     Vertical
 };
 
-struct Tile;
+struct Color
+{
+    byte_t r, g, b, a = 255;
+};
+
+class Palette
+{
+public:
+    Palette(Color *first) { std::memcpy(color_.data(), first, sizeof(color_)); }
+    Palette(Color const& c1, Color const& c2, Color const& c3, Color const& c4)
+    {
+        color_ = {c1, c2, c3, c4};
+    }
+
+    byte_t const* raw(int index) const { return reinterpret_cast<byte_t const*>(&color_[index]); }
+
+private:
+    std::array<Color, 4> color_;
+};
+
+struct Tile
+{
+    void pixel(int index, byte_t *pixels, const Palette & palette);
+    address_t address_;
+    const PPU* ppu_;
+};
+
+struct Sprite
+{
+    byte_t y_;
+    byte_t tile_;
+    byte_t att_;
+    byte_t x_;
+};
+
+template <typename T>
+struct Latch
+{
+    T& store() { return (selector) ? states_[0] : states_[1]; }
+    T const& read() const { return (!selector) ? states_[0] : states_[1]; }
+    void flip() { selector = !selector; }
+
+    std::array<T, 2> states_;
+    bool selector = false;
+};
 
 class PPU
 {
@@ -70,7 +114,18 @@ private:
 
     // memory
     std::array<byte_t, 0x4000> memory_{};
-    std::array<byte_t, 0xFF> oam_{};
+    std::array<byte_t, 0x100> oam_{};
+
+    // BG rendering
+    Latch<Tile> bg_tile_1_;
+    Latch<Tile> bg_tile_2_;
+
+    // sprite rendering
+    struct SecondaryOAM {
+        std::array<Sprite, 8> list_{};
+        int count_ = 0;
+    };
+    Latch<SecondaryOAM> secondary_oam_;
 
     // memory access
     byte_t load_(address_t addr) const;
@@ -80,12 +135,6 @@ private:
 
     // attribute tables access (palettes)
     byte_t get_attribute_(address_t ntaddr, int row, int col) const;
-
-    // shift registers
-    //uint16_t register_1;
-    //uint16_t register_2;
-    //uint8_t register_3;
-    //uint8_t register_4;
 
     // Connected devices
     BUS* bus_ = nullptr;
@@ -105,32 +154,4 @@ private:
     cursor_t vram_;
     bool vram_hilo_ = false; //switch between reading hi or low byte from vram
 };
-
-struct Color
-{
-    byte_t r, g, b, a = 255;
-};
-
-class Palette
-{
-public:
-    Palette(Color *first) { std::memcpy(color_.data(), first, sizeof(color_)); }
-    Palette(Color const& c1, Color const& c2, Color const& c3, Color const& c4)
-    {
-        color_ = {c1, c2, c3, c4};
-    }
-
-    byte_t const* raw(int index) const { return reinterpret_cast<byte_t const*>(&color_[index]); }
-
-private:
-    std::array<Color, 4> color_;
-};
-
-struct Tile
-{
-    void pixel(int index, byte_t *pixels, const Palette & palette);
-    address_t address_;
-    const PPU* ppu_;
-};
-
 #endif // __NESEMUL_PPU_H__

@@ -69,6 +69,69 @@ void PPU::next()
                 int index = (row * 256 + col) * 4;
                 tile.pixel(tpx, output_.data() + index, palette);
             }
+
+            // sprite eval
+            if (cycle_ == 1)
+            {
+                secondary_oam_.flip();
+                secondary_oam_.store().count_ = 0;
+                secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
+            }
+
+            if (cycle_ > 64 && cycle_ <= 256)
+            {
+                if (cycle_ % 2 == 1)
+                {
+                    auto& sprites = secondary_oam_.store();
+                    int n = (cycle_ - 1) / 64 * 2;
+                    Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
+
+                    if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) < 8)
+                    {
+                        if (sprites.count_ < 8)
+                        {
+                            sprites.list_[sprites.count_] = *sprite;
+                            ++sprites.count_;
+                        }
+                        else
+                        {
+                            // TODO Sprite overflow bug
+                            ppustatus_ |= 0x20;
+        }
+                    }
+                }
+            }
+
+            {
+                auto& sprites = secondary_oam_.read();
+
+                for (int i = 0; i < sprites.count_; ++i)
+                {
+                    int row = scanline_;
+                    int col = cycle_ - 1;
+
+                    Sprite const& sprite = sprites.list_[i];
+                    if (sprite.x_ < col && (col - sprite.x_) < 8) // TODO 8x16 sprites
+                    {
+                        address_t ptaddr = patttable_addr[ppuctrl_ & 0x08 ? 1 : 0];
+
+                        byte_t pattern = sprite.tile_;
+                        Tile tile = get_pattern_tile(ptaddr | pattern);
+
+                        Palette palette(g_palette[0], g_palette[17], g_palette[19], g_palette[15]);
+
+                        int sx = (col - sprite.x_);
+                        int sy = (row - sprite.y_);
+
+                        int trow = sy % 8;
+                        int tcol = sx % 8;
+                        int tpx = trow * 8 + tcol;
+
+                        int index = (row * 256 + col) * 4;
+                        tile.pixel(tpx, output_.data() + index, palette);
+                    }
+                }
+            }
         }
         /*if ((scanline_ >= 0 && scanline_ < 240) || scanline_ == 261)
         {
@@ -208,8 +271,7 @@ bool PPU::on_read(address_t addr, byte_t& value)
 void PPU::patterntable_img(byte_t* buf, int pitch, int index) const 
 {
     // temporary RGB palette
-    static Color tmp_palette[] = 
-        {
+    static Color tmp_palette[] = {
             {0x92, 0x90, 0xff}, // pale blue
             {0x88, 0xd8, 0x00}, // green
             {0x0c, 0x93, 0x00}, // dark green
@@ -249,11 +311,10 @@ Tile PPU::get_pattern_tile(address_t address) const
     return t;
 }
 
-void PPU::nametable_img(byte_t *buf, int pitch, int index) const
+void PPU::nametable_img(byte_t* buf, int pitch, int index) const
 {
     // temporary RGB palette
-    static Color tmp_palette[] = 
-        {
+    static Color tmp_palette[] = {
             {0x92, 0x90, 0xff}, // pale blue
             {0x88, 0xd8, 0x00}, // green
             {0x0c, 0x93, 0x00}, // dark green
@@ -287,11 +348,10 @@ void PPU::nametable_img(byte_t *buf, int pitch, int index) const
     }
 }
 
-void PPU::sprite_img(byte_t *buf, int pitch) const
+void PPU::sprite_img(byte_t* buf, int pitch) const
 {
     // temporary RGB palette
-    static Color tmp_palette[] = 
-        {
+    static Color tmp_palette[] = {
             {0x92, 0x90, 0xff}, // pale blue
             {0x88, 0xd8, 0x00}, // green
             {0x0c, 0x93, 0x00}, // dark green
@@ -301,7 +361,7 @@ void PPU::sprite_img(byte_t *buf, int pitch) const
 
     for (int i = 0; i < 64; ++i)
     {
-        const byte_t *data = oam_.data() + i * 4;
+        const byte_t* data = oam_.data() + i * 4;
         byte_t ypos = data[0];
         byte_t indx = data[1];
         byte_t attr = data[2];
@@ -369,7 +429,7 @@ address_t PPU::mirror_addr_(address_t addr) const
     // $3000-$3EFF mirrors $2000-$2EFF;
     if (addr >= 0x3000 && addr < 0x3F00) addr -= 0x1000;
 
-    switch(mirroring_)
+    switch (mirroring_)
     {
     case Mirroring::Horizontal:
         if (addr >= 0x2800 && addr < 0x3000) addr -= 0x0800;
@@ -378,7 +438,8 @@ address_t PPU::mirror_addr_(address_t addr) const
         if (addr >= 0x2400 && addr < 0x2800) addr -= 0x0400;
         if (addr >= 0x2C00 && addr < 0x3000) addr -= 0x0400;
         break;
-    default: break;
+    default:
+        break;
     }
 
     return addr;
@@ -398,7 +459,7 @@ byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
     return 0x3 & (metatile << quadrant);
 }
 
-void Tile::pixel(int index, byte_t *pixels, const Palette & palette)
+void Tile::pixel(int index, byte_t* pixels, const Palette& palette)
 {
     int row = index / 8;
     int col = index % 8;
