@@ -4,20 +4,25 @@
 #include <cstring>
 
 static Color g_palette[] = {
-    {84, 84, 84}, {152, 150, 152}, {236, 238, 236}, {236, 238, 236},
-    {0, 30, 116}, {8, 76, 196},    {76, 154, 236},  {168, 204, 236},
-    {8, 16, 144}, {48, 50, 236},   {120, 124, 236}, {188, 188, 236},
-    {48, 0, 136}, {92, 30, 228},   {176, 98, 236},  {212, 178, 236},
-    {68, 0, 100}, {136, 20, 176},  {228, 84, 236},  {236, 174, 236}, 
-    {92, 0, 48},  {160, 20, 100},  {236, 88, 180},  {236, 174, 212},
-    {84, 4, 0},   {152, 34, 32},   {236, 106, 100}, {236, 180, 176}, 
-    {60, 24, 0},  {120, 60, 0},    {212, 136, 32},  {228, 196, 144},
-    {32, 42, 0},  {84, 90, 0},     {160, 170, 0},   {204, 210, 120},
-    {8, 58, 0},   {40, 114, 0},    {116, 196, 0},   {180, 222, 120},
-    {0, 64, 0},   {8, 124, 0},     {76, 208, 32},   {168, 226, 144}, 
-    {0, 60, 0},   {0, 118, 40},    {56, 204, 108},  {152, 226, 180}, 
-    {0, 50, 60},  {0, 102, 120},   {56, 180, 204},  {160, 214, 228}, 
-    {0, 0, 0},    {0, 0, 0},       {60, 60, 60},    {160, 162, 160}
+    /* 0x00 - 0x03 */ {84, 84, 84},    {0, 30, 116},    {8, 16, 144},    {48, 0, 136},
+    /* 0x04 - 0x07 */ {68, 0, 100},    {92, 0, 48},     {84, 4, 0},      {60, 24, 0},
+    /* 0x08 - 0x0B */ {32, 42, 0},     {8, 58, 0},      {0, 64, 0},      {0, 60, 0},
+    /* 0x0C - 0x0F */ {0, 50, 60},     {0, 0, 0},       {0, 0, 0},       {0, 0, 0},
+
+    /* 0x10 - 0x13 */ {152, 150, 152}, {8, 76, 196},    {48, 50, 236},   {92, 30, 228},
+    /* 0x14 - 0x17 */ {136, 20, 176},  {160, 20, 100},  {152, 34, 32},   {120, 60, 0},
+    /* 0x18 - 0x1B */ {84, 90, 0},     {40, 114, 0},    {8, 124, 0},     {0, 118, 40},
+    /* 0x1C - 0x1F */ {0, 102, 120},   {0, 0, 0},       {0, 0, 0},       {0, 0, 0},
+    
+    /* 0x20 - 0x23 */ {236, 238, 236}, {76, 154, 236},  {120, 124, 236}, {176, 98, 236},
+    /* 0x24 - 0x27 */ {228, 84, 236},  {236, 88, 180},  {236, 106, 100}, {212, 136, 32},
+    /* 0x28 - 0x2B */ {160, 170, 0},   {116, 196, 0},   {76, 208, 32},   {56, 204, 108},
+    /* 0x2C - 0x2F */ {56, 180, 204},  {60, 60, 60},    {0, 0, 0},       {0, 0, 0},
+
+    /* 0x30 - 0x33 */ {236, 238, 236}, {168, 204, 236}, {188, 188, 236}, {212, 178, 236},
+    /* 0x34 - 0x37 */ {236, 174, 236}, {236, 174, 212}, {236, 180, 176}, {228, 196, 144},
+    /* 0x38 - 0x3B */ {204, 210, 120}, {180, 222, 120}, {168, 226, 144}, {152, 226, 180},
+    /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
 };
 
 const Color& _palette(address_t key)
@@ -27,7 +32,7 @@ const Color& _palette(address_t key)
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 address_t patttable_addr[] = {0x0000, 0x1000};
-
+DEOPTIMIZE
 void PPU::next()
 {
     // status checks
@@ -60,7 +65,16 @@ void PPU::next()
                 byte_t pattern = load_(ntaddr + ntrow * 32 + ntcol);
                 Tile tile = get_pattern_tile(ptaddr | pattern);
 
-                Palette palette(g_palette[0], g_palette[2], g_palette[8], g_palette[6]);
+
+                static address_t bg_palette_addr[] = { 0x3F01, 0x3F05, 0x3F09, 0x3F0D };
+                byte_t att = get_attribute_(ntaddr, row, col);
+                address_t paladdr = bg_palette_addr[att];
+                Palette palette(
+                    g_palette[load_(0x3F00)], 
+                    g_palette[load_(paladdr + 0)],
+                    g_palette[load_(paladdr + 1)], 
+                    g_palette[load_(paladdr + 2)]
+                    );
 
                 int trow = row % 8;
                 int tcol = col % 8;
@@ -83,7 +97,7 @@ void PPU::next()
                 if (cycle_ % 2 == 1)
                 {
                     auto& sprites = secondary_oam_.store();
-                    int n = (cycle_ - 1) / 64 * 2;
+                    int n = (cycle_ - 65) / 2;
                     Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
 
                     if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) < 8)
@@ -97,7 +111,7 @@ void PPU::next()
                         {
                             // TODO Sprite overflow bug
                             ppustatus_ |= 0x20;
-        }
+                        }
                     }
                 }
             }
@@ -118,13 +132,18 @@ void PPU::next()
                         byte_t pattern = sprite.tile_;
                         Tile tile = get_pattern_tile(ptaddr | pattern);
 
-                        Palette palette(g_palette[0], g_palette[17], g_palette[19], g_palette[15]);
+                        static address_t sprite_palette_addr[] = { 0x3F11, 0x3F15, 0x3F19, 0x3F1D };
+                        byte_t pal = sprite.att_ & 0x3;
+                        address_t paladdr = sprite_palette_addr[pal];
+                        Palette palette(
+                            {0xFF, 0xFF, 0xFF, 0x00}, 
+                            g_palette[load_(paladdr + 0)],
+                            g_palette[load_(paladdr + 1)], 
+                            g_palette[load_(paladdr + 2)]
+                            );
 
-                        int sx = (col - sprite.x_);
-                        int sy = (row - sprite.y_);
-
-                        int trow = sy % 8;
-                        int tcol = sx % 8;
+                        int trow = (row - sprite.y_ - 2);
+                        int tcol = (col - sprite.x_ - 1);
                         int tpx = trow * 8 + tcol;
 
                         int index = (row * 256 + col) * 4;
@@ -470,5 +489,6 @@ void Tile::pixel(int index, byte_t* pixels, const Palette& palette)
     byte_t hpat = *(ppu_->data() + haddr);
 
     byte_t val = (0x1 & (lpat >> (7 - col))) | ((0x1 & (hpat >> (7 - col))) << 1);
-    std::memcpy(pixels, palette.raw(val), 4);
+    if (val != 0 || *(palette.raw(val) + 3) != 0x00)
+        std::memcpy(pixels, palette.raw(val), 4);
 }
