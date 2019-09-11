@@ -31,7 +31,6 @@ const Color& _palette(address_t key)
 }
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
-address_t patttable_addr[] = {0x0000, 0x1000};
 
 void PPU::next()
 {
@@ -53,17 +52,16 @@ void PPU::next()
     {
         if (cycle_ > 0 && cycle_ <= 256)
         {
-            {
-                int row = scanline_;
-                int col = cycle_ - 1;
+            int row = scanline_;
+            int col = cycle_ - 1;
+            
+            byte_t bg_pixel;
 
+            {
                 int trow = row % 8;
                 int tcol = col % 8;
 
                 auto lidx = (col % 16) / 8;
-                //if (tcol == 0)
-                //bg_tiles_[lidx].flip();
-
                 auto& tile = bg_tiles_[lidx].read();
 
                 static address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
@@ -74,8 +72,8 @@ void PPU::next()
                     g_palette[load_(paladdr + 1)],
                     g_palette[load_(paladdr + 2)]);
 
-                byte_t pixel = tile.pixel(tcol, trow);
-                output_.set(col, row, palette.get(pixel));
+                bg_pixel = tile.pixel(tcol, trow);
+                output_.set(col, row, palette.get(bg_pixel));
             }
 
             {
@@ -83,9 +81,6 @@ void PPU::next()
 
                 for (int i = 0; i < sprites.count_; ++i)
                 {
-                    int row = scanline_;
-                    int col = cycle_ - 1;
-
                     Sprite const& sprite = sprites.list_[i];
                     if (sprite.x_ < col && (col - sprite.x_) < 8) // TODO 8x16 sprites
                     {
@@ -94,6 +89,7 @@ void PPU::next()
 
                         byte_t pal = sprite.att_ & 0x3;
                         byte_t flip = sprite.att_ >> 5;
+                        byte_t prio = (sprite.att_ & 0x20) == 0;
 
                         static address_t sprite_palette_addr[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
                         address_t paladdr = sprite_palette_addr[pal];
@@ -106,8 +102,11 @@ void PPU::next()
                         int ty = (row - sprite.y_ - 2);
                         int tx = (col - sprite.x_ - 1);
                         byte_t pixel = tile.pixel(tx, ty, flip);
-                        if (pixel != 0 && (sprite.att_ & 0x20) == 0)
+                        if (pixel != 0 && (bg_pixel == 0 || prio))
+                        {
                             output_.set(col, row, palette.get(pixel));
+                            break;
+                        }
                     }
                 }
             }
