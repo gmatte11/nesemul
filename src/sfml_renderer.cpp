@@ -1,9 +1,19 @@
 #include "sfml_renderer.h"
 
+#include "bus.h"
 #include "ppu.h"
 #include "SFML/Graphics.hpp"
 
-SFMLRenderer::SFMLRenderer()
+struct Map { sf::Keyboard::Key sfmlKey; Controller::Button button; };
+static std::array<Map, 8> g_mapping = {
+    Map{sf::Keyboard::S, Controller::A}, {sf::Keyboard::D, Controller::B},
+    {sf::Keyboard::Enter, Controller::Start}, {sf::Keyboard::Backspace, Controller::Select},
+    {sf::Keyboard::Up, Controller::Up}, {sf::Keyboard::Down, Controller::Down},
+    {sf::Keyboard::Left, Controller::Left}, {sf::Keyboard::Right, Controller::Right}
+};
+
+SFMLRenderer::SFMLRenderer(BUS* bus)
+    : bus_(bus)
 {
     window_.reset(new sf::RenderWindow(sf::VideoMode(1024, 480), "NESEMUL"));
     font_.loadFromFile("data/Emulogic-zrEw.ttf");
@@ -19,6 +29,35 @@ bool SFMLRenderer::update(PPU const& ppu)
     {
         if (ev.type == sf::Event::Closed)
             window_->close();
+
+        if (ev.type == sf::Event::KeyPressed)
+        {
+            if (ev.key.code == sf::Keyboard::P)
+            {
+                toggle_pause();
+            }
+
+            for (Map m : g_mapping)
+            {
+                if (ev.key.code == m.sfmlKey)
+                {
+                    bus_->ctrl_.press(m.button);
+                    break;
+                }
+            }
+        }
+
+        if (ev.type == sf::Event::KeyReleased)
+        {
+            for (Map m : g_mapping)
+            {
+                if (ev.key.code == m.sfmlKey)
+                {
+                    bus_->ctrl_.release(m.button);
+                    break;
+                }
+            }
+        }
     }
 
     sf::Time t = clock_.getElapsedTime();

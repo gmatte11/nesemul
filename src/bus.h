@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "controller.h"
 
 class CPU;
 class PPU;
@@ -22,4 +23,5 @@ public:
     CPU& cpu_;
     PPU& ppu_;
     RAM& ram_;
+    Controller ctrl_;
 };

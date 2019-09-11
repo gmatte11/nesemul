@@ -115,7 +115,7 @@ void Emulator::read(const std::string& filename)
 
 int Emulator::run()
 {
-    SFMLRenderer renderer;
+    SFMLRenderer renderer(bus_.get());
 
     cpu_->reset();
     ppu_->reset();
@@ -124,11 +124,15 @@ int Emulator::run()
     {
         if (renderer.timeout())
         {
-            // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
-            for (int i = 0; i < 29780; ++i)
+            if (!renderer.is_paused())
             {
-                cpu_->next();
-                for (int i = 0; i < 3; ++i) ppu_->next();
+                // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
+                for (int i = 0; i < 29780; ++i)
+                {
+                    cpu_->next();
+                    for (int i = 0; i < 3; ++i)
+                        ppu_->next();
+                }
             }
 
             if (!renderer.update(*ppu_))
