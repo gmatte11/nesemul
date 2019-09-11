@@ -5,6 +5,7 @@ nesemul
 bin/
 build/
 data/
+.vscode/
 
 # log files
 *.log

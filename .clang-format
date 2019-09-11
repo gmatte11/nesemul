@@ -1,8 +1,8 @@
 BasedOnStyle: WebKit
-IndenWidth: 4
+IndentWidth: 4
 UseTab: Never
 BreakBeforeBraces: Allman
 IndentCaseLabels: false
 Standard: Cpp11
 Cpp11BracedListStyle: true
-AllowShortIfStatementOnSingleLine: true
+AllowShortIfStatementsOnASingleLine: true
