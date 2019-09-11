@@ -16,11 +16,6 @@ enum class Mirroring
     Vertical
 };
 
-struct Color
-{
-    byte_t r, g, b, a = 255;
-};
-
 class Palette
 {
 public:
@@ -31,6 +26,7 @@ public:
     }
 
     byte_t const* raw(int index) const { return reinterpret_cast<byte_t const*>(&color_[index]); }
+    Color const& get(int index) const { return color_[index]; }
 
 private:
     std::array<Color, 4> color_;
@@ -38,8 +34,11 @@ private:
 
 struct Tile
 {
-    void pixel(int index, byte_t *pixels, const Palette & palette);
-    address_t address_;
+    byte_t pixel(uint8_t x, uint8_t y) const;
+    byte_t ntbyte_ = 0;
+    byte_t atbyte_ = 0;
+    byte_t half_ = 0;
+
     const PPU* ppu_;
 };
 
@@ -65,6 +64,8 @@ struct Latch
 class PPU
 {
 public:
+    using Output = Image<256, 240>;
+
     PPU() = default;
 
     void init(BUS* bus) { bus_ = bus; }
@@ -85,29 +86,27 @@ public:
         return memory_.data();
     }
 
-    inline const Image& output() const
+    inline const Output& output() const
     {
         return output_;
     }
 
-    inline int frame() const { return frame_; }
+    byte_t load(address_t addr) const { return load_(addr); }
+
+    inline uint64_t frame() const { return frame_; }
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
-    void patterntable_img(byte_t* buf, int pitch, int index) const;
-    Tile get_pattern_tile(address_t address) const;
-
-    void nametable_img(byte_t *buf, int pitch, int index) const;
-
-    void sprite_img(byte_t *buf, int pitch) const;
+    void patterntable_img(Image<128, 128>& image, byte_t half) const;
+    Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
 
 private:
-    unsigned int scanline_ = 261;
-    unsigned int cycle_ = 0;
-    unsigned int frame_ = 0;
+    int16_t scanline_ = -1;
+    uint16_t cycle_ = 0;
+    uint64_t frame_ = 0;
 
     // Output image
-    Image output_;
+    Output output_;
 
     // Nametable mirroring
     Mirroring mirroring_;
@@ -117,8 +116,7 @@ private:
     std::array<byte_t, 0x100> oam_{};
 
     // BG rendering
-    Latch<Tile> bg_tile_1_;
-    Latch<Tile> bg_tile_2_;
+    std::array<Latch<Tile>, 2> bg_tiles_;
 
     // sprite rendering
     struct SecondaryOAM {

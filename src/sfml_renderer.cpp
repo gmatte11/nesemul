@@ -104,12 +104,12 @@ void SFMLRenderer::draw(PPU const& ppu)
     view.setTexture(&tex);
     window_->draw(view);
 
-    sf::Uint8 buffer[256 * 240 * 4];
-    ppu.patterntable_img(buffer, 128*4, 0);
-    debugTex.update(buffer, 128, 128, 0, 0);
+    Image<128, 128> buffer;
+    ppu.patterntable_img(buffer, 0);
+    debugTex.update(buffer.data(), 128, 128, 0, 0);
 
-    ppu.patterntable_img(buffer, 128*4, 1);
-    debugTex.update(buffer, 128, 128, 128, 0);
+    ppu.patterntable_img(buffer, 1);
+    debugTex.update(buffer.data(), 128, 128, 128, 0);
 
     //ppu.nametable_img(buffer, 256 * 4, 0);
     //debugTex.update(buffer, 256, 240, 0, 128);

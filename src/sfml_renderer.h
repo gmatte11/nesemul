@@ -30,8 +30,8 @@ private:
     sf::Clock clock_;
     sf::Time lastUpdate_;
     sf::Time lastFPS_;
-    int lastFrameCount_ = 0;
-    int fps_ = 0;
+    uint64_t lastFrameCount_ = 0;
+    uint64_t fps_ = 0;
     std::unique_ptr<sf::RenderWindow> window_;
     sf::Font font_;
     bool pause_ = false;
