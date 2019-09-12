@@ -6,14 +6,16 @@
 class CPU;
 class PPU;
 class RAM;
+class Cartridge;
 
 class BUS
 {
 public:
-    BUS(CPU& cpu, PPU& ppu, RAM& ram)
+    BUS(CPU& cpu, PPU& ppu, RAM& ram, Cartridge& cart)
         : cpu_(cpu)
         , ppu_(ppu)
         , ram_(ram)
+        , cart_(cart)
     {
     }
 
@@ -23,5 +25,6 @@ public:
     CPU& cpu_;
     PPU& ppu_;
     RAM& ram_;
+    Cartridge& cart_;
     Controller ctrl_;
 };

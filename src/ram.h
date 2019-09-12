@@ -7,13 +7,33 @@
 class RAM
 {
 public:
-    bool on_write(address_t addr, byte_t value) { memory_[addr] = value; return true; }
-    bool on_read(address_t addr, byte_t& value) { value = memory_[addr]; return true; }
+    bool on_write(address_t addr, byte_t value) 
+    { 
+        if (addr < 0x2000)
+        {
+            memory_[addr & 0x7FF] = value; 
+            return true; 
+        }
+
+        return false;
+    }
+
+    bool on_read(address_t addr, byte_t& value) 
+    {
+        if (addr < 0x2000)
+        {
+            value = memory_[addr & 0x7FF]; 
+            return true;
+        }
+
+        return false;
+    }
 
     void memcpy(void* dest, address_t src, int size) { std::memcpy(dest, memory_.data() + src, size); }
 
     byte_t* data() { return memory_.data(); }
 
 private:
-    std::array<byte_t, 0x10000> memory_{};
+    // 2KB for internal RAM
+    std::array<byte_t, 0x800> memory_{};
 };

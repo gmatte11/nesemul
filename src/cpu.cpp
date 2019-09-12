@@ -64,7 +64,9 @@ void CPU::next()
             int_ = {false, false};
         }
 
-        bus_->ram_.memcpy(&data, program_counter_, sizeof(data));
+        data.opcode = bus_->read(program_counter_ + 0);
+        data.addr_l = bus_->read(program_counter_ + 1);
+        data.addr_h = bus_->read(program_counter_ + 2);
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 

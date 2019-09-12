@@ -4,6 +4,7 @@
 #include "types.h"
 #include "bus.h"
 #include "cpu.h"
+#include "cartridge.h"
 #include "image.h"
 
 #include <array>
@@ -68,7 +69,7 @@ public:
 
     PPU() = default;
 
-    void init(BUS* bus) { bus_ = bus; }
+    void init(BUS* bus, Cartridge* cart) { bus_ = bus; cart_ = cart; }
 
     void next();
     void reset();
@@ -136,6 +137,7 @@ private:
 
     // Connected devices
     BUS* bus_ = nullptr;
+    Cartridge* cart_ = nullptr;
 
     // registers
     byte_t ppuctrl_;

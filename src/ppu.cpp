@@ -360,11 +360,18 @@ Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
 
 byte_t PPU::load_(address_t addr) const
 {
+    byte_t value = 0;
+    if (cart_->on_ppu_read(addr, value))
+        return value;
+
     return memory_[mirror_addr_(addr)];
 }
 
 void PPU::store_(address_t addr, byte_t value)
 {
+    if (cart_->on_ppu_write(addr, value))
+        return;
+        
     memory_[mirror_addr_(addr)] = value;
 }
 

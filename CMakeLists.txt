@@ -5,9 +5,9 @@ project(nesemul)
 
 #set(SFML_STATIC_LIBRARIES TRUE)
 find_package(SFML 2.5 COMPONENTS graphics window system REQUIRED)
-include_directories(${SFML_INCLUDE_DIRS})
+include_directories(${SFML_INCLUDE_DIRS} "src/")
 
-file(GLOB SOURCES "src/*.cpp")
+file(GLOB SOURCES "src/*.cpp" "src/mappers/*.cpp")
 add_executable(nesemul ${SOURCES})
 
 target_compile_options(nesemul PUBLIC /std:c++17 /Z7)

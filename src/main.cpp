@@ -12,6 +12,7 @@
 #include "cpu.h"
 #include "ppu.h"
 #include "ram.h"
+#include "cartridge.h"
 #include "sfml_renderer.h"
 
 class Emulator
@@ -28,16 +29,18 @@ private:
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<PPU> ppu_;
     std::unique_ptr<RAM> ram_;
+    std::unique_ptr<Cartridge> cart_;
 };
 
 Emulator::Emulator()
     : cpu_(new CPU)
     , ppu_(new PPU)
     , ram_(new RAM)
+    , cart_(new Cartridge)
 {
-    bus_.reset(new BUS(*cpu_, *ppu_, *ram_));
+    bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
     cpu_->init(bus_.get());
-    ppu_->init(bus_.get());
+    ppu_->init(bus_.get(), cart_.get());
 }
 
 void Emulator::read(const std::string& filename)
@@ -68,8 +71,14 @@ void Emulator::read(const std::string& filename)
             << "    four-screen: " << ((0x8 & config[0]) >> 3) << "\n"
             << "    VS-System cartige: " << ((0x1 & config[1])) << "\n";
 
-        byte_t mapper = (byte_t)(config[1] & 0xf0 + (config[0] & 0xf0 >> 4));
+        byte_t mapper = (byte_t)((config[1] & 0xF0) | (config[0] >> 4));
         std::cout << "mapper: " << (int)mapper << std::endl;
+
+        cart_->mapper_ = Mapper::create(mapper);
+        if (cart_->mapper_ == nullptr)
+        {
+            throw std::runtime_error(std::string("Unknown mapper ") + filename);
+        }
 
         Mirroring mir = Mirroring::None;
         if (!((0x8 & config[0]) >> 3))
@@ -97,15 +106,25 @@ void Emulator::read(const std::string& filename)
         std::stringstream ss;
         ss << ifs.rdbuf();
         std::string buf{ss.str()};
+        byte_t const* cur = reinterpret_cast<byte_t const*>(buf.data());
 
-        // Program rom (PRG-ROM) is loaded in $8000
-        std::memcpy(ram_->data() + 0x8000, buf.data(), 0x8000);
+        // Program rom (PRG-ROM)
+        cart_->mapper_->prg_rom_.reserve(num_16kb_rom_banks);
+        for (int i = 0; i < num_16kb_rom_banks; ++i)
+        {
+            auto& bank = cart_->mapper_->prg_rom_.emplace_back();
+            std::memcpy(bank.data(), cur, 0x4000);
+            cur += 0x4000;
+        }
 
-        if (num_16kb_rom_banks == 1)
-            std::memcpy(ram_->data() + 0xC000, buf.data(), 0x4000);
-
-        // Character rom (CHR-ROM) is loaded in ppu $0000
-        std::memcpy(ppu_->data(), buf.data() + (0x4000 * num_16kb_rom_banks), 0x2000);
+        // Character rom (CHR-ROM)
+        cart_->mapper_->chr_rom_.reserve(num_8kb_vrom_banks);
+        for (int i = 0; i < num_8kb_vrom_banks; ++i)
+        {
+            auto& bank = cart_->mapper_->chr_rom_.emplace_back();
+            std::memcpy(bank.data(), cur, 0x2000);
+            cur += 0x2000;
+        }
     }
     else
     {
