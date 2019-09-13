@@ -109,22 +109,26 @@ void Emulator::read(const std::string& filename)
         byte_t const* cur = reinterpret_cast<byte_t const*>(buf.data());
 
         // Program rom (PRG-ROM)
-        cart_->mapper_->prg_rom_.reserve(num_16kb_rom_banks);
+        std::vector<Mapper::PRG_BANK> prg_rom;
+        prg_rom.reserve(num_16kb_rom_banks);
         for (int i = 0; i < num_16kb_rom_banks; ++i)
         {
-            auto& bank = cart_->mapper_->prg_rom_.emplace_back();
+            auto& bank = prg_rom.emplace_back();
             std::memcpy(bank.data(), cur, 0x4000);
             cur += 0x4000;
         }
 
         // Character rom (CHR-ROM)
-        cart_->mapper_->chr_rom_.reserve(num_8kb_vrom_banks);
+        std::vector<Mapper::CHR_BANK> chr_rom;
+        chr_rom.reserve(num_8kb_vrom_banks);
         for (int i = 0; i < num_8kb_vrom_banks; ++i)
         {
-            auto& bank = cart_->mapper_->chr_rom_.emplace_back();
+            auto& bank = chr_rom.emplace_back();
             std::memcpy(bank.data(), cur, 0x2000);
             cur += 0x2000;
         }
+
+        cart_->mapper_->init(std::move(prg_rom), std::move(chr_rom));
     }
     else
     {
