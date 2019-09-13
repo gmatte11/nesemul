@@ -409,7 +409,10 @@ byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
 
     byte_t metatile = load_(ataddr);
 
-    int quadrant = ((row % 2 == 1) ? 0b10 : 0) | ((col % 2 == 1) ? 0b01 : 0);
+    int quadrant = 
+        ((row % 2 == 1) ? 0b10 : 0) | 
+        ((col % 2 == 1) ? 0b01 : 0);
+        
     return 0b11 & (metatile >> (quadrant * 2));
 }
 
@@ -418,13 +421,18 @@ byte_t Tile::pixel(uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
     if (0b10 & flip) x = 7 - x; //vert flip
     if (0b01 & flip) y = 7 - y; //hori flip
 
-    address_t addr = static_cast<address_t>(half_ & 0x1) << 12 | static_cast<address_t>(ntbyte_) << 4 | static_cast<address_t>(y & 0b111) << 0;
+    address_t addr = 
+        static_cast<address_t>(half_ & 0x1) << 12 | 
+        static_cast<address_t>(ntbyte_) << 4 | 
+        static_cast<address_t>(y & 0b111) << 0;
 
     byte_t lpat = ppu_->load(addr);
     byte_t hpat = ppu_->load(addr + 8);
 
     byte_t mask = 1 << (7 - x);
-    byte_t pixel = (((hpat & mask) != 0) ? 0b10 : 0) | (((lpat & mask) != 0) ? 0b01 : 0);
+    byte_t pixel = 
+        (((hpat & mask) != 0) ? 0b10 : 0) | 
+        (((lpat & mask) != 0) ? 0b01 : 0);
 
     return pixel;
 }
