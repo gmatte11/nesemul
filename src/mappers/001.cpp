@@ -2,19 +2,15 @@
 
 bool M001::on_cpu_read(address_t addr, byte_t& value) 
 {
-    if (addr >= 0xC000)
-    {
-        if (prg_rom_.size() >= 2)
-        {
-            value = prg_rom_[1][addr - 0xC000];
-            return true;
-        }
-        addr -= 0x4000; // mirror to range $8000-$C000
-    } 
-
     if (addr >= 0x8000 && addr < 0xC000)
     {
-        value = prg_rom_[0][addr - 0x8000];
+        value = *(prg_l_ + (addr & 0x3FFF));
+        return true;
+    }
+
+    if (addr >= 0xC000)
+    {
+        value = *(prg_h_ + (addr & 0x3FFF));
         return true;
     }
 
@@ -27,15 +23,21 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
     {
         bool full = register_ & 0b1;
         (register_ >>= 1) |= ((0x1 & value) << 4);
-        
-        if (full || (0x80 & value))
+        bool reset = (0x80 & value);
+
+        if (full || reset)
         {
             int op = (addr >> 13) & 0b11;
             switch (op)
             {
             case 0: // control
-                control_ = register_;
-                break;
+            {
+                if (full)
+                    control_ = register_;
+                else
+                    control_ |= 0xC;
+            }
+            break;
 
             case 1: // CHR bank 0
                 chr_switch(true);
@@ -44,14 +46,20 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
             case 2: // CHR bank 1
                 chr_switch(false);
                 break;
-            
+
             case 3: // PRG bank
-                prg_switch();
-                break;
+            {
+                if (reset)
+                    prg_h_ = prg_rom_.back().data();
+                else
+                    prg_switch();
+            }
+            break;
             }
 
             register_ = 0b10000;
         }
+
         return true;
     }
     return false;
@@ -59,12 +67,12 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
 
 bool M001::on_ppu_read(address_t addr, byte_t& value)
 {
-    if (addr < 0x1000)
+    if (addr < 0x1000 && chr_l_ != nullptr)
     {
         value = *(chr_l_ + addr);
         return true;
     }
-    else if (addr < 0x2000)
+    else if (addr >= 0x1000 && addr < 0x2000 && chr_h_ != nullptr)
     {
         value = *(chr_h_ + (addr & 0xFFF));
         return true;

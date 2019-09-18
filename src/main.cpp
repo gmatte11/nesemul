@@ -45,34 +45,47 @@ Emulator::Emulator()
 
 void Emulator::read(const std::string& filename)
 {
-    std::ifstream ifs(filename, std::ios_base::binary);
+    using bifstream = std::basic_ifstream<byte_t>;
+    bifstream ifs(filename, std::ios_base::binary);
 
     if (ifs)
     {
-        char header[4];
-        ifs.read(header, 4);
+        byte_t header[16];
+        ifs.read(header, 16);
+
         if (std::memcmp(header, "NES", 3) != 0 && header[3] != 0x1a)
-            throw std::runtime_error(std::string("Bad file format"));
+            throw std::runtime_error("Bad file format");
 
-        char num_16kb_rom_banks;
-        ifs.read(&num_16kb_rom_banks, 1);
-        std::cout << "num_16kb_rom_banks: " << (int)num_16kb_rom_banks << std::endl;
+        bool nes20 = (0x3 & (header[7] >> 2)) == 2;
+        if (nes20)
+            throw std::runtime_error("NES 2.0 header not yet supported.");
 
-        char num_8kb_vrom_banks;
-        ifs.read(&num_8kb_vrom_banks, 1);
-        std::cout << "num_8kb_vrom_banks: " << (int)num_8kb_vrom_banks << std::endl;
+        byte_t num_16kb_prg_rom_banks = header[4];
+        std::cout << "num_16kb_prg_rom_banks: " << (int)num_16kb_prg_rom_banks << std::endl;
 
-        char config[2];
-        ifs.read(config, 2);
-        std::cout << "config:\n"
-            << "    mirroring: " << ((0x1 & config[0]) ? "vertical" : "horizontal") << "\n"
-            << "    battery: " << ((0x2 & config[0]) >> 1) << "\n"
-            << "    trainer: " << ((0x4 & config[0]) >> 2) << "\n"
-            << "    four-screen: " << ((0x8 & config[0]) >> 3) << "\n"
-            << "    VS-System cartige: " << ((0x1 & config[1])) << "\n";
+        byte_t num_8kb_chr_rom_banks = header[5];
+        std::cout << "num_8kb_chr_rom_banks: " << (int)num_8kb_chr_rom_banks << std::endl;
 
-        byte_t mapper = (byte_t)((config[1] & 0xF0) | (config[0] >> 4));
+        Mirroring mir = Mirroring::None;
+        if ((0x1 & (header[6] >> 3)) == 0)
+        {
+            mir = (0x1 & header[6]) ? Mirroring::Vertical : Mirroring::Horizontal;
+        }
+
+        bool battery = 0x1 & (header[6] >> 1);
+        bool trainer = 0x1 & (header[6] >> 2);
+        bool fourscreen = 0x1 & (header[6] >> 3);
+
+        byte_t mapper = (byte_t)((header[7] & 0xF0) | (header[6] >> 4));
         std::cout << "mapper: " << (int)mapper << std::endl;
+
+        std::cout << "config:\n"
+                  << "    mirroring: " << (mir == Mirroring::Vertical ? "vertical" : "horizontal") << "\n"
+                  << "    battery: " << battery << "\n"
+                  << "    trainer: " << trainer << "\n"
+                  << "    four-screen: " << fourscreen << "\n"
+                  << "    VS-System cartige: " << (0x1 & (header[7] >> 0)) << "\n"
+                  << "    PlayChoice-10: " << (0x1 & (header[7] >> 1)) << "\n";
 
         cart_->mapper_ = Mapper::create(mapper);
         if (cart_->mapper_ == nullptr)
@@ -80,52 +93,55 @@ void Emulator::read(const std::string& filename)
             throw std::runtime_error(std::string("Unknown mapper ") + filename);
         }
 
-        Mirroring mir = Mirroring::None;
-        if (!((0x8 & config[0]) >> 3))
-        {
-            mir = (0x1 & config[0]) ? Mirroring::Vertical : Mirroring::Horizontal;
-        }
         ppu_->set_mirroring(mir);
 
-        char num_8kb_ram_banks;
-        ifs.read(&num_8kb_ram_banks, 1);
-        if (num_8kb_ram_banks == 0)
-            num_8kb_ram_banks = 1;
-        std::cout << "num_8kb_ram_banks: " << (int)num_8kb_ram_banks << std::endl;
+        byte_t num_8kb_prg_ram_banks = header[8];
+        if (num_8kb_prg_ram_banks == 0)
+            num_8kb_prg_ram_banks = 1; // compatibility
 
-        char cartige_type;
-        ifs.read(&cartige_type, 1);
-        std::cout << "cartige_type: " << (cartige_type >> 7) << std::endl;
+        //if (0x1 & (header[10] >> 4))
+        //    num_8kb_prg_ram_banks = 1; // ??
+        std::cout << "num_8kb_prg_ram_banks: " << (int)num_8kb_prg_ram_banks << std::endl;
 
         ifs.seekg(16);
 
         // trainer is 512B, skip it for now
-        if (((0x4 & config[0]) >> 2) != 0)
-            ifs.seekg(16 + 512);
-
-        std::stringstream ss;
-        ss << ifs.rdbuf();
-        std::string buf{ss.str()};
-        byte_t const* cur = reinterpret_cast<byte_t const*>(buf.data());
+        if (trainer)
+            ifs.ignore(512);
 
         // Program rom (PRG-ROM)
         std::vector<Mapper::PRG_BANK> prg_rom;
-        prg_rom.reserve(num_16kb_rom_banks);
-        for (int i = 0; i < num_16kb_rom_banks; ++i)
+        prg_rom.reserve(num_16kb_prg_rom_banks);
         {
-            auto& bank = prg_rom.emplace_back();
-            std::memcpy(bank.data(), cur, 0x4000);
-            cur += 0x4000;
+            byte_t* prg_buf = new byte_t[num_16kb_prg_rom_banks * 0x4000];
+            ifs.read(prg_buf, num_16kb_prg_rom_banks * 0x4000);
+            byte_t* cur = prg_buf;
+
+            for (int i = 0; i < num_16kb_prg_rom_banks; ++i)
+            {
+                auto& bank = prg_rom.emplace_back();
+                std::memcpy(bank.data(), cur, 0x4000);
+                cur += 0x4000;
+            }
+            delete[] prg_buf;
         }
 
         // Character rom (CHR-ROM)
         std::vector<Mapper::CHR_BANK> chr_rom;
-        chr_rom.reserve(num_8kb_vrom_banks);
-        for (int i = 0; i < num_8kb_vrom_banks; ++i)
+        chr_rom.reserve(num_8kb_chr_rom_banks);
         {
-            auto& bank = chr_rom.emplace_back();
-            std::memcpy(bank.data(), cur, 0x2000);
-            cur += 0x2000;
+            byte_t* chr_buf = new byte_t[num_8kb_chr_rom_banks * 0x2000];
+            ifs.read(chr_buf, num_8kb_chr_rom_banks * 0x2000);
+            byte_t* cur = chr_buf;
+
+            for (int i = 0; i < num_8kb_chr_rom_banks; ++i)
+            {
+                auto& bank = chr_rom.emplace_back();
+                std::memcpy(bank.data(), cur, 0x2000);
+                cur += 0x2000;
+            }
+
+            delete[] chr_buf;
         }
 
         cart_->mapper_->init(std::move(prg_rom), std::move(chr_rom));

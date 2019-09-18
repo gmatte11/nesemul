@@ -23,9 +23,9 @@ void Mapper::init(std::vector<PRG_BANK> && prg_rom, std::vector<CHR_BANK> && chr
 
 void Mapper::init_ptrs_()
 {
-    prg_l_ = prg_rom_[0].data();
-    prg_h_ = (prg_rom_.size() > 1) ? prg_rom_[1].data() : prg_l_;
+    prg_l_ = prg_rom_.front().data();
+    prg_h_ = prg_rom_.back().data();
 
     chr_l_ = chr_rom_[0].data();
-    chr_h_ = chr_rom_[0].data() + 0x1000;
+    chr_h_ = chr_l_ + 0x1000;
 }
