@@ -144,14 +144,14 @@ private:
     byte_t ppumask_;
     byte_t ppustatus_;
     byte_t oamaddr_;
-    byte_t oamdata_;
-    byte_t ppuscroll_;
-    byte_t ppuaddr_;
-    byte_t ppudata_;
-    //byte_t oamdma_;
 
-    // vram cursor
+    // scroll
+    byte_t scroll_x_;
+    byte_t scroll_y_;
+    bool scroll_latch_ = false;
+
+    // vram cursor (PPUADDR and PPUDATA)
     cursor_t vram_;
-    bool vram_hilo_ = false; //switch between reading hi or low byte from vram
+    bool vram_latch_ = false; //switch between reading hi or low byte from vram
 };
 #endif // __NESEMUL_PPU_H__

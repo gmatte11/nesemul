@@ -230,10 +230,13 @@ void PPU::reset()
 
     ppuctrl_ = 0x0;
     ppumask_ = 0x0;
-    ppuscroll_ = 0x0;
-    ppudata_ = 0x0;
+
+    scroll_x_ = 0;
+    scroll_y_ = 0;
+    scroll_latch_ = false;
 
     vram_.addr = 0x0;
+    vram_latch_ = false;
 
     oam_.fill(0xFF);
 }
@@ -252,55 +255,64 @@ bool PPU::on_write(address_t addr, byte_t value)
 
         // oamaddr
     case 0x2003:
-        // TODO
+        oamaddr_ = value;
         return true;
 
         //oamdata
     case 0x2004:
-        // TODO
+        oam_[oamaddr_] = value;
         ++oamaddr_;
         return true;
 
         // ppuscroll
     case 0x2005:
-        //TODO handle scroll
+    {
+        if (!scroll_latch_)
+        {
+            scroll_x_ = value;
+        }
+        else
+        {
+            scroll_y_ = value;
+        }
+
+        scroll_latch_ = !scroll_latch_;
         return true;
+    }
 
         // ppuaddr
     case 0x2006:
     {
-        if (!vram_hilo_)
+        if (!vram_latch_)
         {
             vram_.bytes.l = value;
-            vram_hilo_ = true;
         }
         else
         {
             vram_.bytes.h = value;
-            vram_hilo_ = false;
         }
 
-        ppuaddr_ = 0;
-    }
+        vram_latch_ = !vram_latch_;
         return true;
+    }
 
         // ppudata
     case 0x2007:
     {
         store_(vram_.addr, value);
         vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
-        vram_.addr %= 0x3FFF;
-        ppudata_ = 0;
-    }
+        vram_.addr &= 0x3FFF;
         return true;
+    }
 
         // oamdma
     case 0x4014:
     {
         address_t addr = value << 8;
+        // TODO allow copy from cartige RAM or ROM
         bus_->ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
-    }
         return true;
+    }
     }
 
     return false;
@@ -313,19 +325,18 @@ bool PPU::on_read(address_t addr, byte_t& value)
     case 0x2002:
         value = ppustatus_;
         ppustatus_ &= 0x7F;
-        // TODO reset scroll
-        vram_hilo_ = false;
+        scroll_latch_ = false;
+        vram_latch_ = false;
         return true;
 
     case 0x2004:
-        value = oamdata_;
+        value = oam_[oamaddr_];
         return true;
 
     case 0x2007:
-        value = ppudata_;
+        value = load_(vram_.addr);
         vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
-        vram_.addr %= 0x3FFF;
-        ppudata_ = 0;
+        vram_.addr &= 0x3FFF;
         return true;
     }
 
