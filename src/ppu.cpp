@@ -82,7 +82,7 @@ void PPU::next()
                 for (int i = 0; i < sprites.count_; ++i)
                 {
                     Sprite const& sprite = sprites.list_[i];
-                    if (sprite.x_ < col && (col - sprite.x_) < 8) // TODO 8x16 sprites
+                    if (sprite.x_ < col && (col - sprite.x_) <= 8) // TODO 8x16 sprites
                     {
                         byte_t pattern = sprite.tile_;
                         Tile tile = get_pattern_tile(pattern, ppuctrl_ & 0x08 ? 1 : 0);
@@ -102,10 +102,20 @@ void PPU::next()
                         int ty = (row - sprite.y_ - 2);
                         int tx = (col - sprite.x_ - 1);
                         byte_t pixel = tile.pixel(tx, ty, flip);
-                        if (pixel != 0 && (bg_pixel == 0 || prio))
+
+                        if (pixel != 0)
                         {
-                            output_.set(col, row, palette.get(pixel));
-                            break;
+                            // Sprite 0 hit
+                            if (i == 0 && bg_pixel != 0)
+                            {
+                                ppustatus_ |= 0x40;
+                            }
+
+                            if (bg_pixel == 0 || prio)
+                            {
+                                output_.set(col, row, palette.get(pixel));
+                                break;
+                            }
                         }
                     }
                 }
@@ -177,7 +187,7 @@ void PPU::next()
                 int n = (cycle_ - 65) / 2;
                 Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
 
-                if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) < 8)
+                if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) <= 8)
                 {
                     if (sprites.count_ < 8)
                     {
