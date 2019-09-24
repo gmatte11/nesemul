@@ -11,32 +11,18 @@
 
 #include <cstring>
 
-#include <iostream>
+#include <fmt/format.h>
 
 using namespace ops;
 
 std::string _str(byte_t operand)
 {
-    std::ostringstream oss;
-
-    oss << std::hex
-        << std::setw(2)
-        << std::setfill('0')
-        << (int)operand;
-
-    return oss.str();
+    return fmt::format("{:02x}", operand);
 }
 
 std::string _str(address_t addr)
 {
-    std::ostringstream oss;
-
-    oss << std::hex
-        << std::setw(4)
-        << std::setfill('0')
-        << addr;
-
-    return oss.str();
+    return fmt::format("{:04x}", addr);
 }
 
 void CPU::next()
@@ -71,34 +57,7 @@ void CPU::next()
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 
 #if 0
-        std::cout
-            << std::hex << std::setfill('0')
-            << std::setw(4) << program_counter_ << "  "
-            << "  " << std::setw(2) << _str(data.opcode);
-
-        if (opcode_data(data.opcode).size > 1)
-            std::cout << "  " << std::setw(2) << _str(data.addr_l);
-        else
-            std::cout << "    ";
-
-        if (opcode_data(data.opcode).size > 2)
-            std::cout << "  " << std::setw(2) << _str(data.addr_h);
-        else
-            std::cout << "    ";
-
-        std::cout << " " << opcode_data(data.opcode).str;
-
-        std::cout << " "
-                  << std::setfill(' ') << std::left << std::setw(27)
-                  << debug_addr_(opcode_data(data.opcode).addressing, addr);
-
-        std::cout
-            << " A:" << std::setw(2) << _str(accumulator_)
-            << " X:" << std::setw(2) << _str(register_x_)
-            << " Y:" << std::setw(2) << _str(register_y_)
-            << " P:" << std::setw(2) << _str(status_)
-            << " SP:" << std::setw(2) << _str(stack_pointer_)
-            << '\n';
+        log_(data.opcode, addr);
 #endif
 
         if (opcode_data(data.opcode).size == 0)
@@ -120,13 +79,6 @@ void CPU::next()
 
     if (timing_ > 0)
         --timing_;
-
-    // This is only for developement. It will be removed once basic tests pass without infinite loops.
-    /*static int count = 0;
-    if (++count > 9000)
-    {
-        throw std::runtime_error("too many operations");
-    }*/
 }
 
 void CPU::reset()
@@ -141,6 +93,30 @@ void CPU::reset()
 void CPU::interrupt(bool nmi /*= false*/)
 {
     int_ = {true, nmi};
+}
+
+void CPU::log_(byte_t opcode, address_t addr)
+{
+    auto& opdata = opcode_data(opcode);
+    auto& it = log_ring_[log_idx_].begin();
+    
+    it = fmt::format_to(it, "{:04x}    {:02x}", program_counter_, opcode);
+
+    if (opdata.size > 1)
+        it = fmt::format_to(it, "  {:02x}", addr & 0xFF);
+    else
+        it = fmt::format_to(it, "    ");
+
+    if (opdata.size > 2)
+        it = fmt::format_to(it, "  {:02x}", (addr >> 4) & 0xFF);
+    else
+        it = fmt::format_to(it, "    ");
+
+    it = fmt::format_to(it, " {} {:<27}", opdata.str, debug_addr_(opcode_data(opcode).addressing, addr));
+    fmt::format_to(it, " A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}", accumulator_, register_x_, register_y_, status_, stack_pointer_);
+
+    fmt::print("{}\n", log_ring_[log_idx_].data());
+    (++log_idx_) %= 64;
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)
@@ -818,54 +794,35 @@ inline address_t CPU::indirect_indexed_addr(address_t addr, byte_t index)
 
 std::string CPU::debug_addr_(byte_t type, address_t addr)
 {
-    std::ostringstream oss;
-
     byte_t addr_l = static_cast<byte_t>(0xFF & addr);
-
-    auto read = [this](address_t addr){ return bus_->read(addr); };
 
     switch (type)
     {
     case ops::kImmediate:
-        oss << "#$" << _str(addr_l);
-        break;
+        return fmt::format("#${:02x}", addr_l);
 
     case ops::kZeroPage:
-        oss << "$" << _str(addr_l) << " = " << _str(read(addr));
-        break;
+        return fmt::format("${:02x}", addr_l);
 
     case ops::kZeroPageX:
         addr = indexed_pz_addr(addr, register_x_);
-        oss << "$" << _str(addr_l) << ",X @ ";
-        addr_l = static_cast<byte_t>(0xFF & addr);
-        oss << _str(addr_l) << " = " << _str(read(addr));
-        break;
+        return fmt::format("${:02x},X  @ {:04x}", addr_l, addr);
 
     case ops::kAbsolute:
-        oss << "$" << _str(addr);
-        if (addr < 0x8000)
-        {
-            oss << " = " << _str(read(addr));
-        }
-        break;
+        return fmt::format("${:04x}", addr);
 
     case ops::kIndirect:
-        oss << "($" << _str(addr) << ")"
-            << " = " << _str(indirect_addr(addr));
-        break;
+        return fmt::format("(${:04x})", addr);
 
     case ops::kIndirectX:
         addr = indexed_indirect_addr(addr, register_x_);
-        oss << "($" << _str(addr_l)
-            << ",X) @ " << _str(addr)
-            << " = " << _str(read(addr));
-        break;
+        return fmt::format("(${:02x},X) @ {:04x}", addr_l, addr);
 
     default:
         break;
     }
 
-    return oss.str();
+    return std::string{};
 }
 
 void CPU::adc_(byte_t operand)

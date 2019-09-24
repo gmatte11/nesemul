@@ -24,6 +24,10 @@ public:
 
 private:
     void exec_(byte_t opcode, address_t addr);
+    
+    void log_(byte_t opcode, address_t addr);
+    std::array<std::array<char, 80>, 64> log_ring_;
+    int log_idx_ = 0;
 
     byte_t timing_ = 0x0;
 
@@ -32,8 +36,8 @@ private:
     byte_t register_x_ = 0x0;
     byte_t register_y_ = 0x0;
     byte_t status_ = 0x24;
-    address_t program_counter_ = 0x0000;
     byte_t stack_pointer_ = 0xFD;
+    address_t program_counter_ = 0x0000;
 
     //interrupt
     std::pair<bool, bool> int_ = {false, false};
