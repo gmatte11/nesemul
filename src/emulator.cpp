@@ -19,16 +19,11 @@ Emulator::Emulator()
     : cpu_(new CPU)
     , ppu_(new PPU)
     , ram_(new RAM)
-    , cart_(new Cartridge)
 {
-    bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
-    cpu_->init(bus_.get());
-    ppu_->init(bus_.get(), cart_.get());
 }
 
 void Emulator::read(const std::string& filename)
 {
-    using bifstream = std::basic_ifstream<byte_t>;
     bifstream ifs(filename, std::ios_base::binary);
 
     if (ifs)
@@ -61,7 +56,7 @@ void Emulator::read(const std::string& filename)
         byte_t mapper = (byte_t)((header[7] & 0xF0) | (header[6] >> 4));
         fmt::print("mapper: {:03}\n\n", mapper);
         
-        cart_->mapper_ = Mapper::create(mapper);
+        cart_.reset(new Cartridge(mapper));
         if (cart_->mapper_ == nullptr)
         {
             throw std::runtime_error(fmt::format("Unknown mapper {:03}", mapper));
@@ -97,44 +92,11 @@ void Emulator::read(const std::string& filename)
         if (trainer)
             ifs.ignore(512);
 
-        // Program rom (PRG-ROM)
-        std::vector<Mapper::PRG_BANK> prg_rom;
-        prg_rom.reserve(num_16kb_prg_rom_banks);
-        {
-            byte_t* prg_buf = new byte_t[num_16kb_prg_rom_banks * 0x4000];
-            ifs.read(prg_buf, num_16kb_prg_rom_banks * 0x4000);
-            byte_t* cur = prg_buf;
+        cart_->load_roms(ifs, num_16kb_prg_rom_banks, num_8kb_chr_rom_banks, num_8kb_prg_ram_banks);
 
-            for (int i = 0; i < num_16kb_prg_rom_banks; ++i)
-            {
-                auto& bank = prg_rom.emplace_back();
-                std::memcpy(bank.data(), cur, 0x4000);
-                cur += 0x4000;
-            }
-            delete[] prg_buf;
-        }
-
-        // Character rom (CHR-ROM)
-        std::vector<Mapper::CHR_BANK> chr_rom;
-        chr_rom.reserve(num_8kb_chr_rom_banks);
-        {
-            byte_t* chr_buf = new byte_t[num_8kb_chr_rom_banks * 0x2000];
-            ifs.read(chr_buf, num_8kb_chr_rom_banks * 0x2000);
-            byte_t* cur = chr_buf;
-
-            for (int i = 0; i < num_8kb_chr_rom_banks; ++i)
-            {
-                auto& bank = chr_rom.emplace_back();
-                std::memcpy(bank.data(), cur, 0x2000);
-                cur += 0x2000;
-            }
-
-            delete[] chr_buf;
-        }
-
-        std::cout.flush();
-
-        cart_->mapper_->init(std::move(prg_rom), std::move(chr_rom));
+        bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
+        cpu_->init(bus_.get());
+        ppu_->init(bus_.get(), cart_.get());
     }
     else
     {

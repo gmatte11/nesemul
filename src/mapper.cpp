@@ -1,31 +1,32 @@
 #include "mapper.h"
+#include "cartridge.h"
 
 #include "mappers/000.h"
 #include "mappers/001.h"
 
-Mapper* Mapper::create(byte_t ines_code)
+Mapper* Mapper::create(byte_t ines_code, Cartridge* cart_)
 {
     switch (ines_code)
     {
-    case 0: return new M000;
-    case 1: return new M001;
+    case 0: return new M000(cart_);
+    case 1: return new M001(cart_);
     }
 
     return nullptr;
 }
 
-void Mapper::init(std::vector<PRG_BANK> && prg_rom, std::vector<CHR_BANK> && chr_rom)
+void Mapper::post_load()
 {
-    prg_rom_ = std::move(prg_rom);
-    chr_rom_ = std::move(chr_rom);
-    init_ptrs_();
-}
-
-void Mapper::init_ptrs_()
-{
-    prg_l_ = prg_rom_.front().data();
-    prg_h_ = prg_rom_.back().data();
-
-    chr_l_ = chr_rom_[0].data();
+    prg_l_ = cart_->prg_rom_.front().data();
+    prg_h_ = cart_->prg_rom_.back().data();
+    
+    if (!cart_->chr_rom_.empty())
+    {
+        chr_l_ = cart_->chr_rom_.front().data();
+    }
+    else
+    {
+        chr_l_ = cart_->chr_ram_.data(); 
+    }
     chr_h_ = chr_l_ + 0x1000;
 }
