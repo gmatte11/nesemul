@@ -124,7 +124,12 @@ private:
 
     // sprite rendering
     struct SecondaryOAM {
-        std::array<Sprite, 8> list_{};
+        struct Entry
+        {
+            Sprite sprite_;
+            int oam_idx_;
+        };
+        std::array<Entry, 8> list_{};
         int count_ = 0;
     };
     Latch<SecondaryOAM> secondary_oam_;
@@ -143,9 +148,48 @@ private:
     Cartridge* cart_ = nullptr;
 
     // registers
-    byte_t ppuctrl_;
-    byte_t ppumask_;
-    byte_t ppustatus_;
+    union 
+    {
+        struct 
+        {
+            byte_t nam_ : 2;
+            byte_t addr_inc_ : 1;
+            byte_t fg_pat_ : 1;
+            byte_t bg_pat_ : 1;
+            byte_t sprite_size_ : 1;
+            byte_t master_ : 1;
+            byte_t nmi_ : 1;
+        };
+        byte_t byte_;
+    } ppuctrl_;
+    
+    union 
+    {
+        struct 
+        {
+            byte_t greyscale_ : 1;
+            byte_t left_bg_ : 1;
+            byte_t left_fg_ : 1;
+            byte_t render_bg_ : 1;
+            byte_t render_fg_ : 1;
+            byte_t emp_red_ : 1;
+            byte_t emp_green_ : 1;
+            byte_t emp_blue_ : 1;
+        };
+        byte_t byte_;
+    } ppumask_;
+
+    union
+    {
+        struct 
+        {
+            byte_t garbage_ : 5;
+            byte_t sprite_overflow_ : 1;
+            byte_t sprite_0_hit_ : 1;
+            byte_t vblank_ : 1;
+        };
+        byte_t byte_;
+    } ppustatus_;
     byte_t oamaddr_;
 
     // scroll
@@ -155,6 +199,7 @@ private:
 
     // vram cursor (PPUADDR and PPUDATA)
     cursor_t vram_;
+    byte_t read_buffer_ = 0;
     bool vram_latch_ = false; //switch between reading hi or low byte from vram
 
     friend class SFMLRenderer;

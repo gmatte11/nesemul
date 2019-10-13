@@ -30,17 +30,23 @@ address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 
 void PPU::next()
 {
-    // status checks
-    if (cycle_ == 1 && scanline_ == -1)
+    if (cycle_ == 1)
     {
-        ppustatus_ &= 0x1f; // end of vblank
-    }
+        ppustatus_.sprite_0_hit_ = 0;
+        ppustatus_.sprite_overflow_ = 0;
 
-    if (cycle_ == 1 && scanline_ == 241)
-    {
-        ppustatus_ |= 0x80; // start of vblank
-        if ((ppuctrl_ & 0x80) != 0)
-            bus_->cpu_.interrupt(true); // generate NMI
+        // status checks
+        if (scanline_ == -1)
+        {
+            ppustatus_.vblank_ = 0; // end of vblank
+        }
+
+        if (scanline_ == 241)
+        {
+            ppustatus_.vblank_ = 1; // start of vblank
+            if (ppuctrl_.nmi_)
+                bus_->cpu_.interrupt(true); // generate NMI
+        }
     }
 
     // rendering
@@ -53,6 +59,7 @@ void PPU::next()
             
             byte_t bg_pixel;
 
+            if (ppumask_.render_bg_)
             {
                 int trow = row % 8;
                 int tcol = col % 8;
@@ -72,16 +79,17 @@ void PPU::next()
                 output_.set(col, row, palette.get(bg_pixel));
             }
 
+            if (ppumask_.render_fg_)
             {
                 auto& sprites = secondary_oam_.read();
 
                 for (int i = 0; i < sprites.count_; ++i)
                 {
-                    Sprite const& sprite = sprites.list_[i];
+                    Sprite const& sprite = sprites.list_[i].sprite_;
                     if (sprite.x_ < col && (col - sprite.x_) <= 8) // TODO 8x16 sprites
                     {
                         byte_t pattern = sprite.tile_;
-                        Tile tile = get_pattern_tile(pattern, ppuctrl_ & 0x08 ? 1 : 0);
+                        Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
 
                         byte_t pal = sprite.att_ & 0x3;
                         byte_t flip = sprite.att_ >> 5;
@@ -102,9 +110,9 @@ void PPU::next()
                         if (pixel != 0)
                         {
                             // Sprite 0 hit
-                            if (i == 0 && bg_pixel != 0)
+                            if (sprites.list_[i].oam_idx_ == 0 && bg_pixel != 0)
                             {
-                                ppustatus_ |= 0x40;
+                                ppustatus_.sprite_0_hit_ = 1;
                             }
 
                             if (bg_pixel == 0 || prio)
@@ -135,23 +143,23 @@ void PPU::next()
             int op = fetch % 8;
             switch (op)
             {
-            case 0: // NT byte
+            case 0: // NT byteu
             {
-                address_t ntaddr = nametable_addr[0]; // TODO: SCROLLING
+                address_t ntaddr = nametable_addr[ppuctrl_.nam_]; // TODO: SCROLLING
                 tile.ntbyte_ = load_(ntaddr | ntrow * 32 + ntcol);
             }
             break;
 
             case 2: // AT byte
             {
-                address_t ntaddr = nametable_addr[0]; // TODO: SCROLLING
+                address_t ntaddr = nametable_addr[ppuctrl_.nam_]; // TODO: SCROLLING
                 tile.atbyte_ = get_attribute_(ntaddr, ntrow / 2, ntcol / 2);
             }
             break;
 
             case 4: // Pat (low)
             {
-                tile.half_ = ppuctrl_ & 0x10 ? 1 : 0;
+                tile.half_ = ppuctrl_.bg_pat_;
             }
             break;
 
@@ -165,8 +173,8 @@ void PPU::next()
         }
     }
 
-    // sprite eval
-    if (scanline_ >= 0 && scanline_ < 240)
+    // sprite eval (simple version)
+    if (scanline_ >= -1 && scanline_ < 240)
     {
         if (cycle_ == 1)
         {
@@ -177,26 +185,37 @@ void PPU::next()
 
         if (cycle_ > 64 && cycle_ <= 256)
         {
-            if (cycle_ % 2 == 1)
+            if (cycle_ == 256)
             {
-                auto& sprites = secondary_oam_.store();
-                int n = (cycle_ - 65) / 2;
-                Sprite* sprite = reinterpret_cast<Sprite*>(oam_.data() + 4 * n);
-
-                if (sprite->y_ < scanline_ && (scanline_ - sprite->y_) <= 8)
+                for (int i = 0; i < 64; ++i)
                 {
-                    if (sprites.count_ < 8)
+                    Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
+                    int y = scanline_ + 1;
+
+                    if (sprite.y_ < y && (y - sprite.y_) <= 8)
                     {
-                        sprites.list_[sprites.count_] = *sprite;
-                        ++sprites.count_;
-                    }
-                    else
-                    {
-                        // TODO Sprite overflow bug
-                        ppustatus_ |= 0x20;
+                        auto& sprites = secondary_oam_.store();
+                        if (sprites.count_ < 8)
+                        {
+                            auto& entry = sprites.list_[sprites.count_];
+                            entry.oam_idx_ = i;
+                            entry.sprite_ = sprite;
+
+                            ++sprites.count_;
+                        }
+                        else
+                        {
+                            // TODO? Sprite overflow bug
+                            ppustatus_.sprite_overflow_ = 1;
+                        }
                     }
                 }
             }
+        }
+
+        if (cycle_ > 256 && cycle_ <= 320)
+        {
+            oamaddr_ = 0;
         }
     }
 
@@ -224,14 +243,15 @@ void PPU::reset()
     cycle_ = 0;
     frame_ = 0;
 
-    ppuctrl_ = 0x0;
-    ppumask_ = 0x0;
+    ppuctrl_.byte_ = 0;
+    ppumask_.byte_ = 0;
 
     scroll_x_ = 0;
     scroll_y_ = 0;
     scroll_latch_ = false;
 
-    vram_.addr = 0x0;
+    vram_.addr = 0;
+    read_buffer_ = 0;
     vram_latch_ = false;
 
     oam_.fill(0xFF);
@@ -242,11 +262,11 @@ bool PPU::on_write(address_t addr, byte_t value)
     switch (addr)
     {
     case 0x2000:
-        ppuctrl_ = value;
+        ppuctrl_.byte_ = value;
         return true;
 
     case 0x2001:
-        ppumask_ = value;
+        ppumask_.byte_ = value;
         return true;
 
         // oamaddr
@@ -296,7 +316,7 @@ bool PPU::on_write(address_t addr, byte_t value)
     case 0x2007:
     {
         store_(vram_.addr, value);
-        vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+        vram_.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
         vram_.addr &= 0x3FFF;
         return true;
     }
@@ -319,8 +339,8 @@ bool PPU::on_read(address_t addr, byte_t& value)
     switch (addr)
     {
     case 0x2002:
-        value = ppustatus_;
-        ppustatus_ &= 0x7F;
+        value = ppustatus_.byte_;
+        ppustatus_.vblank_ = 0;
         scroll_latch_ = false;
         vram_latch_ = false;
         return true;
@@ -330,8 +350,13 @@ bool PPU::on_read(address_t addr, byte_t& value)
         return true;
 
     case 0x2007:
-        value = load_(vram_.addr);
-        vram_.addr += (ppuctrl_ & 0x04) ? 32 : 1;
+        value = read_buffer_;
+        read_buffer_ = load_(vram_.addr);
+
+        if (vram_.addr >= 0x3F00)
+            value = read_buffer_;
+
+        vram_.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
         vram_.addr &= 0x3FFF;
         return true;
     }
