@@ -22,12 +22,12 @@ public:
 
     void interrupt(bool nmi = false);
 
-private:
-    void exec_(byte_t opcode, address_t addr);
-    
-    void log_(byte_t opcode, address_t addr);
     std::array<std::array<char, 80>, 64> log_ring_;
     int log_idx_ = 0;
+
+private:
+    void exec_(byte_t opcode, address_t addr);
+    void log_(byte_t opcode, address_t addr);
 
     byte_t timing_ = 0x0;
 

@@ -15,7 +15,7 @@ static std::array<Map, 8> g_mapping = {
 SFMLRenderer::SFMLRenderer(BUS* bus)
     : bus_(bus)
 {
-    window_.reset(new sf::RenderWindow(sf::VideoMode(1024, 480), "NESEMUL"));
+    window_.reset(new sf::RenderWindow(sf::VideoMode(1024, 720), "NESEMUL"));
     font_.loadFromFile("data/Emulogic-zrEw.ttf");
 }
 
@@ -103,14 +103,14 @@ void SFMLRenderer::draw(PPU const& ppu)
     view.setPosition(512.f, 0.f);
     view.setTexture(&tex);
     window_->draw(view);
-/*
+
     Image<128, 128> buffer;
     ppu.patterntable_img(buffer, 0);
     debugTex.update(buffer.data(), 128, 128, 0, 0);
 
     ppu.patterntable_img(buffer, 1);
     debugTex.update(buffer.data(), 128, 128, 128, 0);
-*/
+
     //ppu.nametable_img(buffer, 256 * 4, 0);
     //debugTex.update(buffer, 256, 240, 0, 128);
     
@@ -124,8 +124,8 @@ void SFMLRenderer::draw(PPU const& ppu)
     //debugTex.update(buffer, 256, 240, 256, 128 + 240);
 
     sf::Sprite pat(debugTex, {0, 0, 128 * 2, 128});
-    pat.setScale(2, 2);
-    pat.setPosition(0.f, window_->getSize().y - 256.f);
+    pat.setScale(2.f, 2.f);
+    pat.setPosition(0.f, 480.f - 256.f);
     window_->draw(pat);
 
     //sf::Sprite nam(debugTex, {0, 128, 512, 480});
@@ -140,4 +140,32 @@ void SFMLRenderer::draw(PPU const& ppu)
     else
         text.setString("PAUSED");
     window_->draw(text);
+
+    sf::RectangleShape debug_bg({1024.f, 240.f});
+    debug_bg.setFillColor(sf::Color(0x1e5dceff));
+    debug_bg.setPosition({0.f, 480.f});
+    window_->draw(debug_bg);
+
+    CPU& cpu_ = bus_->cpu_;
+    size_t idx = (cpu_.log_idx_ + cpu_.log_ring_.size() - 14) % cpu_.log_ring_.size();
+
+    sf::Vector2f pos(20.f, 470.f);
+    sf::Text line(empty, font_, 12);
+    line.setFillColor(sf::Color::White);
+
+    for (int i = 0; i < 14; ++i)
+    {
+        pos.y += 16.f;
+        line.setString(cpu_.log_ring_[idx].data());
+        line.setPosition(pos);
+        window_->draw(line);
+
+        (idx += 1) %= cpu_.log_ring_.size();
+    }
+    
+    pos.x -= 16.f;
+    line.setPosition(pos);
+    line.setString("*");
+    window_->draw(line);
+    
 }

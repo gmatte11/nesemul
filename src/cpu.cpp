@@ -55,11 +55,9 @@ void CPU::next()
         data.addr_h = bus_->read(program_counter_ + 2);
 
         addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
-
 #if 0
         log_(data.opcode, addr);
 #endif
-
         if (opcode_data(data.opcode).size == 0)
         {
             std::ostringstream oss;
@@ -115,7 +113,7 @@ void CPU::log_(byte_t opcode, address_t addr)
     it = fmt::format_to(it, " {} {:<27}", opdata.str, debug_addr_(opcode_data(opcode).addressing, addr));
     fmt::format_to(it, " A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}", accumulator_, register_x_, register_y_, status_, stack_pointer_);
 
-    fmt::print("{}\n", log_ring_[log_idx_].data());
+    //fmt::print("{}\n", log_ring_[log_idx_].data());
     (++log_idx_) %= 64;
 }
 

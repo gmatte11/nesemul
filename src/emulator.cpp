@@ -55,12 +55,7 @@ void Emulator::read(const std::string& filename)
 
         byte_t mapper = (byte_t)((header[7] & 0xF0) | (header[6] >> 4));
         fmt::print("mapper: {:03}\n\n", mapper);
-        
         cart_.reset(new Cartridge(mapper));
-        if (cart_->mapper_ == nullptr)
-        {
-            throw std::runtime_error(fmt::format("Unknown mapper {:03}", mapper));
-        }
 
         fmt::print("config:\n    mirroring: {}\n    battery: {}\n    trainer: {}\n    four-screen: {}\n\n", 
             (mir == Mirroring::Vertical ? "vertical" : "horizontal"),

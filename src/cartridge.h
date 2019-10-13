@@ -33,10 +33,12 @@ public:
 
     void load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_banks, byte_t prg_ram_banks);
 
+private:
     Mapper* mapper_;
 
+public:
     std::vector<PRG_BANK> prg_rom_;
-    std::array<byte_t, 0x2000> prg_ram_;
+    std::array<byte_t, 0x2000> wram_;
     std::vector<CHR_BANK> chr_rom_;
-    std::array<byte_t, 0x2000> chr_ram_;
+    std::array<byte_t, 0x2000> vram_;
 };
