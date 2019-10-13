@@ -103,7 +103,7 @@ void PPU::next()
                             g_palette[load_(paladdr + 1)],
                             g_palette[load_(paladdr + 2)]);
 
-                        int ty = (row - sprite.y_ - 2);
+                        int ty = (row - sprite.y_ - 1);
                         int tx = (col - sprite.x_ - 1);
                         byte_t pixel = tile.pixel(tx, ty, flip);
 
