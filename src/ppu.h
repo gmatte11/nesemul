@@ -20,6 +20,7 @@ enum class Mirroring
 class Palette
 {
 public:
+    Palette() = default;
     Palette(Color *first) { std::memcpy(color_.data(), first, sizeof(color_)); }
     Palette(Color const& c1, Color const& c2, Color const& c3, Color const& c4)
     {
@@ -98,8 +99,10 @@ public:
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
-    void patterntable_img(Image<128, 128>& image, byte_t half) const;
+    void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
     Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
+
+    Palette get_palette(byte_t idx) const;
 
 private:
     int16_t scanline_ = -1;
@@ -153,5 +156,8 @@ private:
     // vram cursor (PPUADDR and PPUDATA)
     cursor_t vram_;
     bool vram_latch_ = false; //switch between reading hi or low byte from vram
+
+    friend class SFMLRenderer;
+
 };
 #endif // __NESEMUL_PPU_H__

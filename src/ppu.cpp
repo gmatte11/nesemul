@@ -25,10 +25,6 @@ static Color g_palette[] = {
     /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
 };
 
-const Color& _palette(address_t key)
-{
-    return g_palette[0x1F | key];
-}
 
 address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 
@@ -343,18 +339,8 @@ bool PPU::on_read(address_t addr, byte_t& value)
     return false;
 }
 
-void PPU::patterntable_img(Image<128, 128>& image, byte_t index) const
+void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& palette) const
 {
-    // temporary RGB palette
-    static Color tmp_palette[] = {
-        {0x92, 0x90, 0xff}, // pale blue
-        {0x88, 0xd8, 0x00}, // green
-        {0x0c, 0x93, 0x00}, // dark green
-        {0x00, 0x00, 0x00} // black
-    };
-
-    Palette palette(tmp_palette);
-
     for (int y = 0; y < 128; ++y)
     {
         for (int x = 0; x < 128; ++x)
@@ -377,6 +363,32 @@ Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
     t.half_ = half & 0x1;
     t.ppu_ = this;
     return t;
+}
+
+Palette PPU::get_palette(byte_t idx) const
+{
+    if (idx < 4)
+    {
+        static constexpr address_t palette_bg[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
+        address_t paladdr = palette_bg[idx];
+        return Palette(
+            g_palette[load_(0x3F00)],
+            g_palette[load_(paladdr + 0)],
+            g_palette[load_(paladdr + 1)],
+            g_palette[load_(paladdr + 2)]
+        );
+    }
+    else
+    {
+        static constexpr address_t palette_fg[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
+        address_t paladdr = palette_fg[idx - 4];
+        return Palette(
+            {0xFF, 0xFF, 0xFF, 0x00},
+            g_palette[load_(paladdr + 0)],
+            g_palette[load_(paladdr + 1)],
+            g_palette[load_(paladdr + 2)]
+        );
+    }
 }
 
 byte_t PPU::load_(address_t addr) const

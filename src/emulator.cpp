@@ -121,7 +121,7 @@ int Emulator::run()
                 }
             }
 
-            if (!renderer.update(*ppu_))
+            if (!renderer.update())
                 break;
         }
     }

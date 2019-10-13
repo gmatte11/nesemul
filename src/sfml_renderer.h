@@ -1,5 +1,6 @@
 #pragma once
 
+#include "types.h"
 #include <SFML/Graphics.hpp>
 
 namespace sf
@@ -16,14 +17,18 @@ public:
     SFMLRenderer(BUS* bus);
     ~SFMLRenderer();
     
-    bool update(const PPU& ppu);
+    bool update();
     bool timeout();
 
     bool toggle_pause() { pause_ = !pause_; return pause_; }
     bool is_paused() const { return pause_; }
 
 private:
-    void draw(const PPU& ppu);
+    void draw();
+    void draw_game(PPU const& ppu);
+    void draw_pat(PPU const& ppu);
+    void draw_pal(PPU const& ppu);
+    void draw_oam(PPU const& ppu);
 
     BUS* bus_;
 
@@ -34,5 +39,6 @@ private:
     uint64_t fps_ = 0;
     std::unique_ptr<sf::RenderWindow> window_;
     sf::Font font_;
+    byte_t pal_idx_ = 0;
     bool pause_ = false;
 };
