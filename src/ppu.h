@@ -1,5 +1,4 @@
-#ifndef __NESEMUL_PPU_H__
-#define __NESEMUL_PPU_H__
+#pragma once
 
 #include "types.h"
 #include "bus.h"
@@ -36,12 +35,11 @@ private:
 
 struct Tile
 {
-    byte_t pixel(uint8_t x, uint8_t y, byte_t flip = 0) const;
     byte_t ntbyte_ = 0;
     byte_t atbyte_ = 0;
     byte_t half_ = 0;
-
-    const PPU* ppu_;
+    byte_t lpat_ = 0;
+    byte_t hpat_ = 0;
 };
 
 struct Sprite
@@ -145,6 +143,9 @@ private:
     // attribute tables access (palettes)
     byte_t get_attribute_(address_t ntaddr, int row, int col) const;
 
+    // Compute pixel from tile
+    byte_t get_pixel(Tile const& tile, uint8_t x, uint8_t y, byte_t flip = 0) const;
+
     // Connected devices
     BUS* bus_ = nullptr;
     Cartridge* cart_ = nullptr;
@@ -194,17 +195,42 @@ private:
     } ppustatus_;
     byte_t oamaddr_;
 
-    // scroll
+    // scroll (debug)
     byte_t scroll_x_;
     byte_t scroll_y_;
-    bool scroll_latch_ = false;
 
-    // vram cursor (PPUADDR and PPUDATA)
-    cursor_t vram_;
+    // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
+    struct Cursor
+    {
+        union VRAM 
+        {
+            struct
+            {
+                address_t X : 5; // Coarse X scroll
+                address_t Y : 5; // Coarse Y scroll
+                address_t N : 2; // Nametable
+                address_t y : 3; // Fine y scroll
+            };
+
+            struct
+            {
+                byte_t l;
+                byte_t h;
+            };
+            
+            address_t addr;
+        };
+
+        VRAM v;
+        VRAM t;
+
+        byte_t x : 3; // Fine x scroll
+        bool w : 1; // Write toggle
+    } cursor_;
     byte_t read_buffer_ = 0;
-    bool vram_latch_ = false; //switch between reading hi or low byte from vram
+
+    static constexpr address_t HORI_MASK = 0x041F;
+    static constexpr address_t VERT_MASK = (~HORI_MASK) & 0x7FFF;
 
     friend class SFMLRenderer;
-
 };
-#endif // __NESEMUL_PPU_H__

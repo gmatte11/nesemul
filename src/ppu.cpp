@@ -26,8 +26,6 @@ static Color g_palette[] = {
 };
 
 
-address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
-
 void PPU::next()
 {
     if (cycle_ == 1)
@@ -47,6 +45,12 @@ void PPU::next()
             if (ppuctrl_.nmi_)
                 bus_->cpu_.interrupt(true); // generate NMI
         }
+    }
+
+    if (scanline_ == -1 && cycle_ == 304)
+    {
+        if (ppumask_.render_bg_)
+            cursor_.v.addr = (cursor_.v.addr & HORI_MASK) | (cursor_.t.addr & VERT_MASK);
     }
 
     // rendering
@@ -75,7 +79,9 @@ void PPU::next()
                     g_palette[load_(paladdr + 1)],
                     g_palette[load_(paladdr + 2)]);
 
-                bg_pixel = tile.pixel(tcol, trow);
+                
+
+                bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
                 output_.set(col, row, palette.get(bg_pixel));
             }
 
@@ -92,7 +98,7 @@ void PPU::next()
                         Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
 
                         byte_t pal = sprite.att_ & 0x3;
-                        byte_t flip = sprite.att_ >> 5;
+                        byte_t flip = sprite.att_ >> 6;
                         byte_t prio = (sprite.att_ & 0x20) == 0;
 
                         static address_t sprite_palette_addr[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
@@ -105,7 +111,7 @@ void PPU::next()
 
                         int ty = (row - sprite.y_ - 1);
                         int tx = (col - sprite.x_ - 1);
-                        byte_t pixel = tile.pixel(tx, ty, flip);
+                        byte_t pixel = get_pixel(tile, tx, ty, flip);
 
                         if (pixel != 0)
                         {
@@ -128,47 +134,99 @@ void PPU::next()
     }
 
     // BG latching
-    if (scanline_ >= -1 && scanline_ < 240)
+    if (ppumask_.render_bg_)
     {
-        if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
+        auto& v = cursor_.v;
+
+        if (cycle_ == 256)
         {
-            int ntrow = (cycle_ < 321) ? (scanline_) / 8 : (scanline_ + 1) / 8;
-            int ntcol = (cycle_ < 321) ? ((cycle_ - 1) / 8) + 2 : (cycle_ - 321) / 8;
-
-            uint16_t fetch = ((cycle_ - 1) % 16);
-            auto lidx = fetch / 8;
-            auto& tile = bg_tiles_[lidx].store();
-            tile.ppu_ = this;
-
-            int op = fetch % 8;
-            switch (op)
+            // Vertical increment
+            if (v.y < 7)
             {
-            case 0: // NT byteu
-            {
-                address_t ntaddr = nametable_addr[ppuctrl_.nam_]; // TODO: SCROLLING
-                tile.ntbyte_ = load_(ntaddr | ntrow * 32 + ntcol);
+                v.y++;
             }
-            break;
-
-            case 2: // AT byte
+            else
             {
-                address_t ntaddr = nametable_addr[ppuctrl_.nam_]; // TODO: SCROLLING
-                tile.atbyte_ = get_attribute_(ntaddr, ntrow / 2, ntcol / 2);
+                v.y = 0;
+                if (v.Y == 29)
+                {
+                    v.Y = 0;
+                    v.N ^= 0b10;
+                }
+                else if (v.Y == 31)
+                {
+                    v.Y = 0;
+                }
+                else
+                {
+                    v.Y++;
+                }
             }
-            break;
+        }
 
-            case 4: // Pat (low)
-            {
-                tile.half_ = ppuctrl_.bg_pat_;
-            }
-            break;
+        if (cycle_ == 257)
+        {
+            // Copy Horizontal bits of t into v
+            v.addr = (v.addr & VERT_MASK) | (cursor_.t.addr & HORI_MASK);
+        }
 
-            case 7: // H/V inc
+        if (scanline_ >= -1 && scanline_ < 240)
+        {
+            if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
             {
-                auto& latch = bg_tiles_[lidx];
-                latch.flip();
-            }
-            break;
+                uint16_t fetch = ((cycle_ - 1) % 16);
+                auto lidx = fetch / 8;
+                auto& tile = bg_tiles_[lidx].store();
+
+                int op = fetch % 8;
+                switch (op)
+                {
+                case 0: // NT byte
+                {
+                    address_t ntaddr = 0x2000 | (v.addr & 0x0FFF);
+                    tile.ntbyte_ = load_(ntaddr);
+                }
+                break;
+
+                case 2: // AT byte
+                {
+                    address_t ataddr = 0x23C0 | (v.addr & 0x0C00) | ((v.addr >> 4) & 0x38) | ((v.addr >> 2) & 0x07);
+                    byte_t areashift = (((v.Y / 2) % 2) ? 4 : 0) + (((v.X / 2) % 2) ? 2 : 0);
+                    tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
+                }
+                break;
+
+                case 4: // Pat (low + high)
+                {
+                    tile.half_ = ppuctrl_.bg_pat_;
+
+                    address_t addr
+                        = static_cast<address_t>(tile.half_ & 0x1) << 12
+                        | static_cast<address_t>(tile.ntbyte_) << 4
+                        | static_cast<address_t>(v.y & 0b111) << 0;
+
+                    tile.lpat_ = load_(addr);
+                    tile.hpat_ = load_(addr + 8);
+                }
+                break;
+
+                case 7: // Horizontal increment + switch register latching
+                {
+                    if (v.X == 31)
+                    {
+                        v.X = 0;
+                        v.N ^= 0b01;
+                    }
+                    else
+                    {
+                        v.X++;
+                    }
+
+                    auto& latch = bg_tiles_[lidx];
+                    latch.flip();
+                }
+                break;
+                }
             }
         }
     }
@@ -183,31 +241,28 @@ void PPU::next()
             secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
         }
 
-        if (cycle_ > 64 && cycle_ <= 256)
+        if (cycle_ == 256)
         {
-            if (cycle_ == 256)
+            for (int i = 0; i < 64; ++i)
             {
-                for (int i = 0; i < 64; ++i)
+                Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
+                int y = scanline_ + 1;
+
+                if (sprite.y_ < y && (y - sprite.y_) <= 8)
                 {
-                    Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
-                    int y = scanline_ + 1;
-
-                    if (sprite.y_ < y && (y - sprite.y_) <= 8)
+                    auto& sprites = secondary_oam_.store();
+                    if (sprites.count_ < 8)
                     {
-                        auto& sprites = secondary_oam_.store();
-                        if (sprites.count_ < 8)
-                        {
-                            auto& entry = sprites.list_[sprites.count_];
-                            entry.oam_idx_ = i;
-                            entry.sprite_ = sprite;
+                        auto& entry = sprites.list_[sprites.count_];
+                        entry.oam_idx_ = i;
+                        entry.sprite_ = sprite;
 
-                            ++sprites.count_;
-                        }
-                        else
-                        {
-                            // TODO? Sprite overflow bug
-                            ppustatus_.sprite_overflow_ = 1;
-                        }
+                        ++sprites.count_;
+                    }
+                    else
+                    {
+                        // TODO? Sprite overflow bug
+                        ppustatus_.sprite_overflow_ = 1;
                     }
                 }
             }
@@ -231,7 +286,7 @@ void PPU::next()
 
         if (scanline_ == 262)
         {
-            scanline_ = 0;
+            scanline_ = -1;
             ++frame_;
         }
     }
@@ -248,21 +303,26 @@ void PPU::reset()
 
     scroll_x_ = 0;
     scroll_y_ = 0;
-    scroll_latch_ = false;
-
-    vram_.addr = 0;
+    cursor_.v.addr = 0;
+    cursor_.t.addr = 0;
+    cursor_.x = 0;
+    cursor_.w = false;
     read_buffer_ = 0;
-    vram_latch_ = false;
 
     oam_.fill(0xFF);
 }
 
 bool PPU::on_write(address_t addr, byte_t value)
 {
+    // Mirroring
+    if (addr >= 0x2008 && addr < 0x4000)
+        addr = 0x2000 + (addr & 0x7);
+
     switch (addr)
     {
     case 0x2000:
         ppuctrl_.byte_ = value;
+        cursor_.t.N = ppuctrl_.nam_;
         return true;
 
     case 0x2001:
@@ -283,41 +343,46 @@ bool PPU::on_write(address_t addr, byte_t value)
         // ppuscroll
     case 0x2005:
     {
-        if (!scroll_latch_)
+        if (!cursor_.w)
         {
             scroll_x_ = value;
+            cursor_.t.X = value >> 3;
+            cursor_.x = value & 0x07;
         }
         else
         {
             scroll_y_ = value;
+            cursor_.t.Y = value >> 3;
+            cursor_.t.y = value & 0x07;
         }
 
-        scroll_latch_ = !scroll_latch_;
+        cursor_.w = !cursor_.w;
         return true;
     }
 
         // ppuaddr
     case 0x2006:
     {
-        if (!vram_latch_)
+        if (!cursor_.w)
         {
-            vram_.bytes.l = value;
+            cursor_.t.h = value & 0x3F;
         }
         else
         {
-            vram_.bytes.h = value;
+            cursor_.t.l = value;
+            cursor_.v.addr = cursor_.t.addr;
         }
 
-        vram_latch_ = !vram_latch_;
+        cursor_.w = !cursor_.w;
         return true;
     }
 
         // ppudata
     case 0x2007:
     {
-        store_(vram_.addr, value);
-        vram_.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
-        vram_.addr &= 0x3FFF;
+        store_(cursor_.v.addr, value);
+        cursor_.v.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v.addr &= 0x3FFF;
         return true;
     }
 
@@ -336,13 +401,16 @@ bool PPU::on_write(address_t addr, byte_t value)
 
 bool PPU::on_read(address_t addr, byte_t& value)
 {
+    // Mirroring
+    if (addr >= 0x2008 && addr < 0x4000)
+        addr = 0x2000 + (addr & 0x7);
+
     switch (addr)
     {
     case 0x2002:
         value = ppustatus_.byte_;
         ppustatus_.vblank_ = 0;
-        scroll_latch_ = false;
-        vram_latch_ = false;
+        cursor_.w = false;
         return true;
 
     case 0x2004:
@@ -351,13 +419,13 @@ bool PPU::on_read(address_t addr, byte_t& value)
 
     case 0x2007:
         value = read_buffer_;
-        read_buffer_ = load_(vram_.addr);
+        read_buffer_ = load_(cursor_.v.addr);
 
-        if (vram_.addr >= 0x3F00)
+        if (cursor_.v.addr >= 0x3F00)
             value = read_buffer_;
 
-        vram_.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
-        vram_.addr &= 0x3FFF;
+        cursor_.v.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v.addr &= 0x3FFF;
         return true;
     }
 
@@ -375,7 +443,7 @@ void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& 
             byte_t ntbyte = (ty << 4 | tx);
 
             Tile tile = get_pattern_tile(ntbyte, index);
-            byte_t pixel = tile.pixel(x % 8, y % 8);
+            byte_t pixel = get_pixel(tile, x % 8, y % 8);
             image.set(x, y, palette.get(pixel));
         }
     }
@@ -386,13 +454,13 @@ Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
     Tile t;
     t.ntbyte_ = ntbyte;
     t.half_ = half & 0x1;
-    t.ppu_ = this;
     return t;
 }
 
 void PPU::nametable_img(Output& image, byte_t nam_idx) const
 {
-    static address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
+    static const address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
+    static const address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
 
     address_t ntaddr = nametable_addr[nam_idx];
     Tile tile;
@@ -419,7 +487,7 @@ void PPU::nametable_img(Output& image, byte_t nam_idx) const
                     int col = (ntcol * 8) + tcol;
                     int row = (ntrow * 8) + trow;
 
-                    byte_t pixel = tile.pixel(tcol, trow);
+                    byte_t pixel = get_pixel(tile, tcol, trow);
                     image.set(col, row, palette.get(pixel));
                 }
             }
@@ -473,20 +541,32 @@ void PPU::store_(address_t addr, byte_t value)
 address_t PPU::mirror_addr_(address_t addr) const
 {
     // $3F20-$3FFF mirrors $3F00-$3F1F
-    //TODO if (addr >= 0x3F20 && addr < 0x4000)
+    if (addr >= 0x3F20 && addr < 0x4000)
+        addr &= 0x3F1F;
 
-    // $3000-$3EFF mirrors $2000-$2EFF;
-    if (addr >= 0x3000 && addr < 0x3F00) addr -= 0x1000;
+    // Palette mirrors
+    if (addr == 0x3F10 || addr == 0x3F14 || addr == 0x3F18 || addr == 0x3F1C)
+        addr -= 0x10;
+
+    // $3000-$3EFF mirrors $2000-$2EFF
+    if (addr >= 0x3000 && addr < 0x3F00)
+        addr -= 0x1000;
 
     switch (mirroring_)
     {
-    case Mirroring::Horizontal:
-        if (addr >= 0x2800 && addr < 0x3000) addr -= 0x0800;
-        break;
     case Mirroring::Vertical:
-        if (addr >= 0x2400 && addr < 0x2800) addr -= 0x0400;
-        if (addr >= 0x2C00 && addr < 0x3000) addr -= 0x0400;
+        if (addr >= 0x2800 && addr < 0x3000)
+            addr -= 0x0800;
         break;
+
+    case Mirroring::Horizontal:
+        if (addr >= 0x2400 && addr < 0x2800)
+            addr -= 0x0400;
+        
+        if (addr >= 0x2C00 && addr < 0x3000)
+            addr -= 0x0400;
+        break;
+
     default:
         break;
     }
@@ -511,18 +591,18 @@ byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
     return 0b11 & (metatile >> (quadrant * 2));
 }
 
-byte_t Tile::pixel(uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
+byte_t PPU::get_pixel(Tile const& tile, uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
 {
-    if (0b10 & flip) x = 7 - x; //vert flip
-    if (0b01 & flip) y = 7 - y; //hori flip
+    if (0b01 & flip) x = 7 - x; //hori flip
+    if (0b10 & flip) y = 7 - y; //vert flip
 
     address_t addr = 
-        static_cast<address_t>(half_ & 0x1) << 12 | 
-        static_cast<address_t>(ntbyte_) << 4 | 
+        static_cast<address_t>(tile.half_ & 0x1) << 12 |
+        static_cast<address_t>(tile.ntbyte_) << 4 |
         static_cast<address_t>(y & 0b111) << 0;
 
-    byte_t lpat = ppu_->load(addr);
-    byte_t hpat = ppu_->load(addr + 8);
+    byte_t lpat = load_(addr);
+    byte_t hpat = load_(addr + 8);
 
     byte_t mask = 1 << (7 - x);
     byte_t pixel = 
