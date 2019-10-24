@@ -29,6 +29,7 @@ private:
     void draw_pat(PPU const& ppu);
     void draw_pal(PPU const& ppu);
     void draw_oam(PPU const& ppu);
+    void draw_nam(PPU const& ppu);
 
     BUS* bus_;
 

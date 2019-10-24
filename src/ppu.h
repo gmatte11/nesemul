@@ -102,6 +102,8 @@ public:
     void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
     Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
 
+    void nametable_img(Output& image, byte_t nam_idx) const;
+
     Palette get_palette(byte_t idx) const;
 
 private:

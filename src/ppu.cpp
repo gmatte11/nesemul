@@ -390,6 +390,43 @@ Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
     return t;
 }
 
+void PPU::nametable_img(Output& image, byte_t nam_idx) const
+{
+    static address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
+
+    address_t ntaddr = nametable_addr[nam_idx];
+    Tile tile;
+
+    for (int ntrow = 0; ntrow < (240 / 8); ++ntrow)
+    {
+        for (int ntcol = 0; ntcol < (256 / 8); ++ntcol)
+        {
+            tile.ntbyte_ = load_(ntaddr | ntrow * 32 + ntcol);
+            tile.atbyte_ = get_attribute_(ntaddr, ntrow / 2, ntcol / 2);
+            tile.half_ = ppuctrl_.bg_pat_;
+
+            address_t paladdr = bg_palette_addr[tile.atbyte_];
+            Palette palette(
+                g_palette[load_(0x3F00)],
+                g_palette[load_(paladdr + 0)],
+                g_palette[load_(paladdr + 1)],
+                g_palette[load_(paladdr + 2)]);
+
+            for (int trow = 0; trow < 8; ++trow)
+            {
+                for (int tcol = 0; tcol < 8; ++tcol)
+                {
+                    int col = (ntcol * 8) + tcol;
+                    int row = (ntrow * 8) + trow;
+
+                    byte_t pixel = tile.pixel(tcol, trow);
+                    image.set(col, row, palette.get(pixel));
+                }
+            }
+        }
+    }
+}
+
 Palette PPU::get_palette(byte_t idx) const
 {
     if (idx < 4)

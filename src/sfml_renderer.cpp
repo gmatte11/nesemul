@@ -103,7 +103,8 @@ void SFMLRenderer::draw()
     draw_game(ppu);
     draw_pal(ppu);
     draw_pat(ppu);
-    draw_oam(ppu);
+    //draw_oam(ppu);
+    draw_nam(ppu);
 
     static sf::String empty;
     sf::Text text(empty, font_, 12);
@@ -240,4 +241,28 @@ void SFMLRenderer::draw_oam(PPU const& ppu)
     oam.setPosition({520.f, 20.f});
     oam.setFillColor(sf::Color::White);
     window_->draw(oam);
+}
+
+void SFMLRenderer::draw_nam(PPU const& ppu)
+{
+    static sf::Texture tex;
+    if (tex.getSize().x == 0)
+    {
+        tex.create(512, 480);
+    }
+
+    Image<256, 240> image;
+    for (int i = 0; i < 4; ++i)
+    {
+        ppu.nametable_img(image, i);
+
+        int x = (i % 2 == 0) ? 0 : 256;
+        int y = (i / 2 == 0) ? 0 : 240;
+        tex.update(image.data(), 256, 240, x, y);
+    }
+
+    sf::RectangleShape view({512.f, 480.f});
+    view.setTexture(&tex);
+    view.setPosition({520.f, 20.f});
+    window_->draw(view);
 }
