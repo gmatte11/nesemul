@@ -389,9 +389,11 @@ bool PPU::on_write(address_t addr, byte_t value)
         // oamdma
     case 0x4014:
     {
-        address_t addr = value << 8;
+        address_t page_addr = value << 8;
         // TODO allow copy from cartige RAM or ROM
-        bus_->ram_.memcpy(oam_.data(), addr, 0xFF * sizeof(byte_t));
+        bus_->ram_.memcpy(oam_.data(), page_addr, 0xFF * sizeof(byte_t));
+
+        // TODO timing
         return true;
     }
     }

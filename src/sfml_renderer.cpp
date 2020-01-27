@@ -34,14 +34,18 @@ bool SFMLRenderer::update()
 
         if (ev.type == sf::Event::KeyPressed)
         {
-            if (ev.key.code == sf::Keyboard::P)
+            switch (ev.key.code)
             {
-                toggle_pause();
-            }
+            case sf::Keyboard::P: toggle_pause(); break;
+            case sf::Keyboard::O: if (is_paused()) stepFrame_ = true; break;
 
-            if (ev.key.code == sf::Keyboard::I)
-            {
-                pal_idx_ = (pal_idx_ + 1) % 8;
+            case sf::Keyboard::Hyphen: stepRate_ = std::max(stepRate_ - 100, 100ll); break;
+            case sf::Keyboard::Equal: stepRate_ = std::min(stepRate_ + 100, 2000ll); break;
+            case sf::Keyboard::Num0: stepRate_ = 100; break;
+
+            case sf::Keyboard::I: pal_idx_ = (pal_idx_ + 1) % 8; break;
+
+            default: break;
             }
 
             for (Map m : g_mapping)
@@ -88,8 +92,10 @@ bool SFMLRenderer::update()
 
 bool SFMLRenderer::timeout()
 {
+    static constexpr sf::Int64 rate = 16'667;
+
     sf::Time t = clock_.getElapsedTime();
-    bool tick = (t - lastUpdate_) >= sf::microseconds(16'667);
+    bool tick = (t - lastUpdate_) >= sf::microseconds(rate * 1000 / stepRate_);
     if (tick) lastUpdate_ = t;
     return tick;
 }
@@ -103,17 +109,17 @@ void SFMLRenderer::draw()
     draw_game(ppu);
     draw_pal(ppu);
     draw_pat(ppu);
-    //draw_oam(ppu);
-    draw_nam(ppu);
+    draw_oam(ppu);
+    //draw_nam(ppu);
 
     static sf::String empty;
     sf::Text text(empty, font_, 12);
     text.setPosition({520.f, 0.f});
     text.setFillColor(sf::Color::White);
-    if (!is_paused())
-        text.setString(sf::String("FRAME: ") += std::to_string(ppu.frame()));
-    else
-        text.setString("PAUSED");
+
+    auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), stepRate_ / 10, (is_paused()) ? "(P)" : "");
+    text.setString(sfmt);
+    
     window_->draw(text);
 
     /*CPU& cpu_ = bus_->cpu_;

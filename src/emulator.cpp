@@ -110,7 +110,7 @@ int Emulator::run()
     {
         if (renderer.timeout())
         {
-            if (!renderer.is_paused())
+            if (!renderer.is_paused() || renderer.execute_frame())
             {
                 // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
                 for (int i = 0; i < 29780; ++i)
