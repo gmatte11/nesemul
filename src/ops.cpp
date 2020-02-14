@@ -3,100 +3,103 @@
 namespace
 {
 const ops::metadata operation_data[] = {
-    // BRK(00)         ORA(01)            nop(02)            nop(03)            nop(04)            ORA(05)            ASL(06)            nop(07)
+    // OPCODEs from wiki.nesdev.wiki (mostly)
+    // (Implemented) Unofficial opcodes are prefixed with an *
+
+    // BRK(00)         ORA(01)            ???(02)            ???(03)            *NOP(04)            ORA(05)            ASL(06)            ???(07)
     {1, 7, 0, " BRK"}, {2, 0, 8, " ORA"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, "*NOP"}, {2, 1, 2, " ORA"}, {2, 0, 2, " ASL"}, {0, 0, 0, "****"},
 
-    // PHP(08)         ORA(09)            ASL(0A)            nop(0B)            nop(0C)            ORA(0D)            ASL(0E)            nop(0F)
+    // PHP(08)         ORA(09)            ASL(0A)            ???(0B)            *NOP(0C)            ORA(0D)            ASL(0E)            ???(0F)
     {1, 3, 0, " PHP"}, {2, 0, 1, " ORA"}, {1, 0, 0, " ASL"}, {0, 0, 0, "****"}, {3, 0, 4, "*NOP"}, {3, 0, 4, " ORA"}, {3, 0, 4, " ASL"}, {0, 0, 0, "****"},
 
-    // BPL(10)         ORA(11)            nop(12)            nop(13)            nop(14)            ORA(15)            ASL(16)            nop(17)
+    // BPL(10)         ORA(11)            ???(12)            ???(13)            *NOP(14)           ORA(15)            ASL(16)            ???(17)
     {2, 0, 0, " BPL"}, {2, 0, 0, " ORA"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " ORA"}, {2, 0, 0, " ASL"}, {0, 0, 0, "****"},
 
-    // CLC(18)         ORA(19)            nop(1A)            nop(1B)            nop(1C)            ORA(1D)            ASL(1E)            nop(1F)
+    // CLC(18)         ORA(19)            *NOP(1A)           ???(1B)            *NOP(1C)           ORA(1D)            ASL(1E)            ???(1F)
     {1, 0, 0, " CLC"}, {3, 0, 0, " ORA"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " ORA"}, {3, 0, 0, " ASL"}, {0, 0, 0, "****"},
 
-    // JSR(20)         AND(21)            nop(22)            nop(23)            BIT(24)            AND(25)            ROL(26)            nop(27)
+    // JSR(20)         AND(21)            ???(22)            ???(23)            BIT(24)            AND(25)            ROL(26)            ???(27)
     {3, 6, 4, " JSR"}, {2, 0, 8, " AND"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, " BIT"}, {2, 0, 2, " AND"}, {2, 0, 2, " ROL"}, {0, 0, 0, "****"},
 
-    // PLP(28)         AND(29)            ROL(2A)            nop(2B)            BIT(2C)            AND(2D)            ROL(2E)            nop(2F)
+    // PLP(28)         AND(29)            ROL(2A)            ???(2B)            BIT(2C)            AND(2D)            ROL(2E)            ???(2F)
     {1, 4, 0, " PLP"}, {2, 0, 1, " AND"}, {1, 0, 0, " ROL"}, {0, 0, 0, "****"}, {3, 0, 4, " BIT"}, {3, 0, 4, " AND"}, {3, 0, 4, " ROL"}, {0, 0, 0, "****"},
 
-    // BMI(30)         AND(31)            nop(32)            nop(33)            nop(34)            AND(35)            ROL(36)            nop(37)
+    // BMI(30)         AND(31)            ???(32)            ???(33)            *NOP(34)           AND(35)            ROL(36)            ???(37)
     {2, 0, 0, " BMI"}, {2, 0, 0, " AND"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " AND"}, {2, 0, 0, " ROL"}, {0, 0, 0, "****"},
 
-    // SEC(38)         AND(39)            nop(3A)            nop(3B)            nop(3C)            AND(3D)            ROL(3E)            nop(3F)
+    // SEC(38)         AND(39)            *NOP(3A)           ???(3B)            *NOP(3C)           AND(3D)            ROL(3E)            ???(3F)
     {1, 0, 0, " SEC"}, {3, 0, 0, " AND"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " AND"}, {3, 0, 0, " ROL"}, {0, 0, 0, "****"},
 
-    // RTI(40)         EOR(41)            nop(42)            nop(43)            nop(44)            EOR(45)            LSR(46)            nop(47)
+    // RTI(40)         EOR(41)            ???(42)            ???(43)            *NOP(44)           EOR(45)            LSR(46)            ???(47)
     {1, 6, 0, " RTI"}, {2, 0, 8, " EOR"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, "*NOP"}, {2, 0, 2, " EOR"}, {2, 0, 2, " LSR"}, {0, 0, 0, "****"},
 
-    // PHA(48)         EOR(49)            LSR(4A)            nop(4B)            JMP(4C)            EOR(4D)            LSR(4E)            nop(4F)
+    // PHA(48)         EOR(49)            LSR(4A)            ???(4B)            JMP(4C)            EOR(4D)            LSR(4E)            ???(4F)
     {1, 3, 0, " PHA"}, {2, 0, 1, " EOR"}, {1, 0, 0, " LSR"}, {0, 0, 0, "****"}, {3, 0, 4, " JMP"}, {3, 0, 4, " EOR"}, {3, 0, 4, " LSR"}, {0, 0, 0, "****"},
 
-    // BVC(50)         EOR(51)            nop(52)            nop(53)            nop(54)            EOR(55)            LSR(56)            nop(57)
+    // BVC(50)         EOR(51)            ???(52)            ???(53)            *NOP(54)           EOR(55)            LSR(56)            ???(57)
     {2, 0, 0, " BVC"}, {2, 0, 0, " EOR"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " EOR"}, {2, 0, 0, " LSR"}, {0, 0, 0, "****"},
 
-    // CLI(58)         EOR(59)            nop(5A)            nop(5B)            nop(5C)            EOR(5D)            LSR(5E)            nop(5F)
+    // CLI(58)         EOR(59)            *NOP(5A)           ???(5B)            *NOP(5C)           EOR(5D)            LSR(5E)            ???(5F)
     {1, 0, 0, " CLI"}, {3, 0, 0, " EOR"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " EOR"}, {3, 0, 0, " LSR"}, {0, 0, 0, "****"},
 
-    // RTS(60)         ADC(61)            nop(62)            nop(63)            nop(64)            ADC(65)            ROR(66)            nop(67)
+    // RTS(60)         ADC(61)            ???(62)            ???(63)            *NOP(64)           ADC(65)            ROR(66)            ???(67)
     {1, 6, 0, " RTS"}, {2, 0, 8, " ADC"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, "*NOP"}, {2, 0, 2, " ADC"}, {2, 0, 2, " ROR"}, {0, 0, 0, "****"},
 
-    // PLA(68)         ADC(69)            ROR(6A)            nop(6B)            JMP(6C)            ADC(6D)            ROR(6E)            nop(6F)
+    // PLA(68)         ADC(69)            ROR(6A)            ???(6B)            JMP(6C)            ADC(6D)            ROR(6E)            ???(6F)
     {1, 4, 0, " PLA"}, {2, 0, 1, " ADC"}, {1, 0, 0, " ROR"}, {0, 0, 0, "****"}, {3, 0, 7, " JMP"}, {3, 0, 4, " ADC"}, {3, 0, 4, " ROR"}, {0, 0, 0, "****"},
 
-    // BVS(70)         ADC(71)            nop(72)            nop(73)            nop(74)            ADC(75)            ROR(76)            nop(77)
+    // BVS(70)         ADC(71)            ???(72)            ???(73)            *NOP(74)           ADC(75)            ROR(76)            ???(77)
     {2, 0, 0, " BVS"}, {2, 0, 0, " ADC"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " ADC"}, {2, 0, 0, " ROR"}, {0, 0, 0, "****"},
 
-    // SEI(78)         ADC(79)            nop(7A)            nop(7B)            nop(7C)            ADC(7D)            ROR(7E)            nop(7F)
+    // SEI(78)         ADC(79)            *NOP(7A)           ???(7B)            *NOP(7C)           ADC(7D)            ROR(7E)            ???(7F)
     {1, 0, 0, " SEI"}, {3, 0, 0, " ADC"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " ADC"}, {3, 0, 0, " ROR"}, {0, 0, 0, "****"},
 
-    // nop(80)         STA(81)            nop(82)            *SAX(83)           STY(84)            STA(85)            STX(86)            *SAX(87)
-    {2, 0, 1, "*NOP"}, {2, 0, 8, " STA"}, {0, 0, 0, "****"}, {2, 0, 8, "*SAX"}, {2, 0, 2, " STY"}, {2, 0, 2, " STA"}, {2, 0, 2, " STX"}, {2, 0, 2, "*SAX"},
+    // *NOP(80)        STA(81)            *NOP(82)            *SAX(83)           STY(84)            STA(85)            STX(86)            *SAX(87)
+    {2, 0, 1, "*NOP"}, {2, 0, 8, " STA"}, {2, 0, 1, "*NOP"}, {2, 0, 8, "*SAX"}, {2, 0, 2, " STY"}, {2, 0, 2, " STA"}, {2, 0, 2, " STX"}, {2, 0, 2, "*SAX"},
 
-    // DEY(88)         nop(89)            TXA(8A)            nop(8B)            STY(8C)            STA(8D)            STX(8E)            *SAX(8F)
-    {1, 0, 0, " DEY"}, {0, 0, 0, "****"}, {1, 0, 0, " TXA"}, {0, 0, 0, "****"}, {3, 0, 4, " STY"}, {3, 0, 4, " STA"}, {3, 0, 4, " STX"}, {3, 0, 4, "*SAX"},
+    // DEY(88)         *NOP(89)            TXA(8A)            ???(8B)            STY(8C)            STA(8D)            STX(8E)            *SAX(8F)
+    {1, 0, 0, " DEY"}, {2, 0, 1, "*NOP"}, {1, 0, 0, " TXA"}, {0, 0, 0, "****"}, {3, 0, 4, " STY"}, {3, 0, 4, " STA"}, {3, 0, 4, " STX"}, {3, 0, 4, "*SAX"},
 
-    // BCC(90)         STA(91)            nop(92)            nop(93)            STY(94)            STA(95)            STX(96)            *SAX(97)
+    // BCC(90)         STA(91)            ???(92)            ???(93)            STY(94)            STA(95)            STX(96)            *SAX(97)
     {2, 0, 0, " BCC"}, {2, 0, 0, " STA"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 0, " STY"}, {2, 0, 0, " STA"}, {2, 0, 0, " STX"}, {2, 0, 10, "*SAX"},
 
-    // TYA(98)         STA(99)            TXS(9A)            nop(9B)            nop(9C)            STA(9D)            nop(9E)            nop(9F)
+    // TYA(98)         STA(99)            TXS(9A)            ???(9B)            ???(9C)            STA(9D)            ???(9E)            ???(9F)
     {1, 0, 0, " TYA"}, {3, 0, 0, " STA"}, {1, 0, 0, " TXS"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {3, 0, 0, " STA"}, {0, 0, 0, "****"}, {0, 0, 0, "****"},
 
     // LDY(A0)         LDA(A1)            LDX(A2)            *LAX(A3)           LDY(A4)            LDA(A5)            LDX(A6)            *LAX(A7)
     {2, 0, 1, " LDY"}, {2, 0, 8, " LDA"}, {2, 0, 1, " LDX"}, {2, 0, 8, "*LAX"}, {2, 0, 2, " LDY"}, {2, 0, 2, " LDA"}, {2, 0, 2, " LDX"}, {2, 0, 2, "*LAX"},
 
-    // TAY(A8)         LDA(A9)            TAX(AA)            nop(AB)            LDY(AC)            LDA(AD)            LDX(AE)            *LAX(AF)
+    // TAY(A8)         LDA(A9)            TAX(AA)            ???(AB)            LDY(AC)            LDA(AD)            LDX(AE)            *LAX(AF)
     {1, 0, 0, " TAY"}, {2, 0, 1, " LDA"}, {1, 0, 0, " TAX"}, {0, 0, 0, "****"}, {3, 0, 4, " LDY"}, {3, 0, 4, " LDA"}, {3, 0, 4, " LDX"}, {3, 0, 4, "*LAX"},
 
-    // BCS(B0)         LDA(B1)            nop(B2)            *LAX(B3)           LDY(B4)            LDA(B5)            LDX(B6)            *LAX(B7)
+    // BCS(B0)         LDA(B1)            ???(B2)            *LAX(B3)           LDY(B4)            LDA(B5)            LDX(B6)            *LAX(B7)
     {2, 0, 0, " BCS"}, {2, 0, 0, " LDA"}, {0, 0, 0, "****"}, {2, 0, 9, "*LAX"}, {2, 0, 0, " LDY"}, {2, 0, 0, " LDA"}, {2, 0, 0, " LDX"}, {2, 0, 10, "*LAX"},
 
-    // CLV(B8)         LDA(B9)            TSX(BA)            nop(BB)            LDY(BC)            LDA(BD)            LDX(BE)            *LAX(BF)
+    // CLV(B8)         LDA(B9)            TSX(BA)            ???(BB)            LDY(BC)            LDA(BD)            LDX(BE)            *LAX(BF)
     {1, 0, 0, " CLV"}, {3, 0, 0, " LDA"}, {1, 0, 0, " TSX"}, {0, 0, 0, "****"}, {3, 0, 0, " LDY"}, {3, 0, 0, " LDA"}, {3, 0, 0, " LDX"}, {3, 0, 6, "*LAX"},
 
-    // CPY(C0)         CMP(C1)            nop(C2)            nop(C3)            CPY(C4)            CMP(C5)            DEC(C6)            nop(C7)
+    // CPY(C0)         CMP(C1)            ???(C2)            ???(C3)            CPY(C4)            CMP(C5)            DEC(C6)            ???(C7)
     {2, 0, 1, " CPY"}, {2, 0, 8, " CMP"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, " CPY"}, {2, 0, 2, " CMP"}, {2, 0, 2, " DEC"}, {0, 0, 0, "****"},
 
-    // INY(C8)         CMP(C9)            DEX(CA)            nop(CB)            CPY(CC)            CMP(CD)            DEC(CE)            nop(CF)
+    // INY(C8)         CMP(C9)            DEX(CA)            ???(CB)            CPY(CC)            CMP(CD)            DEC(CE)            ???(CF)
     {1, 0, 0, " INY"}, {2, 0, 1, " CMP"}, {1, 0, 0, " DEX"}, {0, 0, 0, "****"}, {3, 0, 4, " CPY"}, {3, 0, 4, " CMP"}, {3, 0, 4, " DEC"}, {0, 0, 0, "****"},
 
-    // BNE(D0)         CMP(D1)            nop(D2)            nop(D3)            nop(D4)            CMP(D5)            DEC(D6)            nop(D7)
+    // BNE(D0)         CMP(D1)            ???(D2)            ???(D3)            *NOP(D4)           CMP(D5)            DEC(D6)            ???(D7)
     {2, 0, 0, " BNE"}, {2, 0, 0, " CMP"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " CMP"}, {2, 0, 0, " DEC"}, {0, 0, 0, "****"},
 
-    // CLD(D8)         CMP(D9)            nop(DA)            nop(DB)            nop(DC)            CMP(DD)            DEC(DE)            nop(DF)
+    // CLD(D8)         CMP(D9)            *NOP(DA)           ???(DB)            *NOP(DC)           CMP(DD)            DEC(DE)            ???(DF)
     {1, 0, 0, " CLD"}, {3, 0, 0, " CMP"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " CMP"}, {3, 0, 0, " DEC"}, {0, 0, 0, "****"},
 
-    // CPX(E0)         SBC(E1)            nop(E2)            nop(E3)            CPX(E4)            SBC(E5)            INC(E6)            nop(E7)
+    // CPX(E0)         SBC(E1)            ???(E2)            ???(E3)            CPX(E4)            SBC(E5)            INC(E6)            ???(E7)
     {2, 0, 1, " CPX"}, {2, 0, 8, " SBC"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 2, " CPX"}, {2, 0, 2, " SBC"}, {2, 0, 2, " INC"}, {0, 0, 0, "****"},
 
-    // INX(E8)         SBC(E9)            NOP(EA)            nop(EB)            CPX(EC)            SBC(ED)            INC(EE)            nop(EF)
+    // INX(E8)         SBC(E9)            NOP(EA)            ???(EB)            CPX(EC)            SBC(ED)            INC(EE)            ???(EF)
     {1, 0, 0, " INX"}, {2, 0, 1, " SBC"}, {1, 1, 0, " NOP"}, {0, 0, 0, "****"}, {3, 0, 4, " CPX"}, {3, 0, 4, " SBC"}, {3, 0, 4, " INC"}, {0, 0, 0, "****"},
 
-    // BEQ(F0)         SBC(F1)            nop(F2)            nop(F3)            nop(F4)            SBC(F5)            INC(F6)            nop(F7)
+    // BEQ(F0)         SBC(F1)            ???(F2)            ???(F3)            *NOP(F4)           SBC(F5)            INC(F6)            ???(F7)
     {2, 0, 0, " BEQ"}, {2, 0, 0, " SBC"}, {0, 0, 0, "****"}, {0, 0, 0, "****"}, {2, 0, 3, "*NOP"}, {2, 0, 0, " SBC"}, {2, 0, 0, " INC"}, {0, 0, 0, "****"},
 
-    // SED(F8)         SBC(F9)            nop(FA)            nop(FB)            nop(FC)            SBC(FD)            INC(FE)            nop(FF)
+    // SED(F8)         SBC(F9)            *NOP(FA)           ???(FB)            *NOP(FC)           SBC(FD)            INC(FE)            ???(FF)
     {1, 0, 0, " SED"}, {3, 0, 0, " SBC"}, {1, 0, 0, "*NOP"}, {0, 0, 0, "****"}, {3, 0, 5, "*NOP"}, {3, 0, 0, " SBC"}, {3, 0, 0, " INC"}, {0, 0, 0, "****"}};
 }
 
