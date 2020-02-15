@@ -369,17 +369,17 @@ void PPU::render_()
             bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
 
             if (sprite_0_eval)
-                            {
+            {
                 if (fg_pixel != 0 && bg_pixel != 0)
-                                ppustatus_.sprite_0_hit_ = 1;
-                            }
+                    ppustatus_.sprite_0_hit_ = 1;
+            }
 
             Color color{0, 0, 0, 0xFF};
 
             if (render_fg)
-                            {
+            {
                 color = get_palette(fg_pal + 4).get(fg_pixel);
-                }
+            }
             else if (render_bg)
             {
                 color = get_palette(bg_pal).get(bg_pixel);
