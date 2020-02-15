@@ -89,6 +89,9 @@ void Emulator::read(const std::string& filename)
 
         cart_->load_roms(ifs, num_16kb_prg_rom_banks, num_8kb_chr_rom_banks, num_8kb_prg_ram_banks);
 
+        for (Cartridge::PRG_BANK& bank : cart_->prg_rom_)
+            disassembler_.load_bank(bank.data(), bank.size());
+
         bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
         cpu_->init(bus_.get());
         ppu_->init(bus_.get(), cart_.get());
@@ -101,7 +104,7 @@ void Emulator::read(const std::string& filename)
 
 int Emulator::run()
 {
-    SFMLRenderer renderer(bus_.get());
+    SFMLRenderer renderer(this);
 
     cpu_->reset();
     ppu_->reset();

@@ -12,7 +12,7 @@ struct metadata
     address_t size;
     byte_t timing;
     byte_t addressing;
-    std::string str;
+    const char* str;
 };
 
 metadata opcode_data(byte_t opcode);

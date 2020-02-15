@@ -8,6 +8,7 @@
 #include "ppu.h"
 #include "ram.h"
 #include "cartridge.h"
+#include "disassembler.h"
 
 class Emulator
 {
@@ -17,6 +18,9 @@ public:
     void read(const std::string& filename);
 
     int run();
+
+    Disassembler disassembler_;
+    BUS* get_bus() const { return bus_.get(); }
 
 private:
     std::unique_ptr<BUS> bus_;
