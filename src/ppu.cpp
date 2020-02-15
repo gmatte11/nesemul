@@ -28,266 +28,10 @@ static Color g_palette[] = {
 
 void PPU::step()
 {
-    if (cycle_ == 1)
-    {
-        ppustatus_.sprite_0_hit_ = 0;
-        ppustatus_.sprite_overflow_ = 0;
-
-        // status checks
-        if (scanline_ == -1)
-        {
-            ppustatus_.vblank_ = 0; // end of vblank
-        }
-
-        if (scanline_ == 241)
-        {
-            ppustatus_.vblank_ = 1; // start of vblank
-            if (ppuctrl_.nmi_)
-                bus_->cpu_.interrupt(true); // generate NMI
-        }
-    }
-
-    if (scanline_ == -1 && cycle_ == 304)
-    {
-        if (ppumask_.render_bg_)
-            cursor_.v.addr = (cursor_.v.addr & HORI_MASK) | (cursor_.t.addr & VERT_MASK);
-    }
-
-    // rendering
-    if (scanline_ >= 0 && scanline_ < 240)
-    {
-        if (cycle_ > 0 && cycle_ <= 256)
-        {
-            int row = scanline_;
-            int col = cycle_ - 1;
-            
-            byte_t bg_pixel = 0;
-            byte_t fg_pixel = 0;
-            byte_t bg_pal = 0;
-            byte_t fg_pal = 0;
-            bool fg_priority = false;
-            bool has_sprite_0 = false;
-
-            if (ppumask_.render_bg_)
-            {
-                int trow = row % 8;
-                int tcol = col % 8;
-
-                auto lidx = (col % 16) / 8;
-                auto& tile = bg_tiles_[lidx].read();
-
-                bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
-                bg_pal = tile.atbyte_;
-            }
-
-            if (ppumask_.render_fg_)
-            {
-                auto& sprites = secondary_oam_.read();
-
-                for (int i = 0; i < sprites.count_; ++i)
-                {
-                    Sprite const& sprite = sprites.list_[i].sprite_;
-                    if (sprite.x_ < col && (col - sprite.x_) <= 8) // TODO 8x16 sprites
-                    {
-                        byte_t pattern = sprite.tile_;
-                        Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
-
-                        fg_pal = sprite.att_ & 0x3;
-                        byte_t flip = sprite.att_ >> 6;
-                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
-
-                        int ty = (row - sprite.y_ - 1);
-                        int tx = (col - sprite.x_ - 1);
-
-                        fg_priority = (sprite.att_ & 0x20) == 0;
-                        fg_pixel = get_pixel(tile, tx, ty, flip);
-                        if (fg_pixel != 0) break;
-                    }
-                }
-            }
-
-            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
-            bool render_bg = ppumask_.render_bg_;
-            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
-
-            if (sprite_0_eval)
-                            {
-                if (fg_pixel != 0 && bg_pixel != 0)
-                                ppustatus_.sprite_0_hit_ = 1;
-                            }
-
-            Color color{0, 0, 0, 0xFF};
-
-            if (render_fg)
-                            {
-                color = get_palette(fg_pal + 4).get(fg_pixel);
-                }
-            else if (render_bg)
-            {
-                color = get_palette(bg_pal).get(bg_pixel);
-            }
-
-            output_.set(col, row, color);
-        }
-    }
-
-    // BG latching
-    if (ppumask_.render_bg_)
-    {
-        auto& v = cursor_.v;
-
-        if (cycle_ == 256)
-        {
-            // Vertical increment
-            if (v.y < 7)
-            {
-                v.y++;
-            }
-            else
-            {
-                v.y = 0;
-                if (v.Y == 29)
-                {
-                    v.Y = 0;
-                    v.N ^= 0b10;
-                }
-                else if (v.Y == 31)
-                {
-                    v.Y = 0;
-                }
-                else
-                {
-                    v.Y++;
-                }
-            }
-        }
-
-        if (cycle_ == 257)
-        {
-            // Copy Horizontal bits of t into v
-            v.addr = (v.addr & VERT_MASK) | (cursor_.t.addr & HORI_MASK);
-        }
-
-        if (scanline_ >= -1 && scanline_ < 240)
-        {
-            if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
-            {
-                uint16_t fetch = ((cycle_ - 1) % 16);
-                auto lidx = fetch / 8;
-                auto& tile = bg_tiles_[lidx].store();
-
-                int op = fetch % 8;
-                switch (op)
-                {
-                case 0: // NT byte
-                {
-                    address_t ntaddr = 0x2000 | (v.addr & 0x0FFF);
-                    tile.ntbyte_ = load_(ntaddr);
-                }
-                break;
-
-                case 2: // AT byte
-                {
-                    address_t ataddr = 0x23C0 | (v.addr & 0x0C00) | ((v.addr >> 4) & 0x38) | ((v.addr >> 2) & 0x07);
-                    byte_t areashift = (((v.Y / 2) % 2) ? 4 : 0) + (((v.X / 2) % 2) ? 2 : 0);
-                    tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
-                }
-                break;
-
-                case 4: // Pat (low + high)
-                {
-                    tile.half_ = ppuctrl_.bg_pat_;
-
-                    address_t addr
-                        = static_cast<address_t>(tile.half_ & 0x1) << 12
-                        | static_cast<address_t>(tile.ntbyte_) << 4
-                        | static_cast<address_t>(v.y & 0b111) << 0;
-
-                    tile.lpat_ = load_(addr);
-                    tile.hpat_ = load_(addr + 8);
-                }
-                break;
-
-                case 7: // Horizontal increment + switch register latching
-                {
-                    if (v.X == 31)
-                    {
-                        v.X = 0;
-                        v.N ^= 0b01;
-                    }
-                    else
-                    {
-                        v.X++;
-                    }
-
-                    auto& latch = bg_tiles_[lidx];
-                    latch.flip();
-                }
-                break;
-                }
-            }
-        }
-    }
-
-    // sprite eval (simple version)
-    if (scanline_ >= -1 && scanline_ < 240)
-    {
-        if (cycle_ == 1)
-        {
-            secondary_oam_.flip();
-            secondary_oam_.store().count_ = 0;
-            secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
-        }
-
-        if (cycle_ == 256)
-        {
-            for (int i = 0; i < 64; ++i)
-            {
-                Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
-                int y = scanline_ + 1;
-
-                if (sprite.y_ < y && (y - sprite.y_) <= 8)
-                {
-                    auto& sprites = secondary_oam_.store();
-                    if (sprites.count_ < 8)
-                    {
-                        auto& entry = sprites.list_[sprites.count_];
-                        entry.oam_idx_ = i;
-                        entry.sprite_ = sprite;
-
-                        ++sprites.count_;
-                    }
-                    else
-                    {
-                        // TODO? Sprite overflow bug
-                        ppustatus_.sprite_overflow_ = 1;
-                    }
-                }
-            }
-        }
-
-        if (cycle_ > 256 && cycle_ <= 320)
-        {
-            oamaddr_ = 0;
-        }
-    }
-
-    // skip one cycle on odd frame at scanline 261
-    if (cycle_ < 340 && !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339))
-    {
-        ++cycle_;
-    }
-    else
-    {
-        cycle_ = 0;
-        ++scanline_;
-
-        if (scanline_ == 262)
-        {
-            scanline_ = -1;
-            ++frame_;
-        }
-    }
+    tick_();
+    render_();
+    bg_eval_();
+    fg_eval_();
 }
 
 void PPU::reset()
@@ -518,6 +262,276 @@ Palette PPU::get_palette(byte_t idx) const
             g_palette[load_(paladdr + 1)],
             g_palette[load_(paladdr + 2)]
         );
+    }
+}
+
+void PPU::tick_()
+{
+    // skip one cycle on odd frame at scanline 261
+    if (cycle_ < 340 && !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339))
+    {
+        ++cycle_;
+    }
+    else
+    {
+        cycle_ = 0;
+        ++scanline_;
+
+        if (scanline_ == 261)
+        {
+            scanline_ = -1;
+            ++frame_;
+        }
+    }
+
+    if (cycle_ == 1)
+    {
+        ppustatus_.sprite_0_hit_ = 0;
+        ppustatus_.sprite_overflow_ = 0;
+
+        // status checks
+        if (scanline_ == -1)
+        {
+            ppustatus_.vblank_ = 0; // end of vblank
+        }
+
+        if (scanline_ == 241)
+        {
+            ppustatus_.vblank_ = 1; // start of vblank
+            if (ppuctrl_.nmi_)
+                bus_->cpu_.interrupt(true); // generate NMI
+        }
+    }
+
+    if (scanline_ == -1 && cycle_ == 304)
+    {
+        if (ppumask_.render_bg_)
+            cursor_.v.addr = (cursor_.v.addr & HORI_MASK) | (cursor_.t.addr & VERT_MASK);
+    }
+}
+
+void PPU::render_()
+{
+    if (scanline_ >= 0 && scanline_ < 240)
+    {
+        if (cycle_ > 0 && cycle_ <= 256)
+        {
+            int row = scanline_;
+            int col = cycle_ - 1;
+            
+            byte_t bg_pixel = 0;
+            byte_t fg_pixel = 0;
+            byte_t bg_pal = 0;
+            byte_t fg_pal = 0;
+            bool fg_priority = false;
+            bool has_sprite_0 = false;
+
+            if (ppumask_.render_bg_)
+            {
+                int trow = row % 8;
+                int tcol = col % 8;
+
+                auto lidx = (col % 16) / 8;
+                auto& tile = bg_tiles_[lidx].read();
+
+                bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
+                bg_pal = tile.atbyte_;
+            }
+
+            if (ppumask_.render_fg_)
+            {
+                auto& sprites = secondary_oam_.read();
+
+                for (int i = 0; i < sprites.count_; ++i)
+                {
+                    Sprite const& sprite = sprites.list_[i].sprite_;
+                    if (sprite.x_ < col && (col - sprite.x_) <= 8) // TODO 8x16 sprites
+                    {
+                        byte_t pattern = sprite.tile_;
+                        Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
+
+                        fg_pal = sprite.att_ & 0x3;
+                        byte_t flip = sprite.att_ >> 6;
+                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
+
+                        int ty = (row - sprite.y_ - 1);
+                        int tx = (col - sprite.x_ - 1);
+
+                        fg_priority = (sprite.att_ & 0x20) == 0;
+                        fg_pixel = get_pixel(tile, tx, ty, flip);
+                        if (fg_pixel != 0) break;
+                    }
+                }
+            }
+
+            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
+            bool render_bg = ppumask_.render_bg_;
+            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
+
+            if (sprite_0_eval)
+                            {
+                if (fg_pixel != 0 && bg_pixel != 0)
+                                ppustatus_.sprite_0_hit_ = 1;
+                            }
+
+            Color color{0, 0, 0, 0xFF};
+
+            if (render_fg)
+                            {
+                color = get_palette(fg_pal + 4).get(fg_pixel);
+                }
+            else if (render_bg)
+            {
+                color = get_palette(bg_pal).get(bg_pixel);
+            }
+
+            output_.set(col, row, color);
+        }
+    }
+}
+
+void PPU::bg_eval_()
+{
+    if (ppumask_.render_bg_)
+    {
+        auto& v = cursor_.v;
+
+        if (cycle_ == 256)
+        {
+            // Vertical increment
+            if (v.y < 7)
+            {
+                v.y++;
+            }
+            else
+            {
+                v.y = 0;
+                if (v.Y == 29)
+                {
+                    v.Y = 0;
+                    v.N ^= 0b10;
+                }
+                else if (v.Y == 31)
+                {
+                    v.Y = 0;
+                }
+                else
+                {
+                    v.Y++;
+                }
+            }
+        }
+
+        if (cycle_ == 257)
+        {
+            // Copy Horizontal bits of t into v
+            v.addr = (v.addr & VERT_MASK) | (cursor_.t.addr & HORI_MASK);
+        }
+
+        if (scanline_ >= -1 && scanline_ < 240)
+        {
+            if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
+            {
+                uint16_t fetch = ((cycle_ - 1) % 16);
+                auto lidx = fetch / 8;
+                auto& tile = bg_tiles_[lidx].store();
+
+                int op = fetch % 8;
+                switch (op)
+                {
+                case 0: // NT byte
+                {
+                    address_t ntaddr = 0x2000 | (v.addr & 0x0FFF);
+                    tile.ntbyte_ = load_(ntaddr);
+                }
+                break;
+
+                case 2: // AT byte
+                {
+                    address_t ataddr = 0x23C0 | (v.addr & 0x0C00) | ((v.addr >> 4) & 0x38) | ((v.addr >> 2) & 0x07);
+                    byte_t areashift = (((v.Y / 2) % 2) ? 4 : 0) + (((v.X / 2) % 2) ? 2 : 0);
+                    tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
+                }
+                break;
+
+                case 4: // Pat (low + high)
+                {
+                    tile.half_ = ppuctrl_.bg_pat_;
+
+                    address_t addr
+                        = static_cast<address_t>(tile.half_ & 0x1) << 12
+                        | static_cast<address_t>(tile.ntbyte_) << 4
+                        | static_cast<address_t>(v.y & 0b111) << 0;
+
+                    tile.lpat_ = load_(addr);
+                    tile.hpat_ = load_(addr + 8);
+                }
+                break;
+
+                case 7: // Horizontal increment + switch register latching
+                {
+                    if (v.X == 31)
+                    {
+                        v.X = 0;
+                        v.N ^= 0b01;
+                    }
+                    else
+                    {
+                        v.X++;
+                    }
+
+                    auto& latch = bg_tiles_[lidx];
+                    latch.flip();
+                }
+                break;
+                }
+            }
+        }
+    }
+}
+
+void PPU::fg_eval_()
+{
+    if (scanline_ >= -1 && scanline_ < 240)
+    {
+        if (cycle_ == 1)
+        {
+            secondary_oam_.flip();
+            secondary_oam_.store().count_ = 0;
+            secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
+        }
+
+        if (cycle_ == 256)
+        {
+            for (int i = 0; i < 64; ++i)
+            {
+                Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
+                int y = scanline_ + 1;
+
+                if (sprite.y_ < y && (y - sprite.y_) <= 8)
+                {
+                    auto& sprites = secondary_oam_.store();
+                    if (sprites.count_ < 8)
+                    {
+                        auto& entry = sprites.list_[sprites.count_];
+                        entry.oam_idx_ = i;
+                        entry.sprite_ = sprite;
+
+                        ++sprites.count_;
+                    }
+                    else
+                    {
+                        // TODO? Sprite overflow bug
+                        ppustatus_.sprite_overflow_ = 1;
+                    }
+                }
+            }
+        }
+
+        if (cycle_ > 256 && cycle_ <= 320)
+        {
+            oamaddr_ = 0;
+        }
     }
 }
 
