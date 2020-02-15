@@ -1,7 +1,6 @@
 #include "sfml_renderer.h"
 
-#include "bus.h"
-#include "ppu.h"
+#include "emulator.h"
 #include "SFML/Graphics.hpp"
 
 #include <fmt/format.h>
@@ -14,8 +13,9 @@ static std::array<Map, 8> g_mapping = {
     {sf::Keyboard::Left, Controller::Left}, {sf::Keyboard::Right, Controller::Right}
 };
 
-SFMLRenderer::SFMLRenderer(BUS* bus)
-    : bus_(bus)
+SFMLRenderer::SFMLRenderer(Emulator* emulator)
+    : emulator_(emulator)
+    , bus_(emulator->get_bus())
 {
     window_.reset(new sf::RenderWindow(sf::VideoMode(1028, 720), "NESEMUL"));
     font_.loadFromFile("data/Emulogic-zrEw.ttf");
@@ -42,6 +42,8 @@ bool SFMLRenderer::update()
             case sf::Keyboard::Hyphen: stepRate_ = std::max(stepRate_ - 100, 100ll); break;
             case sf::Keyboard::Equal: stepRate_ = std::min(stepRate_ + 100, 2000ll); break;
             case sf::Keyboard::Num0: stepRate_ = 100; break;
+
+            case sf::Keyboard::N: if (ev.key.shift) show_nametable_window(); break;
 
             case sf::Keyboard::I: pal_idx_ = (pal_idx_ + 1) % 8; break;
 
@@ -71,6 +73,12 @@ bool SFMLRenderer::update()
         }
     }
 
+    while (namWindow_ && namWindow_->pollEvent(ev))
+    {
+        if (ev.type == sf::Event::Closed)
+            namWindow_->close();
+    }
+
     sf::Time t = clock_.getElapsedTime();
     if ((t - lastFPS_).asSeconds() >= 1)
     {
@@ -85,6 +93,11 @@ bool SFMLRenderer::update()
         window_->setTitle(sf::String("NESEMUL (FPS: ") += sf::String(std::to_string(fps_)) += ")");
         draw();
         window_->display();
+    }
+
+    if (namWindow_ && namWindow_->isOpen())
+    {
+        namWindow_->display();
     }
 
     return window_->isOpen();
@@ -105,12 +118,14 @@ void SFMLRenderer::draw()
     window_->clear(sf::Color(0x1e5dceff));
 
     PPU const& ppu = bus_->ppu_;
+    CPU const& cpu = bus_->cpu_;
+
 
     draw_game(ppu);
     draw_pal(ppu);
     draw_pat(ppu);
-    draw_oam(ppu);
-    //draw_nam(ppu);
+    //draw_oam(ppu);
+    draw_asm(cpu);
 
     static sf::String empty;
     sf::Text text(empty, font_, 12);
@@ -121,6 +136,21 @@ void SFMLRenderer::draw()
     text.setString(sfmt);
     
     window_->draw(text);
+
+    if (namWindow_ && namWindow_->isOpen())
+    {
+        static sf::Texture tex;
+        if (tex.getSize().x == 0)
+        {
+            tex.create(512, 480);
+        }
+
+        draw_nam(ppu, &tex);
+
+        sf::RectangleShape shape({512.f, 480.f});
+        shape.setTexture(&tex, true);
+        namWindow_->draw(shape);
+    }
 
     /*CPU& cpu_ = bus_->cpu_;
     size_t idx = (cpu_.log_idx_ + cpu_.log_ring_.size() - 14) % cpu_.log_ring_.size();
@@ -249,13 +279,28 @@ void SFMLRenderer::draw_oam(PPU const& ppu)
     window_->draw(oam);
 }
 
-void SFMLRenderer::draw_nam(PPU const& ppu)
+void SFMLRenderer::draw_asm(CPU const& cpu)
 {
-    static sf::Texture tex;
-    if (tex.getSize().x == 0)
+    fmt::memory_buffer buf;
+
+    for (int offset = -5; offset < 5; ++offset)
     {
-        tex.create(512, 480);
+        if (buf.size() > 0)
+            buf.push_back('\n');
+        
+        emulator_->disassembler_.render(buf, cpu.get_program_counter(), offset);
     }
+
+    sf::Text text(buf.data(), font_, 10);
+    text.setPosition({520.f, 20.f});
+    text.setFillColor(sf::Color::White);
+    window_->draw(text);
+}
+
+void SFMLRenderer::draw_nam(PPU const& ppu, sf::Texture* tex)
+{
+    if (tex->getSize().x < 512 || tex->getSize().y < 480)
+        return;
 
     Image<256, 240> image;
     for (int i = 0; i < 4; ++i)
@@ -264,11 +309,14 @@ void SFMLRenderer::draw_nam(PPU const& ppu)
 
         int x = (i % 2 == 0) ? 0 : 256;
         int y = (i / 2 == 0) ? 0 : 240;
-        tex.update(image.data(), 256, 240, x, y);
+        tex->update(image.data(), 256, 240, x, y);
     }
+}
 
-    sf::RectangleShape view({512.f, 480.f});
-    view.setTexture(&tex);
-    view.setPosition({520.f, 20.f});
-    window_->draw(view);
+void SFMLRenderer::show_nametable_window()
+{
+    if (namWindow_ == nullptr || !namWindow_->isOpen())
+    {
+        namWindow_.reset(new sf::RenderWindow(sf::VideoMode(512, 480), "Nametables"));
+    }
 }
