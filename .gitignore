@@ -39,5 +39,8 @@ data/
 *.out
 *.app
 
-#Swap files
+# Swap files
 *.swp
+
+# Local utilities
+generate_cmake.bat
