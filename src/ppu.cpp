@@ -26,7 +26,7 @@ static Color g_palette[] = {
 };
 
 
-void PPU::next()
+void PPU::step()
 {
     if (cycle_ == 1)
     {

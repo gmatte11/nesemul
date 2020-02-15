@@ -17,7 +17,7 @@ public:
     void init(BUS* bus) { bus_ = bus; }
 
     // Execute next instruction from the program
-    void next();
+    void step();
     void reset();
 
     void interrupt(bool nmi = false);

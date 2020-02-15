@@ -25,7 +25,7 @@ std::string _str(address_t addr)
     return fmt::format("{:04x}", addr);
 }
 
-void CPU::next()
+void CPU::step()
 {
     struct
     {

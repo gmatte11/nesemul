@@ -70,7 +70,7 @@ public:
 
     void init(BUS* bus, Cartridge* cart) { bus_ = bus; cart_ = cart; }
 
-    void next();
+    void step();
     void reset();
 
     bool on_write(address_t addr, byte_t value);
@@ -105,6 +105,12 @@ public:
     Palette get_palette(byte_t idx) const;
 
 private:
+    void tick_();
+    void render_();
+    void bg_eval_();
+    void fg_eval_();
+
+    // timings
     int16_t scanline_ = -1;
     uint16_t cycle_ = 0;
     uint64_t frame_ = 0;

@@ -118,9 +118,9 @@ int Emulator::run()
                 // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
                 for (int i = 0; i < 29780; ++i)
                 {
-                    cpu_->next();
+                    cpu_->step();
                     for (int i = 0; i < 3; ++i)
-                        ppu_->next();
+                        ppu_->step();
                 }
             }
 
