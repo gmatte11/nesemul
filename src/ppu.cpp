@@ -61,7 +61,12 @@ void PPU::next()
             int row = scanline_;
             int col = cycle_ - 1;
             
-            byte_t bg_pixel;
+            byte_t bg_pixel = 0;
+            byte_t fg_pixel = 0;
+            byte_t bg_pal = 0;
+            byte_t fg_pal = 0;
+            bool fg_priority = false;
+            bool has_sprite_0 = false;
 
             if (ppumask_.render_bg_)
             {
@@ -71,18 +76,8 @@ void PPU::next()
                 auto lidx = (col % 16) / 8;
                 auto& tile = bg_tiles_[lidx].read();
 
-                static address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
-                address_t paladdr = bg_palette_addr[tile.atbyte_];
-                Palette palette(
-                    g_palette[load_(0x3F00)],
-                    g_palette[load_(paladdr + 0)],
-                    g_palette[load_(paladdr + 1)],
-                    g_palette[load_(paladdr + 2)]);
-
-                
-
                 bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
-                output_.set(col, row, palette.get(bg_pixel));
+                bg_pal = tile.atbyte_;
             }
 
             if (ppumask_.render_fg_)
@@ -97,39 +92,42 @@ void PPU::next()
                         byte_t pattern = sprite.tile_;
                         Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
 
-                        byte_t pal = sprite.att_ & 0x3;
+                        fg_pal = sprite.att_ & 0x3;
                         byte_t flip = sprite.att_ >> 6;
-                        byte_t prio = (sprite.att_ & 0x20) == 0;
-
-                        static address_t sprite_palette_addr[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
-                        address_t paladdr = sprite_palette_addr[pal];
-                        Palette palette(
-                            {0xFF, 0xFF, 0xFF, 0x00},
-                            g_palette[load_(paladdr + 0)],
-                            g_palette[load_(paladdr + 1)],
-                            g_palette[load_(paladdr + 2)]);
+                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
 
                         int ty = (row - sprite.y_ - 1);
                         int tx = (col - sprite.x_ - 1);
-                        byte_t pixel = get_pixel(tile, tx, ty, flip);
 
-                        if (pixel != 0)
-                        {
-                            // Sprite 0 hit
-                            if (sprites.list_[i].oam_idx_ == 0 && bg_pixel != 0)
-                            {
-                                ppustatus_.sprite_0_hit_ = 1;
-                            }
-
-                            if (bg_pixel == 0 || prio)
-                            {
-                                output_.set(col, row, palette.get(pixel));
-                                break;
-                            }
-                        }
+                        fg_priority = (sprite.att_ & 0x20) == 0;
+                        fg_pixel = get_pixel(tile, tx, ty, flip);
+                        if (fg_pixel != 0) break;
                     }
                 }
             }
+
+            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
+            bool render_bg = ppumask_.render_bg_;
+            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
+
+            if (sprite_0_eval)
+                            {
+                if (fg_pixel != 0 && bg_pixel != 0)
+                                ppustatus_.sprite_0_hit_ = 1;
+                            }
+
+            Color color{0, 0, 0, 0xFF};
+
+            if (render_fg)
+                            {
+                color = get_palette(fg_pal + 4).get(fg_pixel);
+                }
+            else if (render_bg)
+            {
+                color = get_palette(bg_pal).get(bg_pixel);
+            }
+
+            output_.set(col, row, color);
         }
     }
 
