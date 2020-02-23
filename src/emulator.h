@@ -13,14 +13,32 @@
 class Emulator
 {
 public:
+    enum class Mode
+    {
+        RUN,
+        PAUSED,
+        STEP_ONCE,
+        STEP_FRAME
+    };
+
+public:
     Emulator();
 
     void read(const std::string& filename);
 
     int run();
 
+    bool is_paused() { return mode_ != Mode::RUN; }
+
+    void step_once() { mode_ = Mode::STEP_ONCE; }
+    void step_frame() { mode_ = Mode::STEP_FRAME; }
+    void toggle_pause() { mode_ = (is_paused()) ? Mode::RUN : Mode::PAUSED; }
+
     Disassembler disassembler_;
     BUS* get_bus() const { return bus_.get(); }
+
+    void set_mode(Mode mode) { mode_ = mode; }
+    Mode get_mode() const { return mode_; }
 
 private:
     std::unique_ptr<BUS> bus_;
@@ -28,4 +46,7 @@ private:
     std::unique_ptr<PPU> ppu_;
     std::unique_ptr<RAM> ram_;
     std::unique_ptr<Cartridge> cart_;
+
+    Mode mode_ = Mode::RUN;
+    int cycle_ = 0;
 };

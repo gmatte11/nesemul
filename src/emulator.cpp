@@ -89,8 +89,7 @@ void Emulator::read(const std::string& filename)
 
         cart_->load_roms(ifs, num_16kb_prg_rom_banks, num_8kb_chr_rom_banks, num_8kb_prg_ram_banks);
 
-        for (Cartridge::PRG_BANK& bank : cart_->prg_rom_)
-            disassembler_.load_bank(bank.data(), bank.size());
+        disassembler_.load(cart_.get());
 
         bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
         cpu_->init(bus_.get());
@@ -113,15 +112,27 @@ int Emulator::run()
     {
         if (renderer.timeout())
         {
-            if (!renderer.is_paused() || renderer.execute_frame())
+            if (mode_ != Mode::PAUSED)
             {
                 // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
-                for (int i = 0; i < 29780; ++i)
+                for (; cycle_ < 29780; ++cycle_)
                 {
                     cpu_->step();
                     for (int i = 0; i < 3; ++i)
                         ppu_->step();
+
+                    if (mode_ == Mode::STEP_ONCE && cpu_->get_timing() == 0)
+                    {
+                        ++cycle_;
+                        break;
+                    }
                 }
+
+                if (cycle_ == 29780)
+                    cycle_ = 0;
+
+                if (mode_ != Mode::RUN)
+                    mode_ = Mode::PAUSED;
             }
 
             if (!renderer.update())

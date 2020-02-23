@@ -23,6 +23,7 @@ public:
     void interrupt(bool nmi = false);
 
     address_t get_program_counter() const { return program_counter_; };
+    byte_t get_timing() const { return timing_; }
 
     std::array<std::array<char, 80>, 64> log_ring_;
     int log_idx_ = 0;

@@ -23,6 +23,8 @@ public:
     virtual bool on_ppu_read(address_t addr, byte_t& value) = 0;
     virtual bool on_ppu_write(address_t addr, byte_t value) = 0;
 
+    virtual std::pair<byte_t*, address_t> get_bank(address_t addr) const = 0;
+
 protected:
     Cartridge* cart_;
 

@@ -36,16 +36,17 @@ bool SFMLRenderer::update()
         {
             switch (ev.key.code)
             {
-            case sf::Keyboard::P: toggle_pause(); break;
-            case sf::Keyboard::O: if (is_paused()) stepFrame_ = true; break;
+            case sf::Keyboard::P: emulator_->toggle_pause(); break;
+            case sf::Keyboard::O: emulator_->step_once(); break;
+            case sf::Keyboard::I: emulator_->step_frame(); break;
 
-            case sf::Keyboard::Hyphen: stepRate_ = std::max(stepRate_ - 100, 100ll); break;
-            case sf::Keyboard::Equal: stepRate_ = std::min(stepRate_ + 100, 2000ll); break;
-            case sf::Keyboard::Num0: stepRate_ = 100; break;
+            case sf::Keyboard::Hyphen: step_rate_ = std::max(step_rate_ - 100, 100ll); break;
+            case sf::Keyboard::Equal: step_rate_ = std::min(step_rate_ + 100, 2000ll); break;
+            case sf::Keyboard::Num0: step_rate_ = 100; break;
 
             case sf::Keyboard::N: if (ev.key.shift) show_nametable_window(); break;
 
-            case sf::Keyboard::I: pal_idx_ = (pal_idx_ + 1) % 8; break;
+            case sf::Keyboard::L: pal_idx_ = (pal_idx_ + 1) % 8; break;
 
             default: break;
             }
@@ -108,7 +109,7 @@ bool SFMLRenderer::timeout()
     static constexpr sf::Int64 rate = 16'667;
 
     sf::Time t = clock_.getElapsedTime();
-    bool tick = (t - lastUpdate_) >= sf::microseconds(rate * 1000 / stepRate_);
+    bool tick = (t - lastUpdate_) >= sf::microseconds(rate * 1000 / step_rate_);
     if (tick) lastUpdate_ = t;
     return tick;
 }
@@ -132,7 +133,7 @@ void SFMLRenderer::draw()
     text.setPosition({520.f, 0.f});
     text.setFillColor(sf::Color::White);
 
-    auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), stepRate_ / 10, (is_paused()) ? "(P)" : "");
+    auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), step_rate_ / 10, (emulator_->is_paused()) ? "(P)" : "");
     text.setString(sfmt);
     
     window_->draw(text);
@@ -283,7 +284,7 @@ void SFMLRenderer::draw_asm(CPU const& cpu)
 {
     fmt::memory_buffer buf;
 
-    for (int offset = -5; offset < 5; ++offset)
+    for (int offset = -5; offset <= 5; ++offset)
     {
         if (buf.size() > 0)
             buf.push_back('\n');

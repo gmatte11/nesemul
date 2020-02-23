@@ -6,13 +6,15 @@
 
 #include <fmt/format.h>
 
+class Cartridge;
+
 class Disassembler
 {
 public:
     Disassembler() = default;
 
+    void load(Cartridge* cart);
     void load_bank(byte_t* rom, size_t size = 0x4000);
-    void set_current_bank(byte_t* rom);
 
     std::string render(fmt::memory_buffer& buf, address_t addr, int offset = 0) const;
 
@@ -30,6 +32,6 @@ private:
     };
 
     std::vector<PrgBank> banks_;
-    size_t current_bank_idx_ = 0;
+    Cartridge* cart_;
 };
 

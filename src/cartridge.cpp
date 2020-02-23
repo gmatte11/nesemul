@@ -44,3 +44,8 @@ void Cartridge::load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_b
 
     mapper_->post_load();
 }
+
+std::pair<byte_t*, address_t> Cartridge::get_bank(address_t addr) const
+{
+    return mapper_->get_bank(addr);
+}

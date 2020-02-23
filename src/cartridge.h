@@ -33,6 +33,8 @@ public:
 
     void load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_banks, byte_t prg_ram_banks);
 
+    std::pair<byte_t*, address_t> get_bank(address_t addr) const;
+
 private:
     Mapper* mapper_;
 

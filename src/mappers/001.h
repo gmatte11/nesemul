@@ -14,6 +14,7 @@ public:
     bool on_ppu_read(address_t addr, byte_t& value) override;
     bool on_ppu_write(address_t addr, byte_t value) override;
 
+    std::pair<byte_t*, address_t> get_bank(address_t addr) const;
 private:
     byte_t register_ = 0b10000;
     byte_t control_ = 0;

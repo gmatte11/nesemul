@@ -22,15 +22,6 @@ public:
     bool update();
     bool timeout();
 
-    bool toggle_pause() { pause_ = !pause_; return pause_; }
-    bool is_paused() const { return pause_; }
-    bool execute_frame() 
-    {  
-        bool ret = stepFrame_;
-        stepFrame_ = false;
-        return ret;
-    }
-
 private:
     void draw();
     void draw_game(PPU const& ppu);
@@ -54,7 +45,5 @@ private:
     std::unique_ptr<sf::RenderWindow> namWindow_;
     sf::Font font_;
     byte_t pal_idx_ = 0;
-    bool pause_ = false;
-    bool stepFrame_ = false;
-    sf::Int64 stepRate_ = 1000;
+    sf::Int64 step_rate_ = 1000;
 };

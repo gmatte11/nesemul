@@ -37,3 +37,13 @@ bool M000::on_ppu_write(address_t addr, byte_t value)
 {
     return false;
 }
+
+std::pair<byte_t*, address_t> M000::get_bank(address_t addr) const
+{
+    if (addr >= 0x8000)
+    {
+        return  std::make_pair((addr < 0xC000) ? prg_l_ : prg_h_, addr & 0x3FFF);
+    }
+
+    return std::make_pair(nullptr, 0u);
+}
