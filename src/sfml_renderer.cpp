@@ -152,29 +152,6 @@ void SFMLRenderer::draw()
         shape.setTexture(&tex, true);
         namWindow_->draw(shape);
     }
-
-    /*CPU& cpu_ = bus_->cpu_;
-    size_t idx = (cpu_.log_idx_ + cpu_.log_ring_.size() - 14) % cpu_.log_ring_.size();
-
-    sf::Vector2f pos(20.f, 470.f);
-    sf::Text line(empty, font_, 12);
-    line.setFillColor(sf::Color::White);
-
-    for (int i = 0; i < 14; ++i)
-    {
-        pos.y += 16.f;
-        line.setString(cpu_.log_ring_[idx].data());
-        line.setPosition(pos);
-        window_->draw(line);
-
-        (idx += 1) %= cpu_.log_ring_.size();
-    }
-    
-    pos.x -= 16.f;
-    line.setPosition(pos);
-    line.setString("*");
-    window_->draw(line);*/
-    
 }
 
 void SFMLRenderer::draw_game(PPU const& ppu)
@@ -284,12 +261,28 @@ void SFMLRenderer::draw_asm(CPU const& cpu)
 {
     fmt::memory_buffer buf;
 
+    CPU_State const& cpu_state = cpu.get_state_();
+    {
+        fmt::format_to(buf, "Flags: {}{}xx{}{}{}{}\n"
+            , (cpu_state.status_ & CPU_State::kNegative) ? 'N' : '-'
+            , (cpu_state.status_ & CPU_State::kOverflow) ? 'O' : '-'
+            , (cpu_state.status_ & CPU_State::kDecimal) ? 'D' : '-'
+            , (cpu_state.status_ & CPU_State::kIntDisable) ? 'I' : '-'
+            , (cpu_state.status_ & CPU_State::kZero) ? 'Z' : '-'
+            , (cpu_state.status_ & CPU_State::kCarry) ? 'C' : '-'
+            );
+
+        fmt::format_to(buf, "A:{:02x} X:{:02x} Y:{:02x} SP:{:02x}\n"
+            , cpu_state.accumulator_
+            , cpu_state.register_x_
+            , cpu_state.register_y_
+            , cpu_state.stack_pointer_);
+    }
+
     for (int offset = -5; offset <= 5; ++offset)
     {
-        if (buf.size() > 0)
-            buf.push_back('\n');
-        
-        emulator_->disassembler_.render(buf, cpu.get_program_counter(), offset);
+        buf.push_back('\n');
+        emulator_->disassembler_.render(buf, cpu_state.program_counter_, offset);
     }
 
     sf::Text text(buf.data(), font_, 10);

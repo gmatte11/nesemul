@@ -8,8 +8,33 @@
 
 class BUS;
 
+struct CPU_State
+{
+    // status flags (NOxxDIZC)
+    enum StatusFlags : byte_t
+    {
+        kCarry = 1 << 0,
+        kZero = 1 << 1,
+        kIntDisable = 1 << 2,
+        kDecimal = 1 << 3,
+        kBreak = 1 << 4,
+        kOverflow = 1 << 6,
+        kNegative = 1 << 7,
+    };
+
+    address_t program_counter_ = 0x0000;
+    byte_t timing_ = 0x0;
+
+    // registers
+    byte_t accumulator_ = 0x0;
+    byte_t register_x_ = 0x0;
+    byte_t register_y_ = 0x0;
+    byte_t status_ = 0x24;
+    byte_t stack_pointer_ = 0xFD;
+};
+
 // Emulate 6502 CPU
-class CPU
+class CPU : private CPU_State
 {
 public:
     CPU() = default;
@@ -22,8 +47,7 @@ public:
 
     void interrupt(bool nmi = false);
 
-    address_t get_program_counter() const { return program_counter_; };
-    byte_t get_timing() const { return timing_; }
+    CPU_State const& get_state_() const { return *this; }
 
     std::array<std::array<char, 80>, 64> log_ring_;
     int log_idx_ = 0;
@@ -31,16 +55,6 @@ public:
 private:
     void exec_(byte_t opcode, address_t addr);
     void log_(byte_t opcode, address_t addr);
-
-    byte_t timing_ = 0x0;
-
-    // registers
-    byte_t accumulator_ = 0x0;
-    byte_t register_x_ = 0x0;
-    byte_t register_y_ = 0x0;
-    byte_t status_ = 0x24;
-    byte_t stack_pointer_ = 0xFD;
-    address_t program_counter_ = 0x0000;
 
     //interrupt
     std::pair<bool, bool> int_ = {false, false};
@@ -58,18 +72,6 @@ private:
     void store_stack_(address_t addr);
     void load_stack_(byte_t& dest);
     void load_stack_(address_t& dest);
-
-    // status flags (NOxxDIZC)
-    enum StatusFlags : byte_t
-    {
-        kCarry = 1 << 0,
-        kZero = 1 << 1,
-        kIntDisable = 1 << 2,
-        kDecimal = 1 << 3,
-        kBreak = 1 << 4,
-        kOverflow = 1 << 6,
-        kNegative = 1 << 7,
-    };
 
     void set_status_(byte_t flag_mask, bool value);
     bool get_status_(byte_t flag_mask);
