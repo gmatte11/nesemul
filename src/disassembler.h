@@ -2,7 +2,6 @@
 #include "types.h"
 
 #include <vector>
-#include <string>
 
 #include <fmt/format.h>
 
@@ -16,7 +15,7 @@ public:
     void load(Cartridge* cart);
     void load_bank(byte_t* rom, size_t size = 0x4000);
 
-    std::string render(fmt::memory_buffer& buf, address_t addr, int offset = 0) const;
+    void render(fmt::memory_buffer& buf, address_t addr, int offset = 0) const;
 
 private:
     struct Op

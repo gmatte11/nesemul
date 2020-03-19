@@ -42,13 +42,13 @@ void Disassembler::load_bank(byte_t* rom, size_t size)
     bank.ops_.shrink_to_fit();
 }
 
-std::string Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) const
+void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) const
 {
     auto [rom, rom_addr] = cart_->get_bank(addr);
 
     auto it = std::find_if(banks_.begin(), banks_.end(), [rom = rom](PrgBank const& bank) { return bank.rom_ == rom; });
     if (it == banks_.end())
-        return std::string();
+        return;
 
     PrgBank const& bank = *it;
 
@@ -56,7 +56,7 @@ std::string Disassembler::render(fmt::memory_buffer& buf, address_t addr, int of
     {
         auto it = std::find_if(bank.ops_.begin(), bank.ops_.end(), [addr = rom_addr](Op const& op) { return op.addr_ == addr; });
         if (it == bank.ops_.end()) 
-            return std::string();
+            return;
         it += offset;
         addr = addr - (static_cast<int>(rom_addr) - it->addr_);
         rom_addr = it->addr_;
@@ -107,6 +107,4 @@ std::string Disassembler::render(fmt::memory_buffer& buf, address_t addr, int of
         default:
             break;
     }
-
-    return std::string{buf.data()};
 }
