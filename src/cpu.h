@@ -23,8 +23,10 @@ struct CPU_State
         kNegative = 1 << 7,
     };
 
+    unsigned long long cycle_ = 0ull;
+    int idle_ticks_ = 0;
+
     address_t program_counter_ = 0x0000;
-    byte_t timing_ = 0x0;
 
     // registers
     byte_t accumulator_ = 0x0;
@@ -48,7 +50,9 @@ public:
 
     void interrupt(bool nmi = false);
 
-    CPU_State const& get_state_() const { return *this; }
+    CPU_State const& get_state() const { return *this; }
+
+    void add_idle_ticks(int ticks);
 
     std::array<std::array<char, 80>, 64> log_ring_;
     int log_idx_ = 0;

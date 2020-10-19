@@ -36,7 +36,7 @@ void CPU::step()
 
     static address_t addr = 0x0;
 
-    if (timing_ == 0x0)
+    if (idle_ticks_ == 0x0)
     {
         if (int_.first)
         {
@@ -46,7 +46,7 @@ void CPU::step()
             address_t vector = (int_.second) ? 0xFFFA : 0xFFFE;
             program_counter_ = load_addr_(vector);
             set_status_(kIntDisable, true);
-            timing_ = 0;
+            idle_ticks_ = 0;
             int_ = {false, false};
         }
 
@@ -68,20 +68,23 @@ void CPU::step()
         if (!int_.first)
         {
             program_counter_ += opcode_data(data.opcode).size;
-            timing_ = opcode_data(data.opcode).timing;
+            idle_ticks_ = opcode_data(data.opcode).timing;
         }
     }
 
-    if (timing_ <= 1)
+    if (idle_ticks_ <= 1)
         exec_(data.opcode, addr);
 
-    if (timing_ > 0)
-        --timing_;
+    if (idle_ticks_ > 0)
+        --idle_ticks_;
+
+    ++cycle_;
 }
 
 void CPU::reset()
 {
-    timing_ = 0;
+    cycle_ = 0;
+    idle_ticks_ = 0;
 
     program_counter_ = load_addr_(0xFFFC);
     //program_counter_ = 0x8000; //for CPU tests with nestest.nes
@@ -91,6 +94,11 @@ void CPU::reset()
 void CPU::interrupt(bool nmi /*= false*/)
 {
     int_ = {true, nmi};
+}
+
+void CPU::add_idle_ticks(int ticks)
+{
+    idle_ticks_ += ticks;
 }
 
 void CPU::log_(byte_t opcode, address_t addr)

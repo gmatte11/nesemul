@@ -25,6 +25,7 @@ static Color g_palette[] = {
     /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
 };
 
+DEOPTIMIZE
 
 void PPU::step()
 {
@@ -40,13 +41,13 @@ void PPU::reset()
     cycle_ = 0;
     frame_ = 0;
 
-    ppuctrl_.byte_ = 0;
-    ppumask_.byte_ = 0;
+    ppuctrl_.set(0);
+    ppumask_.set(0);
 
     scroll_x_ = 0;
     scroll_y_ = 0;
-    cursor_.v.addr = 0;
-    cursor_.t.addr = 0;
+    cursor_.v.set(0);
+    cursor_.t.set(0);
     cursor_.x = 0;
     cursor_.w = false;
     read_buffer_ = 0;
@@ -62,13 +63,15 @@ bool PPU::on_write(address_t addr, byte_t value)
 
     switch (addr)
     {
+        // ppuctrl
     case 0x2000:
-        ppuctrl_.byte_ = value;
+        ppuctrl_.set(value);
         cursor_.t.N = ppuctrl_.nam_;
         return true;
 
+        // ppumask
     case 0x2001:
-        ppumask_.byte_ = value;
+        ppumask_.set(value);
         return true;
 
         // oamaddr
@@ -88,13 +91,13 @@ bool PPU::on_write(address_t addr, byte_t value)
         if (!cursor_.w)
         {
             scroll_x_ = value;
-            cursor_.t.X = value >> 3;
+            cursor_.t.X = (value >> 3) & 0x1F;
             cursor_.x = value & 0x07;
         }
         else
         {
             scroll_y_ = value;
-            cursor_.t.Y = value >> 3;
+            cursor_.t.Y = (value >> 3) & 0x1F;
             cursor_.t.y = value & 0x07;
         }
 
@@ -107,12 +110,12 @@ bool PPU::on_write(address_t addr, byte_t value)
     {
         if (!cursor_.w)
         {
-            cursor_.t.h = value & 0x3F;
+            cursor_.t.set(static_cast<address_t>((value & 0x3F) << 8) | (cursor_.t.get_l()));
         }
         else
         {
-            cursor_.t.l = value;
-            cursor_.v.addr = cursor_.t.addr;
+            cursor_.t.set((cursor_.t.get_h() << 8) | value);
+            cursor_.v = cursor_.t;
         }
 
         cursor_.w = !cursor_.w;
@@ -122,9 +125,9 @@ bool PPU::on_write(address_t addr, byte_t value)
         // ppudata
     case 0x2007:
     {
-        store_(cursor_.v.addr, value);
-        cursor_.v.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
-        cursor_.v.addr &= 0x3FFF;
+        store_(cursor_.v.get(), value);
+        cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v &= 0x3FFF;
         return true;
     }
 
@@ -132,10 +135,16 @@ bool PPU::on_write(address_t addr, byte_t value)
     case 0x4014:
     {
         address_t page_addr = value << 8;
+
+        if (oamaddr_ != 0)
+            BREAKPOINT;
+
         // TODO allow copy from cartige RAM or ROM
         bus_->ram_.memcpy(oam_.data(), page_addr, 0xFF * sizeof(byte_t));
 
-        // TODO timing
+        // timing
+        bus_->cpu_.add_idle_ticks(513 + (bus_->cpu_.get_state().cycle_ % 2) ? 1 : 0);
+
         return true;
     }
     }
@@ -152,7 +161,7 @@ bool PPU::on_read(address_t addr, byte_t& value)
     switch (addr)
     {
     case 0x2002:
-        value = ppustatus_.byte_;
+        value = ppustatus_.get();
         ppustatus_.vblank_ = 0;
         cursor_.w = false;
         return true;
@@ -163,13 +172,13 @@ bool PPU::on_read(address_t addr, byte_t& value)
 
     case 0x2007:
         value = read_buffer_;
-        read_buffer_ = load_(cursor_.v.addr);
+        read_buffer_ = load_(cursor_.v.get());
 
-        if (cursor_.v.addr >= 0x3F00)
+        if (cursor_.v.get() >= 0x3F00)
             value = read_buffer_;
 
-        cursor_.v.addr += (ppuctrl_.addr_inc_) ? 32 : 1;
-        cursor_.v.addr &= 0x3FFF;
+        cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v &= 0x3FFF;
         return true;
     }
 
@@ -303,10 +312,12 @@ void PPU::tick_()
         }
     }
 
-    if (scanline_ == -1 && cycle_ == 304)
+    // Transfer vertical scroll bits
+    if (scanline_ == -1 && cycle_ == 304 && (ppumask_.render_bg_ || ppumask_.render_fg_))
     {
-        if (ppumask_.render_bg_)
-            cursor_.v.addr = (cursor_.v.addr & HORI_MASK) | (cursor_.t.addr & VERT_MASK);
+        cursor_.v.Y = cursor_.t.Y;
+        cursor_.v.y = cursor_.t.y;
+        cursor_.v.N &= 0b01 | (cursor_.t.N & 0b10);
     }
 }
 
@@ -392,10 +403,10 @@ void PPU::render_()
 
 void PPU::bg_eval_()
 {
-    if (ppumask_.render_bg_)
-    {
-        auto& v = cursor_.v;
+    auto& v = cursor_.v;
 
+    if (ppumask_.render_bg_ || ppumask_.render_fg_)
+    {
         if (cycle_ == 256)
         {
             // Vertical increment
@@ -422,12 +433,16 @@ void PPU::bg_eval_()
             }
         }
 
+        // Transfer horizontal scroll bits
         if (cycle_ == 257)
         {
-            // Copy Horizontal bits of t into v
-            v.addr = (v.addr & VERT_MASK) | (cursor_.t.addr & HORI_MASK);
+            v.X = cursor_.t.X;
+            v.N &= 0b10 | (cursor_.t.N & 0b01);
         }
+    }
 
+    if (ppumask_.render_bg_)
+    {
         if (scanline_ >= -1 && scanline_ < 240)
         {
             if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
@@ -441,14 +456,14 @@ void PPU::bg_eval_()
                 {
                 case 0: // NT byte
                 {
-                    address_t ntaddr = 0x2000 | (v.addr & 0x0FFF);
+                    address_t ntaddr = 0x2000 | (v.get() & 0x0FFF);
                     tile.ntbyte_ = load_(ntaddr);
                 }
                 break;
 
                 case 2: // AT byte
                 {
-                    address_t ataddr = 0x23C0 | (v.addr & 0x0C00) | ((v.addr >> 4) & 0x38) | ((v.addr >> 2) & 0x07);
+                    address_t ataddr = 0x23C0 | (v.get() & 0x0C00) | ((v.get() >> 4) & 0x38) | ((v.get() >> 2) & 0x07);
                     byte_t areashift = (((v.Y / 2) % 2) ? 4 : 0) + (((v.X / 2) % 2) ? 2 : 0);
                     tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
                 }

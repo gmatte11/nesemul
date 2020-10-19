@@ -121,7 +121,7 @@ int Emulator::run()
                     for (int i = 0; i < 3; ++i)
                         ppu_->step();
 
-                    if (mode_ == Mode::STEP_ONCE && cpu_->get_state_().timing_ == 0)
+                    if (mode_ == Mode::STEP_ONCE && cpu_->get_state().idle_ticks_ == 0)
                     {
                         ++cycle_;
                         break;

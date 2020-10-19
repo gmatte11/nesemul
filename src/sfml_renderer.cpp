@@ -261,7 +261,7 @@ void SFMLRenderer::draw_asm(CPU const& cpu)
 {
     fmt::memory_buffer buf;
 
-    CPU_State const& cpu_state = cpu.get_state_();
+    CPU_State const& cpu_state = cpu.get_state();
     {
         fmt::format_to(buf, "Flags: {}{}xx{}{}{}{}\n"
             , (cpu_state.status_ & CPU_State::kNegative) ? 'N' : '-'

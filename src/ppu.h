@@ -68,7 +68,11 @@ public:
 
     PPU() = default;
 
-    void init(BUS* bus, Cartridge* cart) { bus_ = bus; cart_ = cart; }
+    void init(BUS* bus, Cartridge* cart)
+    {
+        bus_ = bus;
+        cart_ = cart;
+    }
 
     void step();
     void reset();
@@ -122,20 +126,21 @@ private:
     Mirroring mirroring_;
 
     // memory
-    std::array<byte_t, 0x4000> memory_{};
-    std::array<byte_t, 0x100> oam_{};
+    std::array<byte_t, 0x4000> memory_ {};
+    std::array<byte_t, 0x100> oam_ {};
 
     // BG rendering
     std::array<Latch<Tile>, 2> bg_tiles_;
 
     // sprite rendering
-    struct SecondaryOAM {
+    struct SecondaryOAM
+    {
         struct Entry
         {
             Sprite sprite_;
             int oam_idx_;
         };
-        std::array<Entry, 8> list_{};
+        std::array<Entry, 8> list_ {};
         int count_ = 0;
     };
     Latch<SecondaryOAM> secondary_oam_;
@@ -157,48 +162,40 @@ private:
     Cartridge* cart_ = nullptr;
 
     // registers
-    union 
+    struct : public register_t<byte_t>
     {
-        struct 
-        {
-            byte_t nam_ : 2;
-            byte_t addr_inc_ : 1;
-            byte_t fg_pat_ : 1;
-            byte_t bg_pat_ : 1;
-            byte_t sprite_size_ : 1;
-            byte_t master_ : 1;
-            byte_t nmi_ : 1;
-        };
-        byte_t byte_;
+        byte_t nam_ : 2;
+        byte_t addr_inc_ : 1;
+        byte_t fg_pat_ : 1;
+        byte_t bg_pat_ : 1;
+        byte_t sprite_size_ : 1;
+        byte_t master_ : 1;
+        byte_t nmi_ : 1;
     } ppuctrl_;
-    
-    union 
-    {
-        struct 
-        {
-            byte_t greyscale_ : 1;
-            byte_t left_bg_ : 1;
-            byte_t left_fg_ : 1;
-            byte_t render_bg_ : 1;
-            byte_t render_fg_ : 1;
-            byte_t emp_red_ : 1;
-            byte_t emp_green_ : 1;
-            byte_t emp_blue_ : 1;
-        };
-        byte_t byte_;
-    } ppumask_;
+    static_assert(sizeof(decltype(ppuctrl_)) == sizeof(byte_t));
 
-    union
+    struct : public register_t<byte_t>
     {
-        struct 
-        {
-            byte_t garbage_ : 5;
-            byte_t sprite_overflow_ : 1;
-            byte_t sprite_0_hit_ : 1;
-            byte_t vblank_ : 1;
-        };
-        byte_t byte_;
+        byte_t greyscale_ : 1;
+        byte_t left_bg_ : 1;
+        byte_t left_fg_ : 1;
+        byte_t render_bg_ : 1;
+        byte_t render_fg_ : 1;
+        byte_t emp_red_ : 1;
+        byte_t emp_green_ : 1;
+        byte_t emp_blue_ : 1;
+    } ppumask_;
+    static_assert(sizeof(decltype(ppumask_)) == sizeof(byte_t));
+
+    struct : public register_t<byte_t>
+    {
+        byte_t garbage_ : 5;
+        byte_t sprite_overflow_ : 1;
+        byte_t sprite_0_hit_ : 1;
+        byte_t vblank_ : 1;
     } ppustatus_;
+    static_assert(sizeof(decltype(ppustatus_)) == sizeof(byte_t));
+
     byte_t oamaddr_;
 
     // scroll (debug)
@@ -208,24 +205,14 @@ private:
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
     struct Cursor
     {
-        union VRAM 
+        struct VRAM : public register_t<address_t>
         {
-            struct
-            {
-                address_t X : 5; // Coarse X scroll
-                address_t Y : 5; // Coarse Y scroll
-                address_t N : 2; // Nametable
-                address_t y : 3; // Fine y scroll
-            };
-
-            struct
-            {
-                byte_t l;
-                byte_t h;
-            };
-            
-            address_t addr;
+            address_t X : 5; // Coarse X scroll
+            address_t Y : 5; // Coarse Y scroll
+            address_t N : 2; // Nametable
+            address_t y : 3; // Fine y scroll
         };
+        static_assert(sizeof(VRAM) == sizeof(address_t));
 
         VRAM v;
         VRAM t;
