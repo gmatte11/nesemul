@@ -5,6 +5,7 @@
 #include <array>
 #include <vector>
 #include <tuple>
+#include <string>
 
 class BUS;
 

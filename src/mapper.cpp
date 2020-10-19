@@ -5,6 +5,7 @@
 #include "mappers/001.h"
 
 #include <fmt/core.h>
+#include <stdexcept>
 
 Mapper* Mapper::create(byte_t ines_code, Cartridge* cart_)
 {
