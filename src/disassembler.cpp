@@ -75,7 +75,7 @@ void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) c
 
     address_t read_addr = 0;
     if (operand1 && operand2)
-        read_addr = static_cast<address_t>(*operand2) << 8 || *operand1;
+        read_addr = static_cast<address_t>(*operand2) << 8 | *operand1;
 
     fmt::format_to(buf, " {: >4}", data.str);
     switch(data.addressing)

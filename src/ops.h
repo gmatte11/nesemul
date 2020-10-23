@@ -29,7 +29,8 @@ enum Addressing : byte_t
     kAbsoluteY = 0x06,
     kIndirect = 0x07,
     kIndirectX = 0x08,
-    kIndirectY = 0x09
+    kIndirectY = 0x09,
+    kRelative = 0x0B
 };
 
 enum Codes : byte_t

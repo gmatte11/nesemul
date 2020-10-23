@@ -11,7 +11,7 @@ class BUS;
 
 struct CPU_State
 {
-    // status flags (NOxxDIZC)
+    // status flags (NOxBDIZC)
     enum StatusFlags : byte_t
     {
         kCarry = 1 << 0,
@@ -34,6 +34,15 @@ struct CPU_State
     byte_t register_y_ = 0x0;
     byte_t status_ = 0x24;
     byte_t stack_pointer_ = 0xFD;
+
+    struct instruction
+    {
+        byte_t opcode;
+        byte_t op1;
+        byte_t op2;
+
+        address_t to_addr() const { return static_cast<address_t>(op2) << 8 | op1; }
+    } instr_;
 };
 
 // Emulate 6502 CPU
@@ -59,7 +68,12 @@ public:
 
 private:
     void exec_(byte_t opcode, address_t addr);
+    void irq_();
+    void nmi_();
     void log_(byte_t opcode, address_t addr);
+
+    int idle_ticks_from_branching_(byte_t opcode, address_t addr);
+    int idle_ticks_from_addressing_(byte_t addr_mode, address_t addr);
 
     //interrupt
     std::pair<bool, bool> int_ = {false, false};

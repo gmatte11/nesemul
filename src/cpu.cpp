@@ -27,58 +27,101 @@ std::string _str(address_t addr)
 
 void CPU::step()
 {
-    struct
+    if (int_.first)
     {
-        byte_t opcode;
-        byte_t addr_l;
-        byte_t addr_h;
-    } static data;
+        if (int_.second)
+            nmi_();
+        else
+            irq_();
 
-    static address_t addr = 0x0;
+        int_ = {false, false};
+    }
 
-    if (idle_ticks_ == 0x0)
+    if (idle_ticks_ == 0)
     {
-        if (int_.first)
-        {
-            store_stack_(program_counter_);
-            store_stack_(status_);
 
-            address_t vector = (int_.second) ? 0xFFFA : 0xFFFE;
-            program_counter_ = load_addr_(vector);
-            set_status_(kIntDisable, true);
-            idle_ticks_ = 0;
-            int_ = {false, false};
-        }
+        instr_.opcode = bus_->read(program_counter_ + 0);
+        instr_.op1 = bus_->read(program_counter_ + 1);
+        instr_.op2 = bus_->read(program_counter_ + 2);
 
-        data.opcode = bus_->read(program_counter_ + 0);
-        data.addr_l = bus_->read(program_counter_ + 1);
-        data.addr_h = bus_->read(program_counter_ + 2);
-
-        addr = static_cast<address_t>(data.addr_h) << 8 | data.addr_l;
 #if 0
         log_(data.opcode, addr);
 #endif
-        if (opcode_data(data.opcode).size == 0)
+        if (opcode_data(instr_.opcode).size == 0)
         {
             std::ostringstream oss;
-            oss << std::hex << "Unrecognized opcode " << _str(data.opcode);
+            oss << std::hex << "Unrecognized opcode " << _str(instr_.opcode);
             throw std::runtime_error(oss.str());
         }
 
-        if (!int_.first)
-        {
-            program_counter_ += opcode_data(data.opcode).size;
-            idle_ticks_ = opcode_data(data.opcode).timing;
-        }
-    }
+        idle_ticks_ = opcode_data(instr_.opcode).timing;
+        idle_ticks_ += idle_ticks_from_branching_(instr_.opcode, instr_.to_addr());
+        idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
 
-    if (idle_ticks_ <= 1)
-        exec_(data.opcode, addr);
+        program_counter_ += opcode_data(instr_.opcode).size;
+        exec_(instr_.opcode, instr_.to_addr());
+    }
 
     if (idle_ticks_ > 0)
         --idle_ticks_;
 
     ++cycle_;
+}
+
+int CPU::idle_ticks_from_branching_(byte_t opcode, address_t addr)
+{
+    bool success = false;
+
+    switch (opcode)
+    {
+    case kBCC: success = !get_status_(kCarry); break;
+    case kBCS: success = get_status_(kCarry); break;
+    case kBEQ: success = get_status_(kZero); break;
+    case kBMI: success = get_status_(kNegative); break;
+    case kBNE: success = !get_status_(kZero); break;
+    case kBPL: success = !get_status_(kNegative); break;
+    case kBVC: success = !get_status_(kOverflow); break;
+    case kBVS: success = get_status_(kOverflow); break;
+    default: return 0;
+    }
+
+    if (!success)
+        return 0;
+
+    address_t pc = program_counter_ + static_cast<int8_t>(0xFF & addr);
+    bool page_crossed = ((pc & 0xFF00) != (program_counter_ & 0xFF00));
+
+    return 1 + (page_crossed ? 2 : 0);
+}
+
+int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
+{
+    address_t addr = 0;
+
+    switch (addr_mode)
+    {
+    case kAbsoluteX: addr = indexed_abs_addr(operands, register_x_); break;
+    case kAbsoluteY: addr = indexed_abs_addr(operands, register_y_); break;
+    case kIndirectY: addr = indirect_indexed_addr(operands, register_y_); break;
+    default: addr = operands;
+    }
+
+    switch (instr_.opcode)
+    {
+    case kASL5:
+    case kDEC4:
+    case kINC4:
+    case kLSR5:
+    case kROL5:
+    case kROR5:
+    case kSTA5:
+    case kSTA6:
+    case kSTA8:
+        return 0;
+    }
+
+    bool page_crossed = ((addr & 0xFF00) != (operands & 0xFF00));
+    return page_crossed ? 1 : 0;
 }
 
 void CPU::reset()
@@ -123,6 +166,35 @@ void CPU::log_(byte_t opcode, address_t addr)
 
     //fmt::print("{}\n", log_ring_[log_idx_].data());
     (++log_idx_) %= 64;
+}
+
+void CPU::irq_()
+{
+    if (get_status_(kIntDisable))
+        return;
+
+    store_stack_(program_counter_);
+
+    set_status_(kBreak, false);
+    set_status_(kIntDisable, true);
+    store_stack_(status_);
+
+    address_t vector = 0xFFFE;
+    program_counter_ = load_addr_(vector);
+    idle_ticks_ = 7;
+}
+
+void CPU::nmi_()
+{
+    store_stack_(program_counter_);
+
+    set_status_(kBreak, false);
+    set_status_(kIntDisable, true);
+    store_stack_(status_);
+
+    address_t vector = 0xFFFA;
+    program_counter_ = load_addr_(vector);
+    idle_ticks_ = 8;
 }
 
 void CPU::exec_(byte_t opcode, address_t addr)

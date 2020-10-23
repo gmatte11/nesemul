@@ -164,7 +164,8 @@ private:
     // registers
     struct : public register_t<byte_t>
     {
-        byte_t nam_ : 2;
+        byte_t nam_x_ : 1;
+        byte_t nam_y_ : 1;
         byte_t addr_inc_ : 1;
         byte_t fg_pat_ : 1;
         byte_t bg_pat_ : 1;
@@ -201,6 +202,7 @@ private:
     // scroll (debug)
     byte_t scroll_x_;
     byte_t scroll_y_;
+    bool is_in_vblank = false;
 
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
     struct Cursor
@@ -209,7 +211,8 @@ private:
         {
             address_t X : 5; // Coarse X scroll
             address_t Y : 5; // Coarse Y scroll
-            address_t N : 2; // Nametable
+            address_t NX : 1; // Nametable X component
+            address_t NY : 1; // Nametable Y component;
             address_t y : 3; // Fine y scroll
         };
         static_assert(sizeof(VRAM) == sizeof(address_t));
@@ -221,9 +224,6 @@ private:
         bool w : 1; // Write toggle
     } cursor_;
     byte_t read_buffer_ = 0;
-
-    static constexpr address_t HORI_MASK = 0x041F;
-    static constexpr address_t VERT_MASK = (~HORI_MASK) & 0x7FFF;
 
     friend class SFMLRenderer;
 };

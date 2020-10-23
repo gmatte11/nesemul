@@ -38,4 +38,5 @@ struct register_t
 #define BREAKPOINT DebugBreak()
 #define DEOPTIMIZE __pragma(optimize("",off))
 
+#define ASSERT(X) { if(!(X)) { DebugBreak(); } }
 #endif // __NESEMUL_TYPES_H__

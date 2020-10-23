@@ -46,6 +46,8 @@ void PPU::reset()
 
     scroll_x_ = 0;
     scroll_y_ = 0;
+    is_in_vblank = false;
+
     cursor_.v.set(0);
     cursor_.t.set(0);
     cursor_.x = 0;
@@ -66,7 +68,8 @@ bool PPU::on_write(address_t addr, byte_t value)
         // ppuctrl
     case 0x2000:
         ppuctrl_.set(value);
-        cursor_.t.N = ppuctrl_.nam_;
+        cursor_.t.NX = ppuctrl_.nam_x_;
+        cursor_.t.NY = ppuctrl_.nam_y_;
         return true;
 
         // ppumask
@@ -110,11 +113,11 @@ bool PPU::on_write(address_t addr, byte_t value)
     {
         if (!cursor_.w)
         {
-            cursor_.t.set(static_cast<address_t>((value & 0x3F) << 8) | (cursor_.t.get_l()));
+            cursor_.t.set_h(value);
         }
         else
         {
-            cursor_.t.set((cursor_.t.get_h() << 8) | value);
+            cursor_.t.set_l(value);
             cursor_.v = cursor_.t;
         }
 
@@ -125,7 +128,7 @@ bool PPU::on_write(address_t addr, byte_t value)
         // ppudata
     case 0x2007:
     {
-        store_(cursor_.v.get(), value);
+        store_(cursor_.v.get() & 0x3FFF, value);
         cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
         cursor_.v &= 0x3FFF;
         return true;
@@ -143,7 +146,7 @@ bool PPU::on_write(address_t addr, byte_t value)
         bus_->ram_.memcpy(oam_.data(), page_addr, 0xFF * sizeof(byte_t));
 
         // timing
-        bus_->cpu_.add_idle_ticks(513 + (bus_->cpu_.get_state().cycle_ % 2) ? 1 : 0);
+        bus_->cpu_.add_idle_ticks(513 + static_cast<int>(bus_->cpu_.get_state().cycle_ % 2));
 
         return true;
     }
@@ -292,6 +295,9 @@ void PPU::tick_()
             ++frame_;
         }
     }
+    
+    if (scanline_ == 0 && cycle_ == 0)
+        cycle_ = 1;
 
     if (cycle_ == 1)
     {
@@ -302,11 +308,13 @@ void PPU::tick_()
         if (scanline_ == -1)
         {
             ppustatus_.vblank_ = 0; // end of vblank
+            is_in_vblank = false;
         }
 
         if (scanline_ == 241)
         {
             ppustatus_.vblank_ = 1; // start of vblank
+            is_in_vblank = true;
             if (ppuctrl_.nmi_)
                 bus_->cpu_.interrupt(true); // generate NMI
         }
@@ -317,7 +325,7 @@ void PPU::tick_()
     {
         cursor_.v.Y = cursor_.t.Y;
         cursor_.v.y = cursor_.t.y;
-        cursor_.v.N &= 0b01 | (cursor_.t.N & 0b10);
+        cursor_.v.NY = cursor_.t.NY;
     }
 }
 
@@ -342,7 +350,7 @@ void PPU::render_()
                 int trow = row % 8;
                 int tcol = col % 8;
 
-                auto lidx = (col % 16) / 8;
+                int lidx = (col % 16) / 8;
                 auto& tile = bg_tiles_[lidx].read();
 
                 bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
@@ -420,7 +428,7 @@ void PPU::bg_eval_()
                 if (v.Y == 29)
                 {
                     v.Y = 0;
-                    v.N ^= 0b10;
+                    v.NY = ~v.NY;
                 }
                 else if (v.Y == 31)
                 {
@@ -437,7 +445,7 @@ void PPU::bg_eval_()
         if (cycle_ == 257)
         {
             v.X = cursor_.t.X;
-            v.N &= 0b10 | (cursor_.t.N & 0b01);
+            v.NX = cursor_.t.NX;
         }
     }
 
@@ -447,8 +455,8 @@ void PPU::bg_eval_()
         {
             if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
             {
-                uint16_t fetch = ((cycle_ - 1) % 16);
-                auto lidx = fetch / 8;
+                int fetch = ((cycle_ - 1) % 16);
+                int lidx = fetch / 8;
                 auto& tile = bg_tiles_[lidx].store();
 
                 int op = fetch % 8;
@@ -488,7 +496,7 @@ void PPU::bg_eval_()
                     if (v.X == 31)
                     {
                         v.X = 0;
-                        v.N ^= 0b01;
+                        v.NX = ~v.NX;
                     }
                     else
                     {
@@ -569,6 +577,8 @@ void PPU::store_(address_t addr, byte_t value)
 
 address_t PPU::mirror_addr_(address_t addr) const
 {
+    ASSERT(addr < 0x4000);
+
     // $3F20-$3FFF mirrors $3F00-$3F1F
     if (addr >= 0x3F20 && addr < 0x4000)
         addr &= 0x3F1F;
