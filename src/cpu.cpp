@@ -39,7 +39,6 @@ void CPU::step()
 
     if (idle_ticks_ == 0)
     {
-
         instr_.opcode = bus_->read(program_counter_ + 0);
         instr_.op1 = bus_->read(program_counter_ + 1);
         instr_.op2 = bus_->read(program_counter_ + 2);
@@ -49,15 +48,15 @@ void CPU::step()
 #endif
         if (opcode_data(instr_.opcode).size == 0)
         {
-            std::ostringstream oss;
-            oss << std::hex << "Unrecognized opcode " << _str(instr_.opcode);
-            throw std::runtime_error(oss.str());
+            program_counter_ = old_pc_;
+            throw std::runtime_error(fmt::format("Unrecognized opcode {:02x}", instr_.opcode));
         }
 
         idle_ticks_ = opcode_data(instr_.opcode).timing;
         idle_ticks_ += idle_ticks_from_branching_(instr_.opcode, instr_.to_addr());
         idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
 
+        old_pc_ = program_counter_;
         program_counter_ += opcode_data(instr_.opcode).size;
         exec_(instr_.opcode, instr_.to_addr());
     }

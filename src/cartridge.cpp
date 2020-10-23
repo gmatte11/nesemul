@@ -10,6 +10,7 @@ Cartridge::Cartridge(byte_t ines_mapper_code)
 void Cartridge::load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_banks, byte_t prg_ram_banks)
 {
     // Program rom (PRG-ROM)
+    if (prg_rom_banks > 0)
     {
         prg_rom_.reserve(prg_rom_banks);
         byte_t* prg_buf = new byte_t[prg_rom_banks * 0x4000];
@@ -26,6 +27,7 @@ void Cartridge::load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_b
     }
 
     // Character rom (CHR-ROM)
+    if (chr_rom_banks > 0)
     {
         chr_rom_.reserve(chr_rom_banks);
         byte_t* chr_buf = new byte_t[chr_rom_banks * 0x2000];

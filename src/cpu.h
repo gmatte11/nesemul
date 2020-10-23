@@ -27,6 +27,7 @@ struct CPU_State
     int idle_ticks_ = 0;
 
     address_t program_counter_ = 0x0000;
+    address_t old_pc_ = 0x0000;
 
     // registers
     byte_t accumulator_ = 0x0;
