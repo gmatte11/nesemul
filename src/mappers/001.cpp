@@ -3,6 +3,12 @@
 
 bool M001::on_cpu_read(address_t addr, byte_t& value) 
 {
+    if (addr >= 0x6000 && addr < 0x8000)
+    {
+        value = cart_->wram_[addr & 0x1FFF];
+        return true;
+    }
+
     if (addr >= 0x8000 && addr < 0xC000)
     {
         value = *(prg_l_ + (addr & 0x3FFF));
@@ -20,6 +26,12 @@ bool M001::on_cpu_read(address_t addr, byte_t& value)
 
 bool M001::on_cpu_write(address_t addr, byte_t value)
 {
+    if (addr >= 0x6000 && addr < 0x8000)
+    {
+        cart_->wram_[addr & 0x1FFF] = value;
+        return true;
+    }
+
     if (addr >= 0x8000)
     {
         bool full = register_ & 0b1;
@@ -109,7 +121,7 @@ void M001::chr_switch(bool low)
         byte_t *& chr = (low) ? chr_l_ : chr_h_;
         chr = cart_->chr_rom_[idx].data() + offset;
     }
-    else if (low)
+    else if (low && cart_->chr_rom_.size() > 0)
     {
         chr_l_ = cart_->chr_rom_[register_].data();
         chr_h_ = chr_l_ + 0x1000;
@@ -134,21 +146,15 @@ void M001::prg_switch()
 
     case 2:
     {
-        prg_l_ = cart_->prg_rom_[0].data();
-
-        idx = idx / 2;
-        address_t offset = (idx % 2 != 0) ? 0x2000 : 0;
-        prg_h_ = cart_->prg_rom_[idx].data() + offset;
+        prg_l_ = cart_->prg_rom_.front().data();
+        prg_h_ = cart_->prg_rom_[idx].data();
     } 
     break;
    
     case 3:
     {
         prg_h_ = cart_->prg_rom_.back().data();
-
-        idx = idx / 2;
-        address_t offset = (idx % 2 != 0) ? 0x2000 : 0;
-        prg_l_ = cart_->prg_rom_[idx].data() + offset;
+        prg_l_ = cart_->prg_rom_[idx].data();
     }
     break;
     }
