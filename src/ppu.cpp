@@ -296,19 +296,15 @@ void PPU::tick_()
         }
     }
     
-    if (scanline_ == 0 && cycle_ == 0)
-        cycle_ = 1;
-
     if (cycle_ == 1)
     {
-        ppustatus_.sprite_0_hit_ = 0;
-        ppustatus_.sprite_overflow_ = 0;
-
         // status checks
         if (scanline_ == -1)
         {
             ppustatus_.vblank_ = 0; // end of vblank
             is_in_vblank = false;
+            ppustatus_.sprite_0_hit_ = 0;
+            ppustatus_.sprite_overflow_ = 0;
         }
 
         if (scanline_ == 241)
