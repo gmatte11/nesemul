@@ -347,14 +347,10 @@ void PPU::render_()
 
             if (ppumask_.render_bg_)
             {
-                int trow = row % 8;
-                int tcol = col % 8;
+                address_t mux = 0x8000 >> cursor_.x;
 
-                int lidx = (col % 16) / 8;
-                auto& tile = bg_tiles_[lidx].read();
-
-                bg_pixel = (tile.lpat_ >> (7 - tcol) & 1) + (((tile.hpat_ >> (7 - tcol)) & 1) << 1);
-                bg_pal = tile.atbyte_;
+                bg_pixel = ((bg_shifter_.hpat_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.lpat_ & mux) ? 0b01 : 0b00);
+                bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
             }
 
             if (ppumask_.render_fg_)
@@ -453,17 +449,18 @@ void PPU::bg_eval_()
     {
         if (scanline_ >= -1 && scanline_ < 240)
         {
-            if (cycle_ > 0 && cycle_ <= 256 || cycle_ > 320 && cycle_ <= 336)
+            if ((cycle_ > 1 && cycle_ <= 257) || (cycle_ > 320 && cycle_ <= 337))
             {
-                int fetch = ((cycle_ - 1) % 16);
-                int lidx = fetch / 8;
-                auto& tile = bg_tiles_[lidx].store();
+                bg_shifter_.shift();
+                Tile& tile = bg_next_tile_;
 
-                int op = fetch % 8;
+                int op = (cycle_ - 1) % 8;
                 switch (op)
                 {
                 case 0: // NT byte
                 {
+                    bg_shifter_.load(tile);
+
                     address_t ntaddr = 0x2000 | (v.get() & 0x0FFF);
                     tile.ntbyte_ = load_(ntaddr);
                 }
@@ -472,7 +469,7 @@ void PPU::bg_eval_()
                 case 2: // AT byte
                 {
                     address_t ataddr = 0x23C0 | (v.get() & 0x0C00) | ((v.get() >> 4) & 0x38) | ((v.get() >> 2) & 0x07);
-                    byte_t areashift = (((v.Y / 2) % 2) ? 4 : 0) + (((v.X / 2) % 2) ? 2 : 0);
+                    byte_t areashift = ((v.Y & 0x02) ? 4 : 0) + ((v.X & 0x02) ? 2 : 0);
                     tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
                 }
                 break;
@@ -484,14 +481,14 @@ void PPU::bg_eval_()
                     address_t addr
                         = static_cast<address_t>(tile.half_ & 0x1) << 12
                         | static_cast<address_t>(tile.ntbyte_) << 4
-                        | static_cast<address_t>(v.y & 0b111) << 0;
+                        | static_cast<address_t>(v.y);
 
                     tile.lpat_ = load_(addr);
                     tile.hpat_ = load_(addr + 8);
                 }
                 break;
 
-                case 7: // Horizontal increment + switch register latching
+                case 7: // Horizontal increment
                 {
                     if (v.X == 31)
                     {
@@ -502,9 +499,6 @@ void PPU::bg_eval_()
                     {
                         v.X++;
                     }
-
-                    auto& latch = bg_tiles_[lidx];
-                    latch.flip();
                 }
                 break;
                 }

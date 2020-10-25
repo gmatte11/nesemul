@@ -42,6 +42,31 @@ struct Tile
     byte_t hpat_ = 0;
 };
 
+struct Shifter
+{
+    address_t lpat_ = 0;
+    address_t hpat_ = 0;
+    address_t latt_ = 0;
+    address_t hatt_ = 0;
+
+    void load(Tile const& next_tile)
+    {
+        lpat_ = (lpat_ & 0xFF00) | next_tile.lpat_;
+        hpat_ = (hpat_ & 0xFF00) | next_tile.hpat_;
+
+        latt_ = (latt_ & 0xFF00) | ((next_tile.atbyte_ & 0b01) ? 0xFF : 0x00);
+        hatt_ = (hatt_ & 0xFF00) | ((next_tile.atbyte_ & 0b10) ? 0xFF : 0x00);
+    }
+
+    void shift()
+    {
+        lpat_ <<= 1;
+        hpat_ <<= 1;
+        latt_ <<= 1;
+        hatt_ <<= 1;
+    }
+};
+
 struct Sprite
 {
     byte_t y_;
@@ -130,7 +155,8 @@ private:
     std::array<byte_t, 0x100> oam_ {};
 
     // BG rendering
-    std::array<Latch<Tile>, 2> bg_tiles_;
+    Tile bg_next_tile_;
+    Shifter bg_shifter_;
 
     // sprite rendering
     struct SecondaryOAM
