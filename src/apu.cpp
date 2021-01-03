@@ -31,7 +31,7 @@ void APU::step()
         case 7456: // 2
         case 18640: // 5
             half = true;
-            // fall-throught 
+            // fall-through
         case 3728: // 1
         case 11185: // 3
             quarter = true;
@@ -44,8 +44,11 @@ void APU::step()
 
         if (quarter || half)
         {
-            pulse1.on_clock(half);
-            pulse2.on_clock(half);
+            pulse1_.on_clock(half);
+            pulse2_.on_clock(half);
+            triangle_.on_clock(half);
+            noise_.on_clock(half);
+            dmc_.on_clock(half);
         }
 
         ++cycle_;
@@ -58,31 +61,31 @@ bool APU::on_write(address_t addr, byte_t value)
 {
     if (addr >= 0x4000 && addr <= 0x4003)
     {
-        pulse1.on_write(addr, value);
+        pulse1_.on_write(addr, value);
         return true;
     }
 
     if  (addr >= 0x4004 && addr <= 0x4007)
     {
-        pulse2.on_write(addr, value);
+        pulse2_.on_write(addr, value);
         return true;
     }
 
     if (addr >= 0x4008 && addr <= 0x400B)
     {
-        ASSERT(false);
+        triangle_.on_write(addr, value);
         return true;
     }
 
     if (addr >= 0x400C && addr <= 0x400F)
     {
-        ASSERT(false);
+        noise_.on_write(addr, value);
         return true;
     }
 
     if (addr >= 0x4010 && addr <= 0x4013)
     {
-        ASSERT(false);
+        dmc_.on_write(addr, value);
         return true;
     }
     
@@ -91,8 +94,11 @@ bool APU::on_write(address_t addr, byte_t value)
         Control ctrl;
         ctrl.set(value);
 
-        pulse1.on_ctrl(ctrl.pulse1);
-        pulse2.on_ctrl(ctrl.pulse2);
+        pulse1_.on_ctrl(ctrl.pulse1);
+        pulse2_.on_ctrl(ctrl.pulse2);
+        triangle_.on_ctrl(ctrl.triangle);
+        noise_.on_ctrl(ctrl.noise);
+        dmc_.on_ctrl(ctrl.dmc);
 
         return true;
     }
@@ -114,10 +120,14 @@ bool APU::on_read(address_t addr, byte_t& value)
     if (addr == 0x4015)
     {
         Control status;
-        status.pulse1 = (pulse1.len_counter_ > 0);
-        status.pulse2 = (pulse2.len_counter_ > 0);
+        status.pulse1 = (pulse1_.len_counter_ > 0);
+        status.pulse2 = (pulse2_.len_counter_ > 0);
+        status.triangle = (triangle_.len_counter_ > 0);
+        status.noise = (noise_.len_counter_ > 0);
+        status.dmc = dmc_.enabled_;
 
         status.frame_int = frame_irq_ != 0;
+        frame_irq_ = 0;
 
         value = status.get();
 
@@ -126,7 +136,7 @@ bool APU::on_read(address_t addr, byte_t& value)
     return false;
 }
 
-void APU::PulseChannel::on_clock(bool half_frame)
+void PulseChannel::on_clock(bool half_frame)
 {
     if (half_frame)
     {
@@ -135,7 +145,7 @@ void APU::PulseChannel::on_clock(bool half_frame)
     }
 }
 
-void APU::PulseChannel::on_write(address_t addr, byte_t value)
+void PulseChannel::on_write(address_t addr, byte_t value)
 {
     switch (addr & 0x3)
     {
@@ -153,9 +163,101 @@ void APU::PulseChannel::on_write(address_t addr, byte_t value)
     }
 }
 
-void APU::PulseChannel::on_ctrl(bool enabled)
+void PulseChannel::on_ctrl(bool enable)
 {
-    len_enabled_ = enabled;
-    if (!enabled)
+    len_enabled_ = enable;
+    if (!enable)
         len_counter_ = 0;
+}
+
+void TriangleChannel::on_clock(bool half_frame)
+{
+    if (half_frame)
+    {
+        if (len_counter_ > 0 && !len_halted_)
+            --len_counter_;
+    }
+}
+
+void TriangleChannel::on_write(address_t addr, byte_t value)
+{
+    switch (addr - 0x4008)
+    {
+    case 0:
+        len_halted_ = value & 0x80;
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        if (len_enabled_)
+            len_counter_ = length_table[value >> 3];
+        break;
+    }
+}
+
+void TriangleChannel::on_ctrl(bool enable)
+{
+    len_enabled_ = enable;
+    if (!enable)
+        len_counter_ = 0;
+}
+
+void NoiseChannel::on_clock(bool half_frame)
+{
+    if (half_frame)
+    {
+        if (len_counter_ > 0 && !len_halted_)
+            --len_counter_;
+    }
+}
+
+void NoiseChannel::on_write(address_t addr, byte_t value)
+{
+    switch (addr - 0x400C)
+    {
+    case 0:
+        len_halted_ = value & 0x20;
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        if (len_enabled_)
+            len_counter_ = length_table[value >> 3];
+        break;
+    }
+}
+
+void NoiseChannel::on_ctrl(bool enable)
+{
+    len_enabled_ = enable;
+    if (!enable)
+        len_counter_ = 0;
+}
+
+void DMChannel::on_clock(bool half_frame)
+{
+}
+
+void DMChannel::on_write(address_t addr, byte_t value)
+{
+    switch (addr - 0x4010)
+    {
+    case 0:
+        break;
+    case 1:
+        break;
+    case 2:
+        break;
+    case 3:
+        break;
+    }
+}
+
+void DMChannel::on_ctrl(bool enable)
+{
+    enabled_ = enable;
 }
