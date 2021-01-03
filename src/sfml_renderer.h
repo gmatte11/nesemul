@@ -45,5 +45,6 @@ private:
     std::unique_ptr<sf::RenderWindow> namWindow_;
     sf::Font font_;
     byte_t pal_idx_ = 0;
+    int debug_page_ = 0;
     sf::Int64 step_rate_ = 1000;
 };

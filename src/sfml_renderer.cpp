@@ -48,6 +48,8 @@ bool SFMLRenderer::update()
 
             case sf::Keyboard::L: pal_idx_ = (pal_idx_ + 1) % 8; break;
 
+            case sf::Keyboard::K: debug_page_ = (debug_page_ + 1) % 3; break;
+
             default: break;
             }
 
@@ -121,22 +123,33 @@ void SFMLRenderer::draw()
     PPU const& ppu = bus_->ppu_;
     CPU const& cpu = bus_->cpu_;
 
-
     draw_game(ppu);
-    draw_pal(ppu);
-    draw_pat(ppu);
-    //draw_oam(ppu);
-    draw_asm(cpu);
 
-    static sf::String empty;
-    sf::Text text(empty, font_, 12);
-    text.setPosition({520.f, 0.f});
-    text.setFillColor(sf::Color::White);
+    if (debug_page_ > 0)
+    {
+        draw_pal(ppu);
+        draw_pat(ppu);
 
-    auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), step_rate_ / 10, (emulator_->is_paused()) ? "(P)" : "");
-    text.setString(sfmt);
-    
-    window_->draw(text);
+        switch (debug_page_)
+        {
+        case 1:
+            draw_asm(cpu);
+            break;
+        case 2:
+            draw_oam(ppu);
+            break;
+        }
+
+        static sf::String empty;
+        sf::Text text(empty, font_, 12);
+        text.setPosition({520.f, 0.f});
+        text.setFillColor(sf::Color::White);
+
+        auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), step_rate_ / 10, (emulator_->is_paused()) ? "(P)" : "");
+        text.setString(sfmt);
+
+        window_->draw(text);
+    }
 
     if (namWindow_ && namWindow_->isOpen())
     {
@@ -163,7 +176,10 @@ void SFMLRenderer::draw_game(PPU const& ppu)
     }
     
     tex.update(ppu.output().data());
-    sf::RectangleShape view({512.f, 480.f});
+
+    sf::Vector2f viewSize = (debug_page_ == 0) ? sf::Vector2f{768.f, 720.f} : sf::Vector2f{512.f, 480.f};
+
+    sf::RectangleShape view(viewSize);
     view.setPosition(0.f, 0.f);
     view.setTexture(&tex);
     window_->draw(view);
@@ -239,9 +255,27 @@ void SFMLRenderer::draw_pal(PPU const& ppu)
 void SFMLRenderer::draw_oam(PPU const& ppu)
 {
     fmt::memory_buffer buffer;
+    Image<8, 8> tile_buf;
+    static sf::Texture tex;
+    if (tex.getSize().x == 0)
+    {
+        tex.create(8, 8);
+    }
+
+    sf::RectangleShape tile({8.f, 8.f});
+    tile.setTexture(&tex, true);
+    tile.setScale({1.5f, 1.5f});
 
     for (int i = 0; i < 32; ++i)
     {
+        struct Sprite
+        {
+            byte_t y_;
+            byte_t tile_;
+            byte_t att_;
+            byte_t x_;
+        };
+
         Sprite const& s1 = reinterpret_cast<const Sprite*>(ppu.oam_.data())[i];
         Sprite const& s2 = reinterpret_cast<const Sprite*>(ppu.oam_.data())[i + 32];
 
@@ -249,10 +283,20 @@ void SFMLRenderer::draw_oam(PPU const& ppu)
 
         if (i < 31)
             buffer.push_back('\n');
+        
+        ppu.tile_img(tile_buf, s1.tile_, ppu.ppuctrl_.fg_pat_, ppu.get_palette((s1.att_ & 0x3) + 4));
+        tex.update(tile_buf.data());
+        tile.setPosition({520.f, 20.f + 13.f * i});
+        window_->draw(tile);
+
+        ppu.tile_img(tile_buf, s2.tile_, ppu.ppuctrl_.fg_pat_, ppu.get_palette((s2.att_ & 0x3) + 4));
+        tex.update(tile_buf.data());
+        tile.setPosition({730.f, 20.f + 13.f * i});
+        window_->draw(tile);
     }
 
     sf::Text oam(fmt::to_string(buffer), font_, 10);
-    oam.setPosition({520.f, 20.f});
+    oam.setPosition({540.f, 20.f});
     oam.setFillColor(sf::Color::White);
     window_->draw(oam);
 }
