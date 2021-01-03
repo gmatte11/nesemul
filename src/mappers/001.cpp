@@ -96,6 +96,12 @@ bool M001::on_ppu_read(address_t addr, byte_t& value)
 
 bool M001::on_ppu_write(address_t addr, byte_t value)
 {
+    if (addr < 0x2000 && chr_l_ == cart_->chr_ram_.data())
+    {
+        cart_->chr_ram_[addr & 0x1FFF] = value;
+        return true;
+    }
+
     return false;
 }
 
@@ -111,20 +117,23 @@ std::pair<byte_t*, address_t> M001::get_bank(address_t addr) const
 
 void M001::chr_switch(bool low)
 {
-    bool mod_4kb = (control_ >> 4) == 1;
+    bool mod_4kb = control_ & 0x10;
 
     if (mod_4kb)
     {
-        int idx = register_ / 2;
-        address_t offset = (register_ % 2 != 0) ? 0x1000 : 0;
+        int idx = register_ & 0x1FFF;
+        address_t offset = (idx & 0x01) ? 0x1000 : 0;
 
         byte_t *& chr = (low) ? chr_l_ : chr_h_;
-        chr = cart_->chr_rom_[idx].data() + offset;
+        chr = cart_->chr_rom_[idx >> 1].data() + offset;
     }
-    else if (low && cart_->chr_rom_.size() > 0)
+    else if (low)
     {
-        chr_l_ = cart_->chr_rom_[register_].data();
-        chr_h_ = chr_l_ + 0x1000;
+        if (register_ < cart_->chr_rom_.size())
+        {
+            chr_l_ = cart_->chr_rom_[register_ >> 1].data();
+            chr_h_ = chr_l_ + 0x1000;
+        }
     }
 }
 

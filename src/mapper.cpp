@@ -31,7 +31,7 @@ void Mapper::post_load()
     }
     else
     {
-        chr_l_ = cart_->vram_.data(); 
+        chr_l_ = cart_->chr_ram_.data(); 
     }
     chr_h_ = chr_l_ + 0x1000;
 }
