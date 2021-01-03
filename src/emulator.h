@@ -5,6 +5,7 @@
 
 #include "bus.h"
 #include "cpu.h"
+#include "apu.h"
 #include "ppu.h"
 #include "ram.h"
 #include "cartridge.h"
@@ -43,6 +44,7 @@ public:
 private:
     std::unique_ptr<BUS> bus_;
     std::unique_ptr<CPU> cpu_;
+    std::unique_ptr<APU> apu_;
     std::unique_ptr<PPU> ppu_;
     std::unique_ptr<RAM> ram_;
     std::unique_ptr<Cartridge> cart_;

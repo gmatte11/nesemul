@@ -17,6 +17,7 @@
 
 Emulator::Emulator()
     : cpu_(new CPU)
+    , apu_(new APU)
     , ppu_(new PPU)
     , ram_(new RAM)
 {
@@ -91,7 +92,7 @@ void Emulator::read(const std::string& filename)
 
         disassembler_.load(cart_.get());
 
-        bus_.reset(new BUS(*cpu_, *ppu_, *ram_, *cart_));
+        bus_.reset(new BUS(*cpu_, *apu_, *ppu_, *ram_, *cart_));
         cpu_->init(bus_.get());
         ppu_->init(bus_.get(), cart_.get());
     }
@@ -106,6 +107,7 @@ int Emulator::run()
     SFMLRenderer renderer(this);
 
     cpu_->reset();
+    apu_->reset();
     ppu_->reset();
 
     for (;;)
@@ -119,9 +121,10 @@ int Emulator::run()
                 {
                     try
                     {
-                        cpu_->step();
                         for (int i = 0; i < 3; ++i)
                             ppu_->step();
+                        cpu_->step();
+                        apu_->step();
                     }
                     catch (...)
                     {
