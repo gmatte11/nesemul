@@ -27,7 +27,7 @@ std::string _str(address_t addr)
 
 void CPU::step()
 {
-    if (int_.first)
+    if (idle_ticks_ == 0 && int_.first)
     {
         if (int_.second)
             nmi_();
@@ -53,8 +53,11 @@ void CPU::step()
         }
 
         idle_ticks_ = opcode_data(instr_.opcode).timing;
-        idle_ticks_ += idle_ticks_from_branching_(instr_.opcode, instr_.to_addr());
-        idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
+
+        if (is_branch_(instr_.opcode))
+            idle_ticks_ += idle_ticks_from_branching_(instr_.opcode, instr_.to_addr());
+        else
+            idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
 
         old_pc_ = program_counter_;
         program_counter_ += opcode_data(instr_.opcode).size;
@@ -87,10 +90,10 @@ int CPU::idle_ticks_from_branching_(byte_t opcode, address_t addr)
     if (!success)
         return 0;
 
-    address_t pc = program_counter_ + static_cast<int8_t>(0xFF & addr);
-    bool page_crossed = ((pc & 0xFF00) != (program_counter_ & 0xFF00));
+    address_t next_pc = program_counter_ + static_cast<int8_t>(0xFF & addr);
+    bool page_crossed = ((next_pc & 0xFF00) != (program_counter_ & 0xFF00));
 
-    return 1 + (page_crossed ? 2 : 0);
+    return 1 + (page_crossed ? 1 : 0);
 }
 
 int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
@@ -101,7 +104,10 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
     {
     case kAbsoluteX: addr = indexed_abs_addr(operands, register_x_); break;
     case kAbsoluteY: addr = indexed_abs_addr(operands, register_y_); break;
-    case kIndirectY: addr = indirect_indexed_addr(operands, register_y_); break;
+    case kIndirectY: 
+        operands = indirect_pz_addr(0xFF & page_zero_addr(operands)); 
+        addr = operands + register_y_;
+        break;
     default: addr = operands;
     }
 
@@ -125,12 +131,20 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
 
 void CPU::reset()
 {
-    cycle_ = 0;
-    idle_ticks_ = 0;
-
+    old_pc_ = program_counter_;
     program_counter_ = load_addr_(0xFFFC);
     //program_counter_ = 0x8000; //for CPU tests with nestest.nes
-    set_status_(kIntDisable, false);
+
+    instr_.opcode = 0xFF;
+
+    accumulator_ = 0;
+    register_x_ = 0;
+    register_y_ = 0;
+    status_ = 0x24;
+    stack_pointer_ = 0xFD;
+
+    cycle_ = 0;
+    idle_ticks_ = 8;
 }
 
 void CPU::interrupt(bool nmi /*= false*/)
@@ -900,6 +914,25 @@ std::string CPU::debug_addr_(byte_t type, address_t addr)
     }
 
     return std::string{};
+}
+
+bool CPU::is_branch_(byte_t opcode) const
+{
+    switch (opcode)
+    {
+    case kBCC:
+    case kBCS:
+    case kBEQ:
+    case kBMI:
+    case kBNE:
+    case kBPL:
+    case kBVC:
+    case kBVS:
+        return true;
+
+    default:
+        return false;
+    }
 }
 
 void CPU::adc_(byte_t operand)

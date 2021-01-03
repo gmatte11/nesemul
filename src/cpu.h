@@ -38,7 +38,7 @@ struct CPU_State
 
     struct instruction
     {
-        byte_t opcode;
+        byte_t opcode = 0xFF;
         byte_t op1;
         byte_t op2;
 
@@ -107,6 +107,8 @@ private:
     address_t indexed_indirect_addr(address_t addr, byte_t index); // ($aa,X)
     address_t indirect_indexed_addr(address_t addr, byte_t index); // ($aa),Y
     std::string debug_addr_(byte_t type, address_t addr);
+
+    bool is_branch_(byte_t opcode) const;
 
     // operations
     void adc_(byte_t operand);
