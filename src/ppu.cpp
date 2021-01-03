@@ -29,10 +29,11 @@ DEOPTIMIZE
 
 void PPU::step()
 {
-    tick_();
-    render_();
+    pre_frame_();
     bg_eval_();
     fg_eval_();
+    render_();
+    tick_();
 }
 
 void PPU::reset()
@@ -113,7 +114,7 @@ bool PPU::on_write(address_t addr, byte_t value)
     {
         if (!cursor_.w)
         {
-            cursor_.t.set_h(value);
+            cursor_.t.set_h(value & 0x3F);
         }
         else
         {
@@ -127,12 +128,9 @@ bool PPU::on_write(address_t addr, byte_t value)
 
         // ppudata
     case 0x2007:
-    {
         store_(cursor_.v.get() & 0x3FFF, value);
         cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
-        cursor_.v &= 0x3FFF;
         return true;
-    }
 
         // oamdma
     case 0x4014:
@@ -174,15 +172,16 @@ bool PPU::on_read(address_t addr, byte_t& value)
         return true;
 
     case 0x2007:
+    {
         value = read_buffer_;
-        read_buffer_ = load_(cursor_.v.get());
+        read_buffer_ = load_(cursor_.v.get() & 0x3FFF);
 
-        if (cursor_.v.get() >= 0x3F00)
+        if (cursor_.v.get() >= 0x3F00 && cursor_.v.get() < 0x4000)
             value = read_buffer_;
 
         cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
-        cursor_.v &= 0x3FFF;
         return true;
+    }
     }
 
     return false;
@@ -200,6 +199,20 @@ void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& 
 
             Tile tile = get_pattern_tile(ntbyte, index);
             byte_t pixel = get_pixel(tile, x % 8, y % 8);
+            image.set(x, y, palette.get(pixel));
+        }
+    }
+}
+
+void PPU::tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const
+{
+    Tile tile = get_pattern_tile(ntbyte, half);
+
+    for (int y = 0; y < 8; ++y)
+    {
+        for (int x = 0; x < 8; ++x)
+        {
+            byte_t pixel = get_pixel(tile, x, y);
             image.set(x, y, palette.get(pixel));
         }
     }
@@ -277,25 +290,15 @@ Palette PPU::get_palette(byte_t idx) const
     }
 }
 
-void PPU::tick_()
+void PPU::pre_frame_()
 {
-    // skip one cycle on odd frame at scanline 261
-    if (cycle_ < 340 && !(frame_ % 2 == 1 && scanline_ == 261 && cycle_ == 339))
+    // cycle skip on odd frame 
+    if (ppumask_.render_bg_ || ppumask_.render_fg_)
     {
-        ++cycle_;
+        if (scanline_ == 0 && cycle_ == 0 && (frame_ & 0x1) != 0)
+            cycle_ = 1;
     }
-    else
-    {
-        cycle_ = 0;
-        ++scanline_;
 
-        if (scanline_ == 261)
-        {
-            scanline_ = -1;
-            ++frame_;
-        }
-    }
-    
     if (cycle_ == 1)
     {
         // status checks
@@ -322,82 +325,6 @@ void PPU::tick_()
         cursor_.v.Y = cursor_.t.Y;
         cursor_.v.y = cursor_.t.y;
         cursor_.v.NY = cursor_.t.NY;
-    }
-}
-
-void PPU::render_()
-{
-    if (scanline_ >= 0 && scanline_ < 240)
-    {
-        if (cycle_ > 0 && cycle_ <= 256)
-        {
-            int row = scanline_;
-            int col = cycle_ - 1;
-            
-            byte_t bg_pixel = 0;
-            byte_t fg_pixel = 0;
-            byte_t bg_pal = 0;
-            byte_t fg_pal = 0;
-            bool fg_priority = false;
-            bool has_sprite_0 = false;
-
-            if (ppumask_.render_bg_)
-            {
-                address_t mux = 0x8000 >> cursor_.x;
-
-                bg_pixel = ((bg_shifter_.hpat_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.lpat_ & mux) ? 0b01 : 0b00);
-                bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
-            }
-
-            if (ppumask_.render_fg_)
-            {
-                auto& sprites = secondary_oam_.read();
-
-                for (int i = 0; i < sprites.count_; ++i)
-                {
-                    Sprite const& sprite = sprites.list_[i].sprite_;
-                    if (sprite.x_ < col && (col - sprite.x_) <= 8) // TODO 8x16 sprites
-                    {
-                        byte_t pattern = sprite.tile_;
-                        Tile tile = get_pattern_tile(pattern, ppuctrl_.fg_pat_);
-
-                        fg_pal = sprite.att_ & 0x3;
-                        byte_t flip = sprite.att_ >> 6;
-                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
-
-                        int ty = (row - sprite.y_ - 1);
-                        int tx = (col - sprite.x_ - 1);
-
-                        fg_priority = (sprite.att_ & 0x20) == 0;
-                        fg_pixel = get_pixel(tile, tx, ty, flip);
-                        if (fg_pixel != 0) break;
-                    }
-                }
-            }
-
-            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
-            bool render_bg = ppumask_.render_bg_;
-            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
-
-            if (sprite_0_eval)
-            {
-                if (fg_pixel != 0 && bg_pixel != 0)
-                    ppustatus_.sprite_0_hit_ = 1;
-            }
-
-            Color color{0, 0, 0, 0xFF};
-
-            if (render_fg)
-            {
-                color = get_palette(fg_pal + 4).get(fg_pixel);
-            }
-            else if (render_bg)
-            {
-                color = get_palette(bg_pal).get(bg_pixel);
-            }
-
-            output_.set(col, row, color);
-        }
     }
 }
 
@@ -439,13 +366,10 @@ void PPU::bg_eval_()
             v.X = cursor_.t.X;
             v.NX = cursor_.t.NX;
         }
-    }
 
-    if (ppumask_.render_bg_)
-    {
         if (scanline_ >= -1 && scanline_ < 240)
         {
-            if ((cycle_ > 1 && cycle_ <= 257) || (cycle_ > 320 && cycle_ <= 337))
+            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 337))
             {
                 bg_shifter_.shift();
                 Tile& tile = bg_next_tile_;
@@ -470,16 +394,26 @@ void PPU::bg_eval_()
                 }
                 break;
 
-                case 4: // Pat (low + high)
+                case 4: // Low PAT byte
                 {
-                    tile.half_ = ppuctrl_.bg_pat_;
+                    tile.half_ = ppuctrl_.bg_pat_ & 0x1;
 
                     address_t addr
-                        = static_cast<address_t>(tile.half_ & 0x1) << 12
+                        = static_cast<address_t>(tile.half_) << 12
                         | static_cast<address_t>(tile.ntbyte_) << 4
                         | static_cast<address_t>(v.y);
 
                     tile.lpat_ = load_(addr);
+                }
+                break;
+
+                case 6: // High PAT byte
+                {
+                    address_t addr
+                        = static_cast<address_t>(tile.half_) << 12
+                        | static_cast<address_t>(tile.ntbyte_) << 4
+                        | static_cast<address_t>(v.y);
+
                     tile.hpat_ = load_(addr + 8);
                 }
                 break;
@@ -505,7 +439,10 @@ void PPU::bg_eval_()
 
 void PPU::fg_eval_()
 {
-    if (scanline_ >= -1 && scanline_ < 240)
+    if (!ppumask_.render_fg_ && !ppumask_.render_bg_)
+        return;
+
+    if (scanline_ >= 0 && scanline_ < 240)
     {
         if (cycle_ == 1)
         {
@@ -518,17 +455,27 @@ void PPU::fg_eval_()
         {
             for (int i = 0; i < 64; ++i)
             {
-                Sprite& sprite = reinterpret_cast<Sprite*>(oam_.data())[i];
+                struct Entry
+                {
+                    byte_t y;
+                    byte_t tile;
+                    byte_t att;
+                    byte_t x;
+                };
+
+                Entry& entry = reinterpret_cast<Entry*>(oam_.data())[i];
                 int y = scanline_ + 1;
 
-                if (sprite.y_ < y && (y - sprite.y_) <= 8)
+                if (entry.y < y && (y - entry.y) <= 8)
                 {
                     auto& sprites = secondary_oam_.store();
                     if (sprites.count_ < 8)
                     {
-                        auto& entry = sprites.list_[sprites.count_];
-                        entry.oam_idx_ = i;
-                        entry.sprite_ = sprite;
+                        auto& sprite = sprites.list_[sprites.count_];
+                        sprite.oam_idx_ = i;
+
+                        Tile tile = get_pattern_tile(entry.tile, ppuctrl_.fg_pat_);
+                        load_sprite_(sprite.sprite_, tile, entry.att, entry.x + 1, y - entry.y - 1);
 
                         ++sprites.count_;
                     }
@@ -545,6 +492,117 @@ void PPU::fg_eval_()
         {
             oamaddr_ = 0;
         }
+    }
+}
+
+void PPU::render_()
+{
+    if (scanline_ >= 0 && scanline_ < 240)
+    {
+        if (cycle_ > 0 && cycle_ <= 256)
+        {
+            int row = scanline_;
+            int col = cycle_ - 1;
+            
+            byte_t bg_pixel = 0;
+            byte_t fg_pixel = 0;
+            byte_t bg_pal = 0;
+            byte_t fg_pal = 0;
+            bool fg_priority = false;
+            bool has_sprite_0 = false;
+
+            if (ppumask_.render_bg_)
+            {
+                address_t mux = 0x8000 >> cursor_.x;
+
+                bg_pixel = ((bg_shifter_.hpat_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.lpat_ & mux) ? 0b01 : 0b00);
+                bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
+            }
+
+            {
+                auto& sprites = secondary_oam_.read();
+
+                for (int i = 0; i < sprites.count_; ++i)
+                {
+                    Sprite& sprite = sprites.list_[i].sprite_;
+                    sprite.shift();
+
+                    if (fg_pixel == 0 && sprite.is_visible() && ppumask_.render_fg_) // TODO 8x16 sprites
+                    {
+                        fg_pixel = ((sprite.hpat_ & 0x80) ? 0b10 : 0b00) | ((sprite.lpat_ & 0x80) ? 0b01 : 0b00);
+                        fg_pal = sprite.att_ & 0x3;
+                        fg_priority = (sprite.att_ & 0x20) == 0;
+                        
+                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
+                    }
+                }
+            }
+
+            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
+            bool render_bg = ppumask_.render_bg_;
+            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
+
+            if (sprite_0_eval)
+            {
+                if (fg_pixel != 0 && bg_pixel != 0)
+                    ppustatus_.sprite_0_hit_ = 1;
+            }
+
+            Color color{0, 0, 0, 0xFF};
+
+            if (render_fg)
+            {
+                color = get_palette(fg_pal + 4).get(fg_pixel);
+            }
+            else if (render_bg)
+            {
+                color = get_palette(bg_pal).get(bg_pixel);
+            }
+
+            output_.set(col, row, color);
+        }
+    }
+}
+
+void PPU::tick_()
+{
+    ++cycle_;
+
+    if (cycle_ > 340)
+    {
+        cycle_ = 0;
+        ++scanline_;
+
+        if (scanline_ == 261)
+        {
+            scanline_ = -1;
+            ++frame_;
+        }
+    }
+}
+
+void PPU::load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t ty)
+{
+    sprite.hpat_ = sprite.lpat_ = 0;
+    sprite.att_ = attrib;
+    sprite.x_ = x;
+
+    byte_t flip = attrib >> 6;
+    if (0b10 & flip) ty = 7 - ty; //vert flip
+
+    address_t addr = static_cast<address_t>(tile.half_ & 0x1) << 12
+        | static_cast<address_t>(tile.ntbyte_) << 4
+        | static_cast<address_t>(ty & 0b111) << 0;
+ 
+    byte_t lpat = load_(addr);
+    byte_t hpat = load_(addr + 8);
+
+    for (byte_t tx = 0; tx < 8; ++tx)
+    {
+        byte_t x = tx;
+        if (0b01 & flip) x = 7 - tx; //hori flip
+        sprite.lpat_ |= ((lpat >> x) & 0x1) << tx;
+        sprite.hpat_ |= ((hpat >> x) & 0x1) << tx;
     }
 }
 

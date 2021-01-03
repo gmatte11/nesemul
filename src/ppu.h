@@ -42,7 +42,7 @@ struct Tile
     byte_t hpat_ = 0;
 };
 
-struct Shifter
+struct TileShifter
 {
     address_t lpat_ = 0;
     address_t hpat_ = 0;
@@ -69,17 +69,33 @@ struct Shifter
 
 struct Sprite
 {
-    byte_t y_;
-    byte_t tile_;
-    byte_t att_;
-    byte_t x_;
+    byte_t lpat_ = 0;
+    byte_t hpat_ = 0;
+    byte_t att_ = 0;
+    int16_t x_ = 0;
+
+    bool is_visible() const
+    {
+        return x_ <= 0 && x_ > -8;
+    }
+
+    void shift()
+    {
+        --x_;
+        if (x_ < 0)
+        {
+            lpat_ <<= 1;
+            hpat_ <<= 1;
+        }
+    }
 };
+
 
 template <typename T>
 struct Latch
 {
     T& store() { return (selector) ? states_[0] : states_[1]; }
-    T const& read() const { return (!selector) ? states_[0] : states_[1]; }
+    T& read() { return (!selector) ? states_[0] : states_[1]; }
     void flip() { selector = !selector; }
 
     std::array<T, 2> states_;
@@ -127,6 +143,7 @@ public:
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
     void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
+    void tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const;
     Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
 
     void nametable_img(Output& image, byte_t nam_idx) const;
@@ -134,10 +151,11 @@ public:
     Palette get_palette(byte_t idx) const;
 
 private:
-    void tick_();
-    void render_();
+    void pre_frame_();
     void bg_eval_();
     void fg_eval_();
+    void render_();
+    void tick_();
 
     // timings
     int16_t scanline_ = -1;
@@ -156,7 +174,7 @@ private:
 
     // BG rendering
     Tile bg_next_tile_;
-    Shifter bg_shifter_;
+    TileShifter bg_shifter_;
 
     // sprite rendering
     struct SecondaryOAM
@@ -170,6 +188,8 @@ private:
         int count_ = 0;
     };
     Latch<SecondaryOAM> secondary_oam_;
+
+    void load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t y);
 
     // memory access
     byte_t load_(address_t addr) const;
@@ -190,36 +210,36 @@ private:
     // registers
     struct : public register_t<byte_t>
     {
-        byte_t nam_x_ : 1;
-        byte_t nam_y_ : 1;
-        byte_t addr_inc_ : 1;
-        byte_t fg_pat_ : 1;
-        byte_t bg_pat_ : 1;
-        byte_t sprite_size_ : 1;
-        byte_t master_ : 1;
-        byte_t nmi_ : 1;
+        byte_t nam_x_ : 1; // (bit 0)
+        byte_t nam_y_ : 1; // (bit 1)
+        byte_t addr_inc_ : 1; // (bit 2)
+        byte_t fg_pat_ : 1; // (bit 3)
+        byte_t bg_pat_ : 1; // (bit 4)
+        byte_t sprite_size_ : 1; // (bit 5)
+        byte_t master_ : 1; // (bit 6)
+        byte_t nmi_ : 1; // (bit 7)
     } ppuctrl_;
     static_assert(sizeof(decltype(ppuctrl_)) == sizeof(byte_t));
 
     struct : public register_t<byte_t>
     {
-        byte_t greyscale_ : 1;
-        byte_t left_bg_ : 1;
-        byte_t left_fg_ : 1;
-        byte_t render_bg_ : 1;
-        byte_t render_fg_ : 1;
-        byte_t emp_red_ : 1;
-        byte_t emp_green_ : 1;
-        byte_t emp_blue_ : 1;
+        byte_t greyscale_ : 1; // (bit 0)
+        byte_t left_bg_ : 1; // (bit 1)
+        byte_t left_fg_ : 1; // (bit 2)
+        byte_t render_bg_ : 1; // (bit 3)
+        byte_t render_fg_ : 1; // (bit 4)
+        byte_t emp_red_ : 1; // (bit 5)
+        byte_t emp_green_ : 1; // (bit 6)
+        byte_t emp_blue_ : 1; // (bit 7)
     } ppumask_;
     static_assert(sizeof(decltype(ppumask_)) == sizeof(byte_t));
 
     struct : public register_t<byte_t>
     {
-        byte_t garbage_ : 5;
-        byte_t sprite_overflow_ : 1;
-        byte_t sprite_0_hit_ : 1;
-        byte_t vblank_ : 1;
+        byte_t garbage_ : 5; // (bits 0-4)
+        byte_t sprite_overflow_ : 1; // (bit 5)
+        byte_t sprite_0_hit_ : 1; // (bit 6)
+        byte_t vblank_ : 1; // (bit 7)
     } ppustatus_;
     static_assert(sizeof(decltype(ppustatus_)) == sizeof(byte_t));
 
@@ -235,11 +255,11 @@ private:
     {
         struct VRAM : public register_t<address_t>
         {
-            address_t X : 5; // Coarse X scroll
-            address_t Y : 5; // Coarse Y scroll
-            address_t NX : 1; // Nametable X component
-            address_t NY : 1; // Nametable Y component;
-            address_t y : 3; // Fine y scroll
+            address_t X : 5; // Coarse X scroll (bits 0-4)
+            address_t Y : 5; // Coarse Y scroll (bits 5-9)
+            address_t NX : 1; // Nametable X component (bit 10)
+            address_t NY : 1; // Nametable Y component (bit 11)
+            address_t y : 3; // Fine y scroll (bits 12-14)
         };
         static_assert(sizeof(VRAM) == sizeof(address_t));
 
