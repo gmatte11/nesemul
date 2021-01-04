@@ -1035,6 +1035,8 @@ void CPU::brk_()
     set_status_(kIntDisable, true);
     store_stack_(program_counter_);
     store_stack_(status_);
+    set_status_(kBreak, false);
+    program_counter_ = load_addr_(0xFFFE);
 }
 
 void CPU::bvc_(address_t addr)
