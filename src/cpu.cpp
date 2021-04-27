@@ -152,11 +152,6 @@ void CPU::interrupt(bool nmi /*= false*/)
     int_ = {true, nmi};
 }
 
-void CPU::add_idle_ticks(int ticks)
-{
-    idle_ticks_ += ticks;
-}
-
 void CPU::log_(byte_t opcode, address_t addr)
 {
     auto& opdata = opcode_data(opcode);

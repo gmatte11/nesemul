@@ -25,6 +25,8 @@ static Color g_palette[] = {
     /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
 };
 
+const PPU::SecondaryOAM::Entry PPU::SecondaryOAM::empty_{Sprite{0xFF, 0xFF, 0xFF, 0xFF}, 0xFF};
+
 DEOPTIMIZE
 
 void PPU::step()
@@ -54,6 +56,8 @@ void PPU::reset()
     cursor_.x = 0;
     cursor_.w = false;
     read_buffer_ = 0;
+
+    dma_requested_ = false;
 
     oam_.fill(0xFF);
 }
@@ -135,16 +139,11 @@ bool PPU::on_write(address_t addr, byte_t value)
         // oamdma
     case 0x4014:
     {
-        address_t page_addr = value << 8;
-
         if (oamaddr_ != 0)
             BREAKPOINT;
 
-        // TODO allow copy from cartige RAM or ROM
-        bus_->ram_.memcpy(oam_.data(), page_addr, 0xFF * sizeof(byte_t));
-
-        // timing
-        bus_->cpu_.add_idle_ticks(513 + static_cast<int>(bus_->cpu_.get_state().cycle_ % 2));
+        dma_requested_ = true;
+        dma_page_idx_ = value;
 
         return true;
     }
@@ -185,6 +184,15 @@ bool PPU::on_read(address_t addr, byte_t& value)
     }
 
     return false;
+}
+
+void PPU::dma_copy_byte(byte_t rw_cycle)
+{
+    ASSERT(rw_cycle >= 0 && rw_cycle < 256);
+    address_t page_addr = dma_page_idx_ << 8;
+
+    byte_t data = bus_->read(page_addr | rw_cycle);
+    oam_[rw_cycle] = data;
 }
 
 void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& palette) const
@@ -448,7 +456,7 @@ void PPU::fg_eval_()
         {
             secondary_oam_.flip();
             secondary_oam_.store().count_ = 0;
-            secondary_oam_.store().list_.fill({0xFF, 0xFF, 0xFF, 0xFF});
+            secondary_oam_.store().list_.fill(SecondaryOAM::empty_);
         }
 
         if (cycle_ == 256)
@@ -567,16 +575,16 @@ void PPU::render_()
 void PPU::tick_()
 {
     ++cycle_;
-
     if (cycle_ > 340)
     {
         cycle_ = 0;
         ++scanline_;
 
-        if (scanline_ == 261)
+        if (scanline_ > 260)
         {
             scanline_ = -1;
             ++frame_;
+            frame_done_ = true;
         }
     }
 }

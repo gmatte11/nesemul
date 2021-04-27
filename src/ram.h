@@ -29,8 +29,6 @@ public:
         return false;
     }
 
-    void memcpy(void* dest, address_t src, int size) { std::memcpy(dest, memory_.data() + src, size); }
-
     byte_t* data() { return memory_.data(); }
 
 private:

@@ -121,6 +121,15 @@ public:
     bool on_write(address_t addr, byte_t value);
     bool on_read(address_t addr, byte_t& value);
 
+    bool grab_dma_request()
+    {
+        bool requested = dma_requested_;
+        dma_requested_ = false;
+        return requested;
+    }
+
+    void dma_copy_byte(byte_t rw_cycle);
+
     byte_t* data()
     {
         return memory_.data();
@@ -139,6 +148,13 @@ public:
     byte_t load(address_t addr) const { return load_(addr); }
 
     inline uint64_t frame() const { return frame_; }
+    
+    bool grab_frame_done()
+    {
+        bool done = frame_done_;
+        frame_done_ = false;
+        return done;
+    } 
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
@@ -186,6 +202,8 @@ private:
         };
         std::array<Entry, 8> list_ {};
         int count_ = 0;
+
+        static const Entry empty_;
     };
     Latch<SecondaryOAM> secondary_oam_;
 
@@ -249,6 +267,7 @@ private:
     byte_t scroll_x_;
     byte_t scroll_y_;
     bool is_in_vblank = false;
+    bool frame_done_ = false;
 
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
     struct Cursor
@@ -270,6 +289,9 @@ private:
         bool w : 1; // Write toggle
     } cursor_;
     byte_t read_buffer_ = 0;
+
+    byte_t dma_page_idx_ = 0;
+    bool dma_requested_ = false;
 
     friend class SFMLRenderer;
 };

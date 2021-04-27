@@ -62,8 +62,6 @@ public:
 
     CPU_State const& get_state() const { return *this; }
 
-    void add_idle_ticks(int ticks);
-
     std::array<std::array<char, 80>, 64> log_ring_;
     int log_idx_ = 0;
 

@@ -117,17 +117,34 @@ int Emulator::run()
             if (mode_ != Mode::PAUSED)
             {
                 // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
-                for (; cycle_ < 29780; ++cycle_)
+                while (!ppu_->grab_frame_done())
                 {
                     try
                     {
-                        for (int i = 0; i < 3; ++i)
-                            ppu_->step();
-                        cpu_->step();
-                        apu_->step();
+                        if (ppu_->grab_dma_request())
+                            dma_cycle_counter = 513 + (cpu_->get_state().cycle_ & 0x1);
+
+                        ppu_->step();
+
+                        {
+                        if ((cycle_ % 3) == 0)
+                            apu_->step();
+
+                            if (dma_cycle_counter == 0)
+                            {
+                                cpu_->step();
+                            }
+                            else
+                            {
+                                if ((dma_cycle_counter & 0x1) == 0 && dma_cycle_counter <= 512)
+                                    ppu_->dma_copy_byte(256 - (dma_cycle_counter / 2));
+                                --dma_cycle_counter;
+                            }
+                        }
                     }
                     catch (...)
                     {
+                        BREAKPOINT;
                         mode_ = Mode::PAUSED;
                         break;
                     }
@@ -138,9 +155,6 @@ int Emulator::run()
                         break;
                     }
                 }
-
-                if (cycle_ == 29780)
-                    cycle_ = 0;
 
                 if (mode_ != Mode::RUN)
                     mode_ = Mode::PAUSED;

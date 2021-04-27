@@ -51,4 +51,5 @@ private:
 
     Mode mode_ = Mode::RUN;
     int cycle_ = 0;
+    int dma_cycle_counter = 0;
 };
