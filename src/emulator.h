@@ -25,7 +25,9 @@ public:
 public:
     Emulator();
 
-    void read(const std::string& filename);
+    void read_rom(const std::string& filename);
+
+    void reset();
 
     int run();
 

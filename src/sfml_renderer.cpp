@@ -50,6 +50,8 @@ bool SFMLRenderer::update()
 
             case sf::Keyboard::K: debug_page_ = (debug_page_ + 1) % 3; break;
 
+            case sf::Keyboard::R: if (ev.key.shift) emulator_->reset(); break;
+
             default: break;
             }
 

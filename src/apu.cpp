@@ -13,12 +13,12 @@ void APU::step()
 {
     if (odd_cycle_)
     {
-        if (sequencer_mode_ == 0 && cycle_ == 14915)
+        if (sequencer_mode_ == 0 && cycle_ >= 14915)
         {
             frame_irq_ = 1;
             cycle_ = 0;
         }
-        else if (sequencer_mode_ == 1 && cycle_ == 18641)
+        else if (sequencer_mode_ == 1 && cycle_ >= 18641)
         {
             cycle_ = 0;
         }

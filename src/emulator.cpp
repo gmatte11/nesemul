@@ -23,7 +23,7 @@ Emulator::Emulator()
 {
 }
 
-void Emulator::read(const std::string& filename)
+void Emulator::read_rom(const std::string& filename)
 {
     bifstream ifs(filename, std::ios_base::binary);
 
@@ -102,6 +102,15 @@ void Emulator::read(const std::string& filename)
     }
 }
 
+void Emulator::reset()
+{
+    cpu_->reset();
+    apu_->reset();
+    ppu_->reset();
+    cycle_ = 0;
+    dma_cycle_counter = 0;
+}
+
 int Emulator::run()
 {
     SFMLRenderer renderer(this);
@@ -141,6 +150,12 @@ int Emulator::run()
                                 --dma_cycle_counter;
                             }
                         }
+                    }
+                    catch (std::exception e)
+                    {
+                        BREAKPOINT;
+                        mode_ = Mode::PAUSED;
+                        break;
                     }
                     catch (...)
                     {

@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
     try
     {
         Emulator emul;
-        emul.read(argv[1]);
+        emul.read_rom(argv[1]);
 
         return emul.run();
     }
