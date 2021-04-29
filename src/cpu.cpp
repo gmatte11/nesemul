@@ -46,7 +46,7 @@ void CPU::step()
 #if 0
         log_(data.opcode, addr);
 #endif
-        if (opcode_data(instr_.opcode).size == 0)
+        if (opcode_data(instr_.opcode).operation == kUKN)
         {
             program_counter_ = old_pc_;
             throw std::runtime_error(fmt::format("Unrecognized opcode {:02x}", instr_.opcode));
@@ -111,7 +111,8 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
     default: addr = operands;
     }
 
-    switch (instr_.opcode)
+    // TODO
+    /*switch (instr_.opcode)
     {
     case kASL5:
     case kDEC4:
@@ -123,7 +124,7 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
     case kSTA6:
     case kSTA8:
         return 0;
-    }
+    }*/
 
     bool page_crossed = ((addr & 0xFF00) != (operands & 0xFF00));
     return page_crossed ? 1 : 0;
@@ -207,117 +208,94 @@ void CPU::nmi_()
 
 void CPU::exec_(byte_t opcode, address_t addr)
 {
+    const byte_t op = opcode_data(opcode).operation;
+    const byte_t ad = opcode_data(opcode).addressing;
+
+    auto addressing = [=] 
+    {  
+        switch (ad)
+        {
+            case kZeroPage: return page_zero_addr(addr);
+            case kZeroPageX: return indexed_pz_addr(addr, register_x_);
+            case kZeroPageY: return indexed_pz_addr(addr, register_y_);
+            case kAbsolute: return absolute_addr(addr);
+            case kAbsoluteX: return indexed_abs_addr(addr, register_x_);
+            case kAbsoluteY: return indexed_abs_addr(addr, register_y_);
+            case kIndirect: return indirect_addr(addr);
+            case kIndirectX: return indexed_indirect_addr(addr, register_x_);
+            case kIndirectY : return indirect_indexed_addr(addr, register_y_);
+            
+            default: 
+                throw std::runtime_error(fmt::format("Invalid addressing {:02x} for opcode {:02x}", ad, opcode));
+        }
+
+        return addr;
+    };
+
+
     // execute operation
-    switch (opcode)
+    switch (op)
     {
-    case kADC1:
-        adc_(immediate_addr(addr));
-        break; // addr: #aa
-    case kADC2:
-        adc_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kADC3:
-        adc_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kADC4:
-        adc_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kADC5:
-        adc_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kADC6:
-        adc_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kADC7:
-        adc_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kADC8:
-        adc_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kADC:
+        if (ad == kImmediate)
+            adc_(immediate_addr(addr));
+        else
+            adc_(addressing());
+        break; 
+    
+    case kAND:
+        if (ad == kImmediate)
+            and_(immediate_addr(addr));
+        else
+            and_(addressing());
+        break; 
 
-    case kAND1:
-        and_(immediate_addr(addr));
-        break; // addr: #aa
-    case kAND2:
-        and_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kAND3:
-        and_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kAND4:
-        and_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kAND5:
-        and_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kAND6:
-        and_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kAND7:
-        and_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kAND8:
-        and_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
-
-    case kASL1:
-        asl_();
-        break; // addr: A
-    case kASL2:
-        asl_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kASL3:
-        asl_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kASL4:
-        asl_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kASL5:
-        asl_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kASL:
+        if (ad == kNone)
+            asl_();
+        else
+            asl_(addressing());
+        break;
 
     case kBCC:
-        bcc_(page_zero_addr(addr));
-        break; // addr: $aa
+        bcc_(addr);
+        break;
 
     case kBCS:
-        bcs_(page_zero_addr(addr));
-        break; // addr: $aa
+        bcs_(addr);
+        break;
 
     case kBEQ:
-        beq_(page_zero_addr(addr));
-        break; // addr: $aa
+        beq_(addr);
+        break;
 
-    case kBIT1:
-        bit_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kBIT2:
-        bit_(absolute_addr(addr));
-        break; // addr: $aaaa
+    case kBIT:
+        bit_(addressing());
+        break;
 
     case kBMI:
-        bmi_(page_zero_addr(addr));
-        break; // addr: $aa
+        bmi_(addr);
+        break;
 
     case kBNE:
-        bne_(page_zero_addr(addr));
-        break; // addr: $aa
+        bne_(addr);
+        break;
 
     case kBPL:
-        bpl_(page_zero_addr(addr));
-        break; // addr: $aa
+        bpl_(addr);
+        break;
 
     case kBRK:
         brk_();
         break;
 
     case kBVC:
-        bvc_(page_zero_addr(addr));
-        break; // addr: $aa
+        bvc_(addr);
+        break;
 
     case kBVS:
-        bvs_(page_zero_addr(addr));
-        break; // addr: $aa
+        bvs_(addr);
+        break;
 
     case kCLC:
         clc_();
@@ -335,63 +313,34 @@ void CPU::exec_(byte_t opcode, address_t addr)
         clv_();
         break;
 
-    case kCMP1:
-        cmp_(immediate_addr(addr));
-        break; // addr: #aa
-    case kCMP2:
-        cmp_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kCMP3:
-        cmp_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kCMP4:
-        cmp_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kCMP5:
-        cmp_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kCMP6:
-        cmp_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kCMP7:
-        cmp_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kCMP8:
-        cmp_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kCMP:
+        if (ad == kImmediate)
+            cmp_(immediate_addr(addr));
+        else
+            cmp_(addressing());
+        break;
 
-    case kCPX1:
-        cpx_(immediate_addr(addr));
-        break; // addr: #aa
-    case kCPX2:
-        cpx_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kCPX3:
-        cpx_(absolute_addr(addr));
-        break; // addr: $aaaa
+    case kCPX:
+        if (ad == kImmediate)
+            cpx_(immediate_addr(addr));
+        else
+            cpx_(addressing());
+        break;
 
-    case kCPY1:
-        cpy_(immediate_addr(addr));
-        break; // addr: #aa
-    case kCPY2:
-        cpy_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kCPY3:
-        cpy_(absolute_addr(addr));
-        break; // addr: $aaaa
+    case kCPY:
+        if (ad == kImmediate)
+            cpy_(immediate_addr(addr));
+        else
+            cpy_(addressing());
+        break;
 
-    case kDEC1:
-        dec_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kDEC2:
-        dec_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kDEC3:
-        dec_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kDEC4:
-        dec_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kDCP:
+        dcp_(addressing());
+        break;
+
+    case kDEC:
+        dec_(addressing());
+        break;
 
     case kDEX:
         dex_();
@@ -401,43 +350,16 @@ void CPU::exec_(byte_t opcode, address_t addr)
         dey_();
         break;
 
-    case kEOR1:
-        eor_(immediate_addr(addr));
-        break; // addr: #aa
-    case kEOR2:
-        eor_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kEOR3:
-        eor_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kEOR4:
-        eor_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kEOR5:
-        eor_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kEOR6:
-        eor_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kEOR7:
-        eor_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kEOR8:
-        eor_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kEOR:
+        if (ad == kImmediate)
+            eor_(immediate_addr(addr));
+        else
+            eor_(addressing());
+        break;
 
-    case kINC1:
-        inc_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kINC2:
-        inc_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kINC3:
-        inc_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kINC4:
-        inc_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kINC:
+        inc_(addressing());
+        break;
 
     case kINX:
         inx_();
@@ -447,137 +369,60 @@ void CPU::exec_(byte_t opcode, address_t addr)
         iny_();
         break;
 
-    case kJMP1:
-        jmp_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kJMP2:
-        jmp_(indirect_addr(addr));
-        break; // addr: ($aaaa)
+    case kISB:
+        isb_(addressing());
+        break;
+
+    case kJMP:
+        jmp_(addressing());
+        break;
 
     case kJSR:
         jsr_(absolute_addr(addr));
         break; // addr: $aaaa
 
-    case kLAX1:
-        lax_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kLAX2:
-        lax_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kLAX3:
-        lax_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kLAX4:
-        lax_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
-    case kLAX5:
-        lax_(indexed_pz_addr(addr, register_y_));
-        break; // addr: $aa,Y
-    case kLAX6:
-        lax_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
+    case kLAX:
+        lax_(addressing());
+        break;
 
-    case kLDA1:
-        lda_(immediate_addr(addr));
-        break; // addr: #aa
-    case kLDA2:
-        lda_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kLDA3:
-        lda_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kLDA4:
-        lda_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kLDA5:
-        lda_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kLDA6:
-        lda_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kLDA7:
-        lda_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kLDA8:
-        lda_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kLDA:
+        if (ad == kImmediate)
+            lda_(immediate_addr(addr));
+        else
+            lda_(addressing());
+        break;
 
-    case kLDX1:
-        ldx_(immediate_addr(addr));
-        break; // addr: #aa
-    case kLDX2:
-        ldx_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kLDX3:
-        ldx_(indexed_pz_addr(addr, register_y_));
-        break; // addr: $aa,Y
-    case kLDX4:
-        ldx_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kLDX5:
-        ldx_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
+    case kLDX:
+        if (ad == kImmediate)
+            ldx_(immediate_addr(addr));
+        else
+            ldx_(addressing());
+        break;
 
-    case kLDY1:
-        ldy_(immediate_addr(addr));
-        break; // addr: #aa
-    case kLDY2:
-        ldy_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kLDY3:
-        ldy_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kLDY4:
-        ldy_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kLDY5:
-        ldy_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kLDY:
+        if (ad == kImmediate)
+            ldy_(immediate_addr(addr));
+        else
+            ldy_(addressing());
+        break;
 
-    case kLSR1:
-        lsr_();
-        break; // addr: A
-    case kLSR2:
-        lsr_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kLSR3:
-        lsr_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kLSR4:
-        lsr_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kLSR5:
-        lsr_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kLSR:
+        if (ad == kNone)
+            lsr_();
+        else
+            lsr_(addressing());
+        break;
 
     case kNOP:
         nop_();
         break;
 
-    case kORA1:
-        ora_(immediate_addr(addr));
-        break; // addr: #aa
-    case kORA2:
-        ora_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kORA3:
-        ora_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kORA4:
-        ora_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kORA5:
-        ora_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kORA6:
-        ora_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kORA7:
-        ora_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kORA8:
-        ora_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kORA:
+        if (ad == kImmediate)
+            ora_(immediate_addr(addr));
+        else
+            ora_(addressing());
+        break;
 
     case kPHA:
         pha_();
@@ -595,37 +440,27 @@ void CPU::exec_(byte_t opcode, address_t addr)
         plp_();
         break;
 
-    case kROL1:
-        rol_(accumulator_);
-        break; // addr: A
-    case kROL2:
-        rol_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kROL3:
-        rol_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kROL4:
-        rol_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kROL5:
-        rol_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kRLA:
+        rla_(addressing());
+        break;
 
-    case kROR1:
-        ror_(accumulator_);
-        break; // addr: A
-    case kROR2:
-        ror_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kROR3:
-        ror_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kROR4:
-        ror_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kROR5:
-        ror_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
+    case kROL:
+        if (ad == kNone)
+            rol_(accumulator_);
+        else
+            rol_(addressing());
+        break;
+
+    case kROR:
+        if (ad == kNone)
+            ror_(accumulator_);
+        else
+            ror_(addressing());
+        break;
+
+    case kRRA:
+        rra_(addressing());
+        break;
 
     case kRTI:
         rti_();
@@ -635,43 +470,16 @@ void CPU::exec_(byte_t opcode, address_t addr)
         rts_();
         break;
 
-    case kSAX1:
-        sax_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kSAX2:
-        sax_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kSAX3:
-        sax_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kSAX4:
-        sax_(indexed_pz_addr(addr, register_y_));
-        break; // addr: $aa,Y
+    case kSAX:
+        sax_(addressing());
+        break;
 
-    case kSBC1:
-        sbc_(immediate_addr(addr));
-        break; // addr: #aa
-    case kSBC2:
-        sbc_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kSBC3:
-        sbc_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kSBC4:
-        sbc_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kSBC5:
-        sbc_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kSBC6:
-        sbc_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kSBC7:
-        sbc_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kSBC8:
-        sbc_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kSBC:
+        if (ad == kImmediate)
+            sbc_(immediate_addr(addr));
+        else
+            sbc_(addressing());
+        break;
 
     case kSEC:
         sec_();
@@ -685,47 +493,25 @@ void CPU::exec_(byte_t opcode, address_t addr)
         sei_();
         break;
 
-    case kSTA1:
-        sta_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kSTA2:
-        sta_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kSTA4:
-        sta_(absolute_addr(addr));
-        break; // addr: $aaaa
-    case kSTA5:
-        sta_(indexed_abs_addr(addr, register_x_));
-        break; // addr: $aaaa,X
-    case kSTA6:
-        sta_(indexed_abs_addr(addr, register_y_));
-        break; // addr: $aaaa,Y
-    case kSTA7:
-        sta_(indexed_indirect_addr(addr, register_x_));
-        break; // addr: ($aa,X)
-    case kSTA8:
-        sta_(indirect_indexed_addr(addr, register_y_));
-        break; // addr: ($aa),Y
+    case kSLO:
+        slo_(addressing());
+        break;
 
-    case kSTX1:
-        stx_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kSTX2:
-        stx_(indexed_pz_addr(addr, register_y_));
-        break; // addr: $aa,Y
-    case kSTX3:
-        stx_(absolute_addr(addr));
-        break; // addr: $aaaa
+    case kSRE:
+        sre_(addressing());
+        break;
 
-    case kSTY1:
-        sty_(page_zero_addr(addr));
-        break; // addr: $aa
-    case kSTY2:
-        sty_(indexed_pz_addr(addr, register_x_));
-        break; // addr: $aa,X
-    case kSTY3:
-        sty_(absolute_addr(addr));
-        break; // addr: $aaaa
+    case kSTA:
+        sta_(addressing());
+        break;
+
+    case kSTX:
+        stx_(addressing());
+        break;
+
+    case kSTY:
+        sty_(addressing());
+        break;
 
     case kTAX:
         tax_();
@@ -752,8 +538,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
         break;
 
     default:
-        nop_();
-        break;
+        throw std::runtime_error(fmt::format("Unimplemented operation {:02x} for opcode {:02x}", op, opcode));
     }
 }
 
@@ -1105,6 +890,12 @@ void CPU::cpy_(address_t addr)
     cpy_(load_(addr));
 }
 
+void CPU::dcp_(address_t addr)
+{
+    dec_(addr);
+    cmp_(addr);
+}
+
 void CPU::dec_(address_t addr)
 {
     byte_t operand = load_(addr) - 1;
@@ -1159,6 +950,12 @@ void CPU::iny_()
     ++register_y_;
     set_status_(kZero, register_y_ == 0);
     set_status_(kNegative, register_y_ & kNegative);
+}
+
+void CPU::isb_(address_t addr)
+{
+    inc_(addr);
+    sbc_(addr);
 }
 
 void CPU::jmp_(address_t addr)
@@ -1271,6 +1068,12 @@ void CPU::plp_()
     set_status_(0x20, true); // always 1 flag
 }
 
+void CPU::rla_(address_t addr)
+{
+    rol_(addr);
+    and_(addr);
+}
+
 void CPU::rol_(byte_t& operand)
 {
     byte_t carry = operand & kNegative;
@@ -1305,6 +1108,12 @@ void CPU::ror_(address_t addr)
     byte_t operand = load_(addr);
     ror_(operand);
     store_(addr, operand);
+}
+
+void CPU::rra_(address_t addr)
+{
+    ror_(addr);
+    adc_(addr);
 }
 
 void CPU::rti_()
@@ -1357,6 +1166,18 @@ void CPU::sed_()
 void CPU::sei_()
 {
     set_status_(kIntDisable, true);
+}
+
+void CPU::slo_(address_t addr)
+{
+    asl_(addr);
+    ora_(addr);
+}
+
+void CPU::sre_(address_t addr)
+{
+    lsr_(addr);
+    eor_(addr);
 }
 
 void CPU::sta_(address_t addr)

@@ -153,6 +153,7 @@ int Emulator::run()
                     }
                     catch (std::exception e)
                     {
+                        fmt::print("Exception: {}\n", e.what());
                         BREAKPOINT;
                         mode_ = Mode::PAUSED;
                         break;

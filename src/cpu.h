@@ -135,6 +135,7 @@ private:
     void cpx_(address_t addr);
     void cpy_(byte_t operand);
     void cpy_(address_t addr);
+    void dcp_(address_t addr);
     void dec_(address_t addr);
     void dex_();
     void dey_();
@@ -143,6 +144,7 @@ private:
     void inc_(address_t addr);
     void inx_();
     void iny_();
+    void isb_(address_t addr);
     void jmp_(address_t addr);
     void jsr_(address_t addr);
     void lax_(address_t addr);
@@ -161,10 +163,12 @@ private:
     void php_();
     void pla_();
     void plp_();
+    void rla_(address_t addr);
     void rol_(byte_t& operand);
     void rol_(address_t addr);
     void ror_(byte_t& operand);
     void ror_(address_t addr);
+    void rra_(address_t addr);
     void rti_();
     void rts_();
     void sax_(address_t addr);
@@ -173,6 +177,8 @@ private:
     void sec_();
     void sed_();
     void sei_();
+    void slo_(address_t addr);
+    void sre_(address_t addr);
     void sta_(address_t addr);
     void stx_(address_t addr);
     void sty_(address_t addr);
