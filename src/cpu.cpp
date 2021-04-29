@@ -211,7 +211,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
     const byte_t op = opcode_data(opcode).operation;
     const byte_t ad = opcode_data(opcode).addressing;
 
-    auto addressing = [=] 
+    auto to_absolute_addr = [=](address_t addr)
     {  
         switch (ad)
         {
@@ -226,319 +226,119 @@ void CPU::exec_(byte_t opcode, address_t addr)
             case kIndirectY : return indirect_indexed_addr(addr, register_y_);
             
             default: 
-                throw std::runtime_error(fmt::format("Invalid addressing {:02x} for opcode {:02x}", ad, opcode));
+                throw std::runtime_error(fmt::format("Invalid addressing {:02x} for opcode {} [{:02x}]", ad, opcode_data(opcode).str, opcode));
         }
 
         return addr;
     };
 
+    auto to_operand = [=](address_t addr)
+    {
+        if (ad == kImmediate)
+            return immediate_addr(addr);
+        else
+            return load_(to_absolute_addr(addr));
+    };
+
+    auto call_mutating_operation = [=](void (CPU::*f)(byte_t&), address_t addr)
+    {
+        if (ad == kNone)
+        {
+            std::invoke(f, this, accumulator_);
+        }
+        else
+        {
+            addr = to_absolute_addr(addr);
+            byte_t operand = load_(addr);
+            std::invoke(f, this, operand);
+            store_(addr, operand);
+        }
+    };
 
     // execute operation
     switch (op)
     {
-    case kADC:
-        if (ad == kImmediate)
-            adc_(immediate_addr(addr));
-        else
-            adc_(addressing());
-        break; 
+    case kADC: adc_(to_operand(addr)); break; 
+    case kAND: and_(to_operand(addr)); break;
+    case kASL: call_mutating_operation(&CPU::asl_, addr); break; 
+
+    case kBCC: bcc_(addr); break;
+    case kBCS: bcs_(addr); break;
+    case kBEQ: beq_(addr); break; 
+    case kBIT: bit_(to_absolute_addr(addr)); break; 
+    case kBMI: bmi_(addr); break;
+    case kBNE: bne_(addr); break;
+    case kBPL: bpl_(addr); break; 
+    case kBRK: brk_(); break; 
+    case kBVC: bvc_(addr); break;
+    case kBVS: bvs_(addr); break;
+
+    case kCLC: clc_(); break; 
+    case kCLD: cld_(); break;
+    case kCLI: cli_(); break;
+    case kCLV: clv_(); break; 
+    case kCMP: cmp_(to_operand(addr)); break;
+    case kCPX: cpx_(to_operand(addr)); break;
+    case kCPY: cpy_(to_operand(addr)); break; 
+
+    case kDCP: dcp_(to_absolute_addr(addr)); break;
+    case kDEC: dec_(to_absolute_addr(addr)); break; 
+    case kDEX: dex_(); break; 
+    case kDEY: dey_(); break;
+
+    case kEOR: eor_(to_operand(addr)); break;
+
+    case kINC: inc_(to_absolute_addr(addr)); break; 
+    case kINX: inx_(); break;
+    case kINY: iny_(); break; 
+    case kISB: isb_(to_absolute_addr(addr)); break; 
     
-    case kAND:
-        if (ad == kImmediate)
-            and_(immediate_addr(addr));
-        else
-            and_(addressing());
-        break; 
+    case kJMP: jmp_(to_absolute_addr(addr)); break; 
+    case kJSR: jsr_(addr); break;
 
-    case kASL:
-        if (ad == kNone)
-            asl_();
-        else
-            asl_(addressing());
-        break;
+    case kLAX: lax_(to_absolute_addr(addr)); break; 
+    case kLDA: lda_(to_operand(addr)); break; 
+    case kLDX: ldx_(to_operand(addr)); break;
+    case kLDY: ldy_(to_operand(addr)); break;
+    case kLSR: call_mutating_operation(&CPU::lsr_, addr); break;
 
-    case kBCC:
-        bcc_(addr);
-        break;
+    case kNOP: nop_(); break;
 
-    case kBCS:
-        bcs_(addr);
-        break;
+    case kORA: ora_(to_operand(addr)); break;
 
-    case kBEQ:
-        beq_(addr);
-        break;
+    case kPHA: pha_(); break;
+    case kPHP: php_(); break;
+    case kPLA: pla_(); break; 
+    case kPLP: plp_(); break; 
 
-    case kBIT:
-        bit_(addressing());
-        break;
+    case kRLA: rla_(to_absolute_addr(addr)); break; 
 
-    case kBMI:
-        bmi_(addr);
-        break;
+    case kROL: call_mutating_operation(&CPU::rol_, addr); break;
+    case kROR: call_mutating_operation(&CPU::ror_, addr); break;
+    case kRRA: rra_(to_absolute_addr(addr)); break; 
+    case kRTI: rti_(); break; 
+    case kRTS: rts_(); break; 
 
-    case kBNE:
-        bne_(addr);
-        break;
+    case kSAX: sax_(to_absolute_addr(addr)); break; 
+    case kSBC: sbc_(to_operand(addr)); break;
+    case kSEC: sec_(); break; 
+    case kSED: sed_(); break; 
+    case kSEI: sei_(); break; 
+    case kSLO: slo_(to_absolute_addr(addr)); break; 
+    case kSRE: sre_(to_absolute_addr(addr)); break; 
+    case kSTA: sta_(to_absolute_addr(addr)); break; 
+    case kSTX: stx_(to_absolute_addr(addr)); break; 
+    case kSTY: sty_(to_absolute_addr(addr)); break;
 
-    case kBPL:
-        bpl_(addr);
-        break;
-
-    case kBRK:
-        brk_();
-        break;
-
-    case kBVC:
-        bvc_(addr);
-        break;
-
-    case kBVS:
-        bvs_(addr);
-        break;
-
-    case kCLC:
-        clc_();
-        break;
-
-    case kCLD:
-        cld_();
-        break;
-
-    case kCLI:
-        cli_();
-        break;
-
-    case kCLV:
-        clv_();
-        break;
-
-    case kCMP:
-        if (ad == kImmediate)
-            cmp_(immediate_addr(addr));
-        else
-            cmp_(addressing());
-        break;
-
-    case kCPX:
-        if (ad == kImmediate)
-            cpx_(immediate_addr(addr));
-        else
-            cpx_(addressing());
-        break;
-
-    case kCPY:
-        if (ad == kImmediate)
-            cpy_(immediate_addr(addr));
-        else
-            cpy_(addressing());
-        break;
-
-    case kDCP:
-        dcp_(addressing());
-        break;
-
-    case kDEC:
-        dec_(addressing());
-        break;
-
-    case kDEX:
-        dex_();
-        break;
-
-    case kDEY:
-        dey_();
-        break;
-
-    case kEOR:
-        if (ad == kImmediate)
-            eor_(immediate_addr(addr));
-        else
-            eor_(addressing());
-        break;
-
-    case kINC:
-        inc_(addressing());
-        break;
-
-    case kINX:
-        inx_();
-        break;
-
-    case kINY:
-        iny_();
-        break;
-
-    case kISB:
-        isb_(addressing());
-        break;
-
-    case kJMP:
-        jmp_(addressing());
-        break;
-
-    case kJSR:
-        jsr_(absolute_addr(addr));
-        break; // addr: $aaaa
-
-    case kLAX:
-        lax_(addressing());
-        break;
-
-    case kLDA:
-        if (ad == kImmediate)
-            lda_(immediate_addr(addr));
-        else
-            lda_(addressing());
-        break;
-
-    case kLDX:
-        if (ad == kImmediate)
-            ldx_(immediate_addr(addr));
-        else
-            ldx_(addressing());
-        break;
-
-    case kLDY:
-        if (ad == kImmediate)
-            ldy_(immediate_addr(addr));
-        else
-            ldy_(addressing());
-        break;
-
-    case kLSR:
-        if (ad == kNone)
-            lsr_();
-        else
-            lsr_(addressing());
-        break;
-
-    case kNOP:
-        nop_();
-        break;
-
-    case kORA:
-        if (ad == kImmediate)
-            ora_(immediate_addr(addr));
-        else
-            ora_(addressing());
-        break;
-
-    case kPHA:
-        pha_();
-        break;
-
-    case kPHP:
-        php_();
-        break;
-
-    case kPLA:
-        pla_();
-        break;
-
-    case kPLP:
-        plp_();
-        break;
-
-    case kRLA:
-        rla_(addressing());
-        break;
-
-    case kROL:
-        if (ad == kNone)
-            rol_(accumulator_);
-        else
-            rol_(addressing());
-        break;
-
-    case kROR:
-        if (ad == kNone)
-            ror_(accumulator_);
-        else
-            ror_(addressing());
-        break;
-
-    case kRRA:
-        rra_(addressing());
-        break;
-
-    case kRTI:
-        rti_();
-        break;
-
-    case kRTS:
-        rts_();
-        break;
-
-    case kSAX:
-        sax_(addressing());
-        break;
-
-    case kSBC:
-        if (ad == kImmediate)
-            sbc_(immediate_addr(addr));
-        else
-            sbc_(addressing());
-        break;
-
-    case kSEC:
-        sec_();
-        break;
-
-    case kSED:
-        sed_();
-        break;
-
-    case kSEI:
-        sei_();
-        break;
-
-    case kSLO:
-        slo_(addressing());
-        break;
-
-    case kSRE:
-        sre_(addressing());
-        break;
-
-    case kSTA:
-        sta_(addressing());
-        break;
-
-    case kSTX:
-        stx_(addressing());
-        break;
-
-    case kSTY:
-        sty_(addressing());
-        break;
-
-    case kTAX:
-        tax_();
-        break;
-
-    case kTAY:
-        tay_();
-        break;
-
-    case kTSX:
-        tsx_();
-        break;
-
-    case kTXA:
-        txa_();
-        break;
-
-    case kTXS:
-        txs_();
-        break;
-
-    case kTYA:
-        tya_();
-        break;
+    case kTAX: tax_(); break; 
+    case kTAY: tay_(); break; 
+    case kTSX: tsx_(); break; 
+    case kTXA: txa_(); break; 
+    case kTXS: txs_(); break; 
+    case kTYA: tya_(); break;
 
     default:
-        throw std::runtime_error(fmt::format("Unimplemented operation {:02x} for opcode {:02x}", op, opcode));
+        throw std::runtime_error(fmt::format("Unimplemented operation {:02x} for opcode [{:02x}]", op, opcode_data(opcode).str, opcode));
     }
 }
 
@@ -729,11 +529,6 @@ void CPU::adc_(byte_t operand)
     set_status_(kOverflow, (neg_a == neg_op) && neg_a != get_status_(kNegative));
 }
 
-void CPU::adc_(address_t addr)
-{
-    adc_(load_(addr));
-}
-
 void CPU::and_(byte_t operand)
 {
     accumulator_ = accumulator_ & operand;
@@ -741,24 +536,10 @@ void CPU::and_(byte_t operand)
     set_status_(kNegative, accumulator_ & kNegative);
 }
 
-void CPU::and_(address_t addr)
+void CPU::asl_(byte_t& operand)
 {
-    and_(load_(addr));
-}
-
-void CPU::asl_()
-{
-    set_status_(kCarry, accumulator_ & kNegative);
-    accumulator_ <<= 1;
-    set_status_(kZero, accumulator_ == 0);
-    set_status_(kNegative, accumulator_ & kNegative);
-}
-
-void CPU::asl_(address_t addr)
-{
-    byte_t operand = load_(addr);
     set_status_(kCarry, operand & kNegative);
-    store_(addr, operand <<= 1);
+    operand <<= 1;
     set_status_(kZero, operand == 0);
     set_status_(kNegative, operand & kNegative);
 }
@@ -859,22 +640,12 @@ void CPU::cmp_(byte_t operand)
     set_status_(kCarry, accumulator_ >= operand);
 }
 
-void CPU::cmp_(address_t addr)
-{
-    cmp_(load_(addr));
-}
-
 void CPU::cpx_(byte_t operand)
 {
     byte_t cmp = register_x_ - operand;
     set_status_(kZero, cmp == 0);
     set_status_(kNegative, cmp & kNegative);
     set_status_(kCarry, register_x_ >= operand);
-}
-
-void CPU::cpx_(address_t addr)
-{
-    cpx_(load_(addr));
 }
 
 void CPU::cpy_(byte_t operand)
@@ -885,15 +656,10 @@ void CPU::cpy_(byte_t operand)
     set_status_(kCarry, register_y_ >= operand);
 }
 
-void CPU::cpy_(address_t addr)
-{
-    cpy_(load_(addr));
-}
-
 void CPU::dcp_(address_t addr)
 {
     dec_(addr);
-    cmp_(addr);
+    cmp_(load_(addr));
 }
 
 void CPU::dec_(address_t addr)
@@ -925,11 +691,6 @@ void CPU::eor_(byte_t operand)
     set_status_(kNegative, accumulator_ & kNegative);
 }
 
-void CPU::eor_(address_t addr)
-{
-    eor_(load_(addr));
-}
-
 void CPU::inc_(address_t addr)
 {
     byte_t operand = load_(addr) + 1;
@@ -955,7 +716,7 @@ void CPU::iny_()
 void CPU::isb_(address_t addr)
 {
     inc_(addr);
-    sbc_(addr);
+    sbc_(load_(addr));
 }
 
 void CPU::jmp_(address_t addr)
@@ -983,21 +744,11 @@ void CPU::lda_(byte_t operand)
     set_status_(kNegative, accumulator_ & kNegative);
 }
 
-void CPU::lda_(address_t addr)
-{
-    lda_(load_(addr));
-}
-
 void CPU::ldx_(byte_t operand)
 {
     register_x_ = operand;
     set_status_(kZero, register_x_ == 0);
     set_status_(kNegative, register_x_ & kNegative);
-}
-
-void CPU::ldx_(address_t addr)
-{
-    ldx_(load_(addr));
 }
 
 void CPU::ldy_(byte_t operand)
@@ -1007,24 +758,10 @@ void CPU::ldy_(byte_t operand)
     set_status_(kNegative, register_y_ & kNegative);
 }
 
-void CPU::ldy_(address_t addr)
+void CPU::lsr_(byte_t& operand)
 {
-    ldy_(load_(addr));
-}
-
-void CPU::lsr_()
-{
-    set_status_(kCarry, accumulator_ & kCarry);
-    accumulator_ >>= 1;
-    set_status_(kZero, accumulator_ == 0);
-    set_status_(kNegative, accumulator_ & kNegative);
-}
-
-void CPU::lsr_(address_t addr)
-{
-    byte_t operand = load_(addr);
     set_status_(kCarry, operand & kCarry);
-    store_(addr, operand >>= 1);
+    operand >>= 1;
     set_status_(kZero, operand == 0);
     set_status_(kNegative, operand & kNegative);
 }
@@ -1038,11 +775,6 @@ void CPU::ora_(byte_t operand)
     accumulator_ = accumulator_ | operand;
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
-}
-
-void CPU::ora_(address_t addr)
-{
-    ora_(load_(addr));
 }
 
 void CPU::pha_()
@@ -1070,8 +802,10 @@ void CPU::plp_()
 
 void CPU::rla_(address_t addr)
 {
-    rol_(addr);
-    and_(addr);
+    byte_t operand = load_(addr);
+    rol_(operand);
+    store_(addr, operand);
+    and_(load_(addr));
 }
 
 void CPU::rol_(byte_t& operand)
@@ -1085,13 +819,6 @@ void CPU::rol_(byte_t& operand)
     set_status_(kNegative, operand & kNegative);
 }
 
-void CPU::rol_(address_t addr)
-{
-    byte_t operand = load_(addr);
-    rol_(operand);
-    store_(addr, operand);
-}
-
 void CPU::ror_(byte_t& operand)
 {
     byte_t carry = operand & kCarry;
@@ -1103,17 +830,12 @@ void CPU::ror_(byte_t& operand)
     set_status_(kNegative, operand & kNegative);
 }
 
-void CPU::ror_(address_t addr)
+void CPU::rra_(address_t addr)
 {
     byte_t operand = load_(addr);
     ror_(operand);
     store_(addr, operand);
-}
-
-void CPU::rra_(address_t addr)
-{
-    ror_(addr);
-    adc_(addr);
+    adc_(load_(addr));
 }
 
 void CPU::rti_()
@@ -1148,11 +870,6 @@ void CPU::sbc_(byte_t operand)
     set_status_(kOverflow, (neg_a == !neg_op) && neg_a != get_status_(kNegative));
 }
 
-void CPU::sbc_(address_t addr)
-{
-    sbc_(load_(addr));
-}
-
 void CPU::sec_()
 {
     set_status_(kCarry, true);
@@ -1170,14 +887,18 @@ void CPU::sei_()
 
 void CPU::slo_(address_t addr)
 {
-    asl_(addr);
-    ora_(addr);
+    byte_t operand = load_(addr);
+    asl_(operand);
+    store_(addr, operand);
+    ora_(load_(addr));
 }
 
 void CPU::sre_(address_t addr)
 {
-    lsr_(addr);
-    eor_(addr);
+    byte_t operand = load_(addr);
+    lsr_(operand);
+    store_(addr, operand);
+    eor_(load_(addr));
 }
 
 void CPU::sta_(address_t addr)

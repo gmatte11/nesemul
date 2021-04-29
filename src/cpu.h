@@ -110,11 +110,8 @@ private:
 
     // operations
     void adc_(byte_t operand);
-    void adc_(address_t addr);
     void and_(byte_t operand);
-    void and_(address_t addr);
-    void asl_();
-    void asl_(address_t addr);
+    void asl_(byte_t& operand);
     void bcc_(address_t addr);
     void bcs_(address_t addr);
     void beq_(address_t addr);
@@ -130,17 +127,13 @@ private:
     void cli_();
     void clv_();
     void cmp_(byte_t operand);
-    void cmp_(address_t addr);
     void cpx_(byte_t operand);
-    void cpx_(address_t addr);
     void cpy_(byte_t operand);
-    void cpy_(address_t addr);
     void dcp_(address_t addr);
     void dec_(address_t addr);
     void dex_();
     void dey_();
     void eor_(byte_t operand);
-    void eor_(address_t addr);
     void inc_(address_t addr);
     void inx_();
     void iny_();
@@ -149,25 +142,18 @@ private:
     void jsr_(address_t addr);
     void lax_(address_t addr);
     void lda_(byte_t operand);
-    void lda_(address_t addr);
     void ldx_(byte_t operand);
-    void ldx_(address_t addr);
     void ldy_(byte_t operand);
-    void ldy_(address_t addr);
-    void lsr_();
-    void lsr_(address_t addr);
+    void lsr_(byte_t& operand);
     void nop_();
     void ora_(byte_t operand);
-    void ora_(address_t addr);
     void pha_();
     void php_();
     void pla_();
     void plp_();
     void rla_(address_t addr);
     void rol_(byte_t& operand);
-    void rol_(address_t addr);
     void ror_(byte_t& operand);
-    void ror_(address_t addr);
     void rra_(address_t addr);
     void rti_();
     void rts_();
