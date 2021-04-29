@@ -27,7 +27,7 @@ void Disassembler::load_bank(byte_t* rom, size_t size)
         byte_t opcode = *op;
         ops::metadata const& data = ops::opcode_data(opcode);
 
-        if (data.size == 0)
+        if (data.operation == ops::kUKN)
         {
             ++op;
             continue;
@@ -36,7 +36,7 @@ void Disassembler::load_bank(byte_t* rom, size_t size)
         address_t addr = static_cast<address_t>(op - rom);
         bank.ops_.push_back({addr, opcode});
 
-        op += data.size;
+        op += data.get_size();
     }
 
     bank.ops_.shrink_to_fit();
@@ -67,8 +67,8 @@ void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) c
 
     fmt::format_to(buf, "{}{:04X}  {:02X} ", (offset == 0) ? '*': ' ', addr, *op);
 
-    byte_t* operand1 = (data.size >= 2) ? op + 1 : nullptr;
-    byte_t* operand2 = (data.size == 3) ? op + 2 : nullptr;
+    byte_t* operand1 = (data.get_size() >= 2) ? op + 1 : nullptr;
+    byte_t* operand2 = (data.get_size() == 3) ? op + 2 : nullptr;
 
     fmt::format_to(buf, (operand1) ? "{:02X} " : "   ", (operand1) ? *operand1 : 0);
     fmt::format_to(buf, (operand2) ? "{:02X} " : "   ", (operand2) ? *operand2 : 0);

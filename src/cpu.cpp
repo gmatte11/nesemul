@@ -60,7 +60,7 @@ void CPU::step()
             idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
 
         old_pc_ = program_counter_;
-        program_counter_ += opcode_data(instr_.opcode).size;
+        program_counter_ += opcode_data(instr_.opcode).get_size();
         exec_(instr_.opcode, instr_.to_addr());
     }
 
@@ -160,12 +160,12 @@ void CPU::log_(byte_t opcode, address_t addr)
     
     it = fmt::format_to(it, "{:04x}    {:02x}", program_counter_, opcode);
 
-    if (opdata.size > 1)
+    if (opdata.get_size() > 1)
         it = fmt::format_to(it, "  {:02x}", addr & 0xFF);
     else
         it = fmt::format_to(it, "    ");
 
-    if (opdata.size > 2)
+    if (opdata.get_size() > 2)
         it = fmt::format_to(it, "  {:02x}", (addr >> 4) & 0xFF);
     else
         it = fmt::format_to(it, "    ");

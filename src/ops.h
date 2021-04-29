@@ -11,16 +11,17 @@ struct metadata
 {
     byte_t operation;
     byte_t addressing;
-    byte_t size;
     byte_t timing;
     const char* str;
+
+    byte_t get_size() const;
 };
 
-metadata opcode_data(byte_t opcode);
+const metadata& opcode_data(byte_t opcode);
 
 enum Addressing : byte_t
 {
-    kNone = 0x00,      // a.k.a Implied
+    kNone = 0x00,      // a.k.a Implied or Accumulator
     kImmediate = 0x01, // #$00 
     kZeroPage = 0x02,  // $00  
     kZeroPageX = 0x03, // $00,X
@@ -391,6 +392,33 @@ enum Codes : byte_t
     kSAX4 = 0x97, // ops: 2, addr: $aa,Y
 };
 */
+
+inline byte_t metadata::get_size() const
+{
+    switch (addressing)
+    {
+    case kNone:
+        return 1;
+
+    case kImmediate:
+    case kZeroPage:
+    case kZeroPageX:
+    case kZeroPageY:
+    case kIndirectX:
+    case kIndirectY:
+    case kRelative:
+        return 2;
+
+    case kAbsolute:
+    case kAbsoluteX:
+    case kAbsoluteY:
+    case kIndirect:
+        return 3;
+    }
+
+    return 0;
+}
+
 }
 
 #endif // __NESEMUL_OPS_H__
