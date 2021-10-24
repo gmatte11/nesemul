@@ -20,7 +20,6 @@ public:
     ~SFMLRenderer();
     
     bool update();
-    bool timeout();
 
 private:
     void draw();
@@ -34,7 +33,7 @@ private:
     void show_nametable_window();
 
     Emulator* emulator_;
-    BUS* bus_;
+
 
     sf::Clock clock_;
     sf::Time lastUpdate_;
@@ -43,7 +42,6 @@ private:
     uint64_t fps_ = 0;
     std::unique_ptr<sf::RenderWindow> window_;
     std::unique_ptr<sf::RenderWindow> namWindow_;
-    sf::Font font_;
     byte_t pal_idx_ = 0;
     int debug_page_ = 0;
     sf::Int64 step_rate_ = 1000;

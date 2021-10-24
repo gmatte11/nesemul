@@ -1,18 +1,30 @@
+#include "clock.h"
 #include "emulator.h"
+#include "sfml_renderer.h"
+#include "ui/global.h"
 
 #include <iostream>
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2)
-        return 1;
-
     try
     {
-        Emulator emul;
-        emul.read_rom(argv[1]);
+        ui::initialize();
 
-        return emul.run();
+        Emulator emul;
+        SFMLRenderer renderer(&emul);
+
+        Timer timer(sixtieth_us);
+
+        for (;;)
+        {
+            if (timer.expired())
+            {
+                emul.update();
+                if (!renderer.update())
+                    break;
+            }
+        }
     }
     catch (const std::exception& e)
     {

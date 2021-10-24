@@ -1,7 +1,8 @@
 #include "sfml_renderer.h"
 
 #include "emulator.h"
-#include "SFML/Graphics.hpp"
+
+#include "ui/global.h"
 
 #include <fmt/format.h>
 
@@ -15,10 +16,9 @@ static std::array<Map, 8> g_mapping = {
 
 SFMLRenderer::SFMLRenderer(Emulator* emulator)
     : emulator_(emulator)
-    , bus_(emulator->get_bus())
 {
     window_.reset(new sf::RenderWindow(sf::VideoMode(1028, 720), "NESEMUL"));
-    font_.loadFromFile("data/Emulogic-zrEw.ttf");
+
 }
 
 SFMLRenderer::~SFMLRenderer()
@@ -59,7 +59,7 @@ bool SFMLRenderer::update()
             {
                 if (ev.key.code == m.sfmlKey)
                 {
-                    bus_->ctrl_.press(m.button);
+                    emulator_->press_button(m.button);
                     break;
                 }
             }
@@ -71,7 +71,7 @@ bool SFMLRenderer::update()
             {
                 if (ev.key.code == m.sfmlKey)
                 {
-                    bus_->ctrl_.release(m.button);
+                    emulator_->release_button(m.button);
                     break;
                 }
             }
@@ -87,7 +87,7 @@ bool SFMLRenderer::update()
     sf::Time t = clock_.getElapsedTime();
     if ((t - lastFPS_).asSeconds() >= 1)
     {
-        PPU const& ppu = bus_->ppu_;
+        PPU const& ppu = *emulator_->get_ppu();
         fps_ = ppu.frame() - lastFrameCount_;
         lastFrameCount_ = ppu.frame();
         lastFPS_ = t;
@@ -108,22 +108,12 @@ bool SFMLRenderer::update()
     return window_->isOpen();
 }
 
-bool SFMLRenderer::timeout()
-{
-    static constexpr sf::Int64 rate = 16'667;
-
-    sf::Time t = clock_.getElapsedTime();
-    bool tick = (t - lastUpdate_) >= sf::microseconds(rate * 1000 / step_rate_);
-    if (tick) lastUpdate_ = t;
-    return tick;
-}
-
 void SFMLRenderer::draw()
 {
     window_->clear(sf::Color(0x1e5dceff));
 
-    PPU const& ppu = bus_->ppu_;
-    CPU const& cpu = bus_->cpu_;
+    PPU const& ppu = *emulator_->get_ppu();
+    CPU const& cpu = *emulator_->get_cpu();
 
     draw_game(ppu);
 
@@ -143,7 +133,7 @@ void SFMLRenderer::draw()
         }
 
         static sf::String empty;
-        sf::Text text(empty, font_, 12);
+        sf::Text text(empty, ui::get_font(), 12);
         text.setPosition({520.f, 0.f});
         text.setFillColor(sf::Color::White);
 
@@ -297,7 +287,7 @@ void SFMLRenderer::draw_oam(PPU const& ppu)
         window_->draw(tile);
     }
 
-    sf::Text oam(fmt::to_string(buffer), font_, 10);
+    sf::Text oam(fmt::to_string(buffer), ui::get_font(), 10);
     oam.setPosition({540.f, 20.f});
     oam.setFillColor(sf::Color::White);
     window_->draw(oam);
@@ -305,6 +295,8 @@ void SFMLRenderer::draw_oam(PPU const& ppu)
 
 void SFMLRenderer::draw_asm(CPU const& cpu)
 {
+    BUS* bus = emulator_->get_bus();
+
     fmt::memory_buffer buf;
 
     CPU_State const& cpu_state = cpu.get_state();
@@ -331,8 +323,30 @@ void SFMLRenderer::draw_asm(CPU const& cpu)
         emulator_->disassembler_.render(buf, cpu_state.program_counter_, offset);
     }
 
-    sf::Text text(buf.data(), font_, 10);
-    text.setPosition({520.f, 20.f});
+    // Some tests write status value to $6000
+    fmt::format_to(buf, "\n\n$6000: {:02x}", bus->read_cpu(0x6000));
+    fmt::format_to(buf, "\n$6001: {:02x}", bus->read_cpu(0x6001));
+    fmt::format_to(buf, "\n$6002: {:02x}", bus->read_cpu(0x6002));
+    fmt::format_to(buf, "\n$6003: {:02x}", bus->read_cpu(0x6003));
+
+    fmt::format_to(buf, "\n\n$6004: ");
+
+    {
+        address_t it = 0x6004;
+        byte_t c;
+        for (;;)
+        {
+            c = bus->read_cpu(it);
+            if (c == 0)
+                break;
+
+            ++it;
+            buf.push_back((char)c);
+        }
+    }
+
+    sf::Text text(buf.data(), ui::get_font(), 10);
+    text.setPosition({520.f, 51.f});
     text.setFillColor(sf::Color::White);
     window_->draw(text);
 }
