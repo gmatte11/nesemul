@@ -28,7 +28,6 @@ private:
     void draw_pal(PPU const& ppu);
     void draw_oam(PPU const& ppu);
     void draw_asm(CPU const& cpu);
-    void draw_nam(PPU const& ppu, sf::Texture* tex);
 
     void show_nametable_window();
 

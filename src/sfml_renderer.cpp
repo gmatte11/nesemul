@@ -4,6 +4,7 @@
 #include "platform/openfile_dialog.h"
 
 #include "ui/global.h"
+#include "ui/game_viewport.h"
 
 #include <fmt/format.h>
 
@@ -173,36 +174,24 @@ void SFMLRenderer::draw()
 
     if (namWindow_ && namWindow_->isOpen())
     {
-        static sf::Texture tex;
-        if (tex.getSize().x == 0)
-        {
-            tex.create(512, 480);
-        }
-
-        draw_nam(ppu, &tex);
-
-        sf::RectangleShape shape({512.f, 480.f});
-        shape.setTexture(&tex, true);
-        namWindow_->draw(shape);
+        static NametableViewport viewport;
+        viewport.update(ppu);
+        namWindow_->draw(viewport);
     }
+
+    menubar_.render(*window_);
 }
 
 void SFMLRenderer::draw_game(PPU const& ppu)
 {
-    static sf::Texture tex;
-    if (tex.getSize().x == 0)
-    {
-        tex.create(256, 240);
-    }
-    
-    tex.update(ppu.output().data());
+    static GameViewport viewport;
+    viewport.update(ppu);
 
     sf::Vector2f viewSize = (debug_page_ == 0) ? sf::Vector2f{768.f, 720.f} : sf::Vector2f{512.f, 480.f};
+    viewport.setSize(viewSize);
 
-    sf::RectangleShape view(viewSize);
-    view.setPosition(0.f, 0.f);
-    view.setTexture(&tex);
-    window_->draw(view);
+    viewport.setPosition({0.f, 31.f});
+    window_->draw(viewport);
 }
 
 void SFMLRenderer::draw_pat(PPU const& ppu)
@@ -377,22 +366,6 @@ void SFMLRenderer::draw_asm(CPU const& cpu)
     text.setPosition({520.f, 51.f});
     text.setFillColor(sf::Color::White);
     window_->draw(text);
-}
-
-void SFMLRenderer::draw_nam(PPU const& ppu, sf::Texture* tex)
-{
-    if (tex->getSize().x < 512 || tex->getSize().y < 480)
-        return;
-
-    Image<256, 240> image;
-    for (int i = 0; i < 4; ++i)
-    {
-        ppu.nametable_img(image, i);
-
-        int x = (i % 2 == 0) ? 0 : 256;
-        int y = (i / 2 == 0) ? 0 : 240;
-        tex->update(image.data(), 256, 240, x, y);
-    }
 }
 
 void SFMLRenderer::show_nametable_window()
