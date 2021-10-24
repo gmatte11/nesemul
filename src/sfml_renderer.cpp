@@ -178,8 +178,6 @@ void SFMLRenderer::draw()
         viewport.update(ppu);
         namWindow_->draw(viewport);
     }
-
-    menubar_.render(*window_);
 }
 
 void SFMLRenderer::draw_game(PPU const& ppu)
