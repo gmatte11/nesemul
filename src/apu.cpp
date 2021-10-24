@@ -7,6 +7,7 @@ void APU::reset()
 {
     cycle_ = 0;
     odd_cycle_ = false;
+    cycle_reset_delay_ = 0;
 }
 
 void APU::step()
@@ -53,6 +54,9 @@ void APU::step()
 
         ++cycle_;
     }
+
+    if (cycle_reset_delay_ > 0 && --cycle_reset_delay_ == 0)
+        cycle_ = 0;
 
     odd_cycle_ = !odd_cycle_;
 }
@@ -109,6 +113,9 @@ bool APU::on_write(address_t addr, byte_t value)
         sequencer_mode_ = value & 0x80 ? 1 : 0;
         if (value & 0x40)
             frame_irq_ = 0;
+
+        cycle_reset_delay_ = 3 + (odd_cycle_) ? 1 : 0;
+
         return true;
     }
 

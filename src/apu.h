@@ -84,6 +84,7 @@ private:
 
     byte_t sequencer_mode_;
     byte_t frame_irq_;
+    byte_t cycle_reset_delay_;
 
     uint32_t cycle_ = 0;
     bool odd_cycle_ = false;
