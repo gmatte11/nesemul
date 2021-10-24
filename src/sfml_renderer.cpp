@@ -1,10 +1,13 @@
 #include "sfml_renderer.h"
 
 #include "emulator.h"
+#include "platform/openfile_dialog.h"
 
 #include "ui/global.h"
 
 #include <fmt/format.h>
+
+#include <iostream>
 
 struct Map { sf::Keyboard::Key sfmlKey; Controller::Button button; };
 static std::array<Map, 8> g_mapping = {
@@ -13,6 +16,24 @@ static std::array<Map, 8> g_mapping = {
     {sf::Keyboard::Up, Controller::Up}, {sf::Keyboard::Down, Controller::Down},
     {sf::Keyboard::Left, Controller::Left}, {sf::Keyboard::Right, Controller::Right}
 };
+
+static void open_rom(Emulator& emulator)
+{
+    std::string filepath;
+    if (openfile_dialog(filepath))
+    {
+        try
+        {
+            emulator.read_rom(filepath);
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << e.what() << '\n';
+        }
+
+        emulator.reset();
+    }
+}
 
 SFMLRenderer::SFMLRenderer(Emulator* emulator)
     : emulator_(emulator)
@@ -37,7 +58,14 @@ bool SFMLRenderer::update()
             switch (ev.key.code)
             {
             case sf::Keyboard::P: emulator_->toggle_pause(); break;
-            case sf::Keyboard::O: emulator_->step_once(); break;
+
+            case sf::Keyboard::O: 
+            {   
+                if (!ev.key.shift) emulator_->step_once(); 
+                if (ev.key.shift) open_rom(*emulator_);
+            }
+            break;
+
             case sf::Keyboard::I: emulator_->step_frame(); break;
 
             case sf::Keyboard::Hyphen: step_rate_ = std::max(step_rate_ - 100, 100ll); break;
