@@ -109,17 +109,19 @@ public:
 
     PPU() = default;
 
-    void init(BUS* bus, Cartridge* cart)
+    void init(BUS* bus)
     {
         bus_ = bus;
-        cart_ = cart;
     }
 
     void step();
     void reset();
 
-    bool on_write(address_t addr, byte_t value);
-    bool on_read(address_t addr, byte_t& value);
+    bool on_write_cpu(address_t addr, byte_t value);
+    bool on_read_cpu(address_t addr, byte_t& value);
+
+    bool on_write_ppu(address_t addr, byte_t value);
+    bool on_read_ppu(address_t addr, byte_t& value);
 
     bool grab_dma_request()
     {
@@ -223,7 +225,6 @@ private:
 
     // Connected devices
     BUS* bus_ = nullptr;
-    Cartridge* cart_ = nullptr;
 
     // registers
     struct : public register_t<byte_t>

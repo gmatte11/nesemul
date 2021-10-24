@@ -62,7 +62,7 @@ void PPU::reset()
     oam_.fill(0xFF);
 }
 
-bool PPU::on_write(address_t addr, byte_t value)
+bool PPU::on_write_cpu(address_t addr, byte_t value)
 {
     // Mirroring
     if (addr >= 0x2008 && addr < 0x4000)
@@ -152,7 +152,7 @@ bool PPU::on_write(address_t addr, byte_t value)
     return false;
 }
 
-bool PPU::on_read(address_t addr, byte_t& value)
+bool PPU::on_read_cpu(address_t addr, byte_t& value)
 {
     // Mirroring
     if (addr >= 0x2008 && addr < 0x4000)
@@ -186,12 +186,34 @@ bool PPU::on_read(address_t addr, byte_t& value)
     return false;
 }
 
+bool PPU::on_write_ppu(address_t addr, byte_t value)
+{
+    if (addr <= 0x4000)
+    {
+        memory_[mirror_addr_(addr)] = value;
+        return true;
+    }
+
+    return false;
+}
+
+bool PPU::on_read_ppu(address_t addr, byte_t& value)
+{
+     if (addr <= 0x4000)
+    {
+        value = memory_[mirror_addr_(addr)];
+        return true;
+    }
+
+    return false;
+}
+
 void PPU::dma_copy_byte(byte_t rw_cycle)
 {
     ASSERT(rw_cycle >= 0 && rw_cycle < 256);
     address_t page_addr = dma_page_idx_ << 8;
 
-    byte_t data = bus_->read(page_addr | rw_cycle);
+    byte_t data = bus_->read_cpu(page_addr | rw_cycle);
     oam_[rw_cycle] = data;
 }
 
@@ -616,19 +638,12 @@ void PPU::load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x
 
 byte_t PPU::load_(address_t addr) const
 {
-    byte_t value = 0;
-    if (cart_->on_ppu_read(addr, value))
-        return value;
-
-    return memory_[mirror_addr_(addr)];
+    return bus_->read_ppu(addr);
 }
 
 void PPU::store_(address_t addr, byte_t value)
 {
-    if (cart_->on_ppu_write(addr, value))
-        return;
-        
-    memory_[mirror_addr_(addr)] = value;
+    bus_->write_ppu(addr, value);
 }
 
 address_t PPU::mirror_addr_(address_t addr) const

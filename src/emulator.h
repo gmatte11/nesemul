@@ -9,6 +9,7 @@
 #include "ppu.h"
 #include "ram.h"
 #include "cartridge.h"
+#include "controller.h"
 #include "disassembler.h"
 
 class Emulator
@@ -28,10 +29,10 @@ public:
     void read_rom(const std::string& filename);
 
     void reset();
-
-    int run();
+    void update();
 
     bool is_paused() { return mode_ != Mode::RUN; }
+    bool is_ready() { return cart_ != nullptr; }
 
     void step_once() { mode_ = Mode::STEP_ONCE; }
     void step_frame() { mode_ = Mode::STEP_FRAME; }
@@ -39,9 +40,14 @@ public:
 
     Disassembler disassembler_;
     BUS* get_bus() const { return bus_.get(); }
+    CPU* get_cpu() const { return cpu_.get(); }
+    PPU* get_ppu() const { return ppu_.get(); }
 
     void set_mode(Mode mode) { mode_ = mode; }
     Mode get_mode() const { return mode_; }
+
+    void press_button(Controller::Button b);
+    void release_button(Controller::Button b);
 
 private:
     std::unique_ptr<BUS> bus_;

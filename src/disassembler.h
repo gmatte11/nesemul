@@ -31,6 +31,6 @@ private:
     };
 
     std::vector<PrgBank> banks_;
-    Cartridge* cart_;
+    Cartridge* cart_ = nullptr;
 };
 

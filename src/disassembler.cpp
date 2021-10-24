@@ -44,6 +44,9 @@ void Disassembler::load_bank(byte_t* rom, size_t size)
 
 void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) const
 {
+    if (cart_ == nullptr)
+        return;
+
     auto [rom, rom_addr] = cart_->get_bank(addr);
 
     auto it = std::find_if(banks_.begin(), banks_.end(), [rom = rom](PrgBank const& bank) { return bank.rom_ == rom; });

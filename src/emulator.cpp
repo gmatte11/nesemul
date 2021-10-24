@@ -1,7 +1,7 @@
 #include "emulator.h"
 
 #include "types.h"
-#include "sfml_renderer.h"
+#include "clock.h"
 
 #include <fmt/core.h>
 
@@ -21,10 +21,15 @@ Emulator::Emulator()
     , ppu_(new PPU)
     , ram_(new RAM)
 {
+    bus_.reset(new BUS(*cpu_, *apu_, *ppu_, *ram_));
+    cpu_->init(bus_.get());
+    ppu_->init(bus_.get());
 }
 
 void Emulator::read_rom(const std::string& filename)
 {
+    cart_.reset();
+
     bifstream ifs(filename, std::ios_base::binary);
 
     if (ifs)
@@ -89,12 +94,9 @@ void Emulator::read_rom(const std::string& filename)
             ifs.ignore(512);
 
         cart_->load_roms(ifs, num_16kb_prg_rom_banks, num_8kb_chr_rom_banks, num_8kb_prg_ram_banks);
+        bus_->load_cartridge(cart_.get());
 
         disassembler_.load(cart_.get());
-
-        bus_.reset(new BUS(*cpu_, *apu_, *ppu_, *ram_, *cart_));
-        cpu_->init(bus_.get());
-        ppu_->init(bus_.get(), cart_.get());
     }
     else
     {
@@ -111,75 +113,71 @@ void Emulator::reset()
     dma_cycle_counter = 0;
 }
 
-int Emulator::run()
+void Emulator::update()
 {
-    SFMLRenderer renderer(this);
+    if (!is_ready())
+        return;
 
-    cpu_->reset();
-    apu_->reset();
-    ppu_->reset();
-
-    for (;;)
+    if (mode_ != Mode::PAUSED)
     {
-        if (renderer.timeout())
+        // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
+        while (!ppu_->grab_frame_done())
         {
-            if (mode_ != Mode::PAUSED)
+            try
             {
-                // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
-                while (!ppu_->grab_frame_done())
+                if (ppu_->grab_dma_request())
+                    dma_cycle_counter = 513 + (cpu_->get_state().cycle_ & 0x1);
+
+                ppu_->step();
+
                 {
-                    try
+                    if ((cycle_ % 3) == 0)
+                        apu_->step();
+
+                    if (dma_cycle_counter == 0)
                     {
-                        if (ppu_->grab_dma_request())
-                            dma_cycle_counter = 513 + (cpu_->get_state().cycle_ & 0x1);
-
-                        ppu_->step();
-
-                        {
-                        if ((cycle_ % 3) == 0)
-                            apu_->step();
-
-                            if (dma_cycle_counter == 0)
-                            {
-                                cpu_->step();
-                            }
-                            else
-                            {
-                                if ((dma_cycle_counter & 0x1) == 0 && dma_cycle_counter <= 512)
-                                    ppu_->dma_copy_byte(256 - (dma_cycle_counter / 2));
-                                --dma_cycle_counter;
-                            }
-                        }
+                        cpu_->step();
                     }
-                    catch (std::exception e)
+                    else
                     {
-                        fmt::print("Exception: {}\n", e.what());
-                        BREAKPOINT;
-                        mode_ = Mode::PAUSED;
-                        break;
-                    }
-                    catch (...)
-                    {
-                        BREAKPOINT;
-                        mode_ = Mode::PAUSED;
-                        break;
-                    }
-
-                    if (mode_ == Mode::STEP_ONCE && cpu_->get_state().idle_ticks_ == 0)
-                    {
-                        ++cycle_;
-                        break;
+                        if ((dma_cycle_counter & 0x1) == 0 && dma_cycle_counter <= 512)
+                            ppu_->dma_copy_byte(256 - (dma_cycle_counter / 2));
+                        --dma_cycle_counter;
                     }
                 }
-
-                if (mode_ != Mode::RUN)
-                    mode_ = Mode::PAUSED;
+            }
+            catch (std::exception e)
+            {
+                fmt::print("Exception: {}\n", e.what());
+                BREAKPOINT;
+                mode_ = Mode::PAUSED;
+                break;
+            }
+            catch (...)
+            {
+                BREAKPOINT;
+                mode_ = Mode::PAUSED;
+                break;
             }
 
-            if (!renderer.update())
+            if (mode_ == Mode::STEP_ONCE && cpu_->get_state().idle_ticks_ == 0)
+            {
+                ++cycle_;
                 break;
+            }
         }
-    }
 
-    return 0;
+        if (mode_ != Mode::RUN)
+            mode_ = Mode::PAUSED;
+    }
+}
+
+void Emulator::press_button(Controller::Button button)
+{
+    bus_->ctrl_.press(button);
+}
+
+void Emulator::release_button(Controller::Button button)
+{
+    bus_->ctrl_.release(button);
 }

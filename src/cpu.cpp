@@ -39,9 +39,9 @@ void CPU::step()
 
     if (idle_ticks_ == 0)
     {
-        instr_.opcode = bus_->read(program_counter_ + 0);
-        instr_.op1 = bus_->read(program_counter_ + 1);
-        instr_.op2 = bus_->read(program_counter_ + 2);
+        instr_.opcode = bus_->read_cpu(program_counter_ + 0);
+        instr_.op1 = bus_->read_cpu(program_counter_ + 1);
+        instr_.op2 = bus_->read_cpu(program_counter_ + 2);
 
 #if 0
         log_(data.opcode, addr);
@@ -132,7 +132,7 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
 
 void CPU::reset()
 {
-    old_pc_ = program_counter_;
+    old_pc_ = 0x0000;
     program_counter_ = load_addr_(0xFFFC);
     //program_counter_ = 0x8000; //for CPU tests with nestest.nes
 
@@ -344,25 +344,25 @@ void CPU::exec_(byte_t opcode, address_t addr)
 
 inline void CPU::store_(address_t addr, byte_t operand)
 {
-    bus_->write(addr, operand);
+    bus_->write_cpu(addr, operand);
 }
 
 inline void CPU::store_(address_t addr, address_t addr_value)
 {
-    bus_->write(addr + 1, static_cast<byte_t>(addr_value >> 8));
-    bus_->write(addr, static_cast<byte_t>(0xFF & addr_value));
+    bus_->write_cpu(addr + 1, static_cast<byte_t>(addr_value >> 8));
+    bus_->write_cpu(addr, static_cast<byte_t>(0xFF & addr_value));
 }
 
 inline byte_t CPU::load_(address_t addr)
 {
-    return bus_->read(addr);
+    return bus_->read_cpu(addr);
 }
 
 inline address_t CPU::load_addr_(address_t addr)
 {
     address_t value;
-    value = static_cast<address_t>(bus_->read(addr + 1)) << 8;
-    value |= 0xFF & static_cast<address_t>(bus_->read(addr));
+    value = static_cast<address_t>(bus_->read_cpu(addr + 1)) << 8;
+    value |= 0xFF & static_cast<address_t>(bus_->read_cpu(addr));
     return value;
 }
 
@@ -431,7 +431,7 @@ inline address_t CPU::indexed_abs_addr(address_t addr, byte_t index)
 inline address_t CPU::indirect_addr(address_t addr)
 {
     address_t addr_h = (0xFF00 & addr) | (0xFF & addr + 1);
-    return static_cast<address_t>(bus_->read(addr_h)) << 8 | bus_->read(addr);
+    return static_cast<address_t>(bus_->read_cpu(addr_h)) << 8 | bus_->read_cpu(addr);
 }
 
 // $00
@@ -442,7 +442,7 @@ inline address_t CPU::page_zero_addr(address_t addr)
 
 inline address_t CPU::indirect_pz_addr(byte_t addr)
 {
-    return static_cast<address_t>(bus_->read(static_cast<byte_t>(addr + 1))) << 8 | bus_->read(addr);
+    return static_cast<address_t>(bus_->read_cpu(static_cast<byte_t>(addr + 1))) << 8 | bus_->read_cpu(addr);
 }
 
 // $(00)
