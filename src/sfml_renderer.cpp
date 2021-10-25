@@ -124,13 +124,18 @@ bool SFMLRenderer::update()
 
     if (window_->isOpen())
     {
-        window_->setTitle(sf::String("NESEMUL (FPS: ") += sf::String(std::to_string(fps_)) += ")");
+        sf::String title = fmt::format("NESEMUL (FPS: {})", fps_);
+        window_->setTitle(title);
         draw();
         window_->display();
     }
 
     if (namWindow_ && namWindow_->isOpen())
     {
+        static NametableViewport viewport;
+        viewport.update(*emulator_->get_ppu());
+        namWindow_->draw(viewport);
+
         namWindow_->display();
     }
 
@@ -170,13 +175,6 @@ void SFMLRenderer::draw()
         text.setString(sfmt);
 
         window_->draw(text);
-    }
-
-    if (namWindow_ && namWindow_->isOpen())
-    {
-        static NametableViewport viewport;
-        viewport.update(ppu);
-        namWindow_->draw(viewport);
     }
 }
 

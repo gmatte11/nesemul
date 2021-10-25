@@ -6,6 +6,7 @@ GameViewport::GameViewport()
 {
     texture_.create(256, 240);
     setTexture(&texture_, true);
+    setSize({256.f, 240.f});
 }
 
 void GameViewport::update(PPU const& ppu)
@@ -17,6 +18,7 @@ NametableViewport::NametableViewport()
 {
     texture_.create(512, 480);
     setTexture(&texture_, true);
+    setSize({512.f, 480.f});
 }
 
 void NametableViewport::update(PPU const& ppu)

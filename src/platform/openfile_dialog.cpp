@@ -8,10 +8,10 @@
 bool openfile_dialog(std::string& filepath)
 {
 #if IS_WINDOWS
-    TCHAR path[MAX_PATH];
+    TCHAR path[MAX_PATH] = {};
 
     OPENFILENAME dialog = {};
-    dialog.lStructSize = sizeof(dialog);
+    dialog.lStructSize = sizeof(OPENFILENAME);
     dialog.lpstrFile = path;
     dialog.nMaxFile = sizeof(path);
     dialog.lpstrInitialDir = ".\\data";
