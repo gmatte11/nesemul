@@ -156,7 +156,7 @@ void CPU::interrupt(bool nmi /*= false*/)
 void CPU::log_(byte_t opcode, address_t addr)
 {
     auto& opdata = opcode_data(opcode);
-    auto& it = log_ring_[log_idx_].begin();
+    auto it = log_ring_[log_idx_].begin();
     
     it = fmt::format_to(it, "{:04x}    {:02x}", program_counter_, opcode);
 

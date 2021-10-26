@@ -25,6 +25,7 @@ public:
 
 public:
     Emulator();
+    ~Emulator();
 
     void read_rom(const std::string& filename);
 
@@ -49,7 +50,11 @@ public:
     void press_button(Controller::Button b);
     void release_button(Controller::Button b);
 
+    static Emulator* instance() { return instance_; }
+
 private:
+    inline static Emulator* instance_ = nullptr;
+
     std::unique_ptr<BUS> bus_;
     std::unique_ptr<CPU> cpu_;
     std::unique_ptr<APU> apu_;

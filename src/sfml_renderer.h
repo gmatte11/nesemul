@@ -3,6 +3,8 @@
 #include "types.h"
 #include <SFML/Graphics.hpp>
 
+#include "ui/debug_pages.h"
+
 namespace sf
 {
     class RenderWindow;
@@ -22,17 +24,18 @@ public:
     bool update();
 
 private:
+    void poll_events_();
+
     void draw();
     void draw_game(PPU const& ppu);
-    void draw_pat(PPU const& ppu);
-    void draw_pal(PPU const& ppu);
-    void draw_oam(PPU const& ppu);
-    void draw_asm(CPU const& cpu);
 
     void show_nametable_window();
 
     Emulator* emulator_;
 
+    PageDebugCPU debug_cpu_;
+    PageDebugPPU debug_ppu_;
+    PageDebugPAT debug_pat_;
 
     sf::Clock clock_;
     sf::Time lastUpdate_;

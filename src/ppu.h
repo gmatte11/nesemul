@@ -142,6 +142,16 @@ public:
         return memory_.data();
     }
 
+    byte_t* oam_data()
+    {
+        return oam_.data();
+    }
+
+    const byte_t* oam_data() const
+    {
+        return oam_.data();
+    }
+
     inline const Output& output() const
     {
         return output_;
@@ -294,5 +304,5 @@ private:
     byte_t dma_page_idx_ = 0;
     bool dma_requested_ = false;
 
-    friend class SFMLRenderer;
+    friend class PageDebugPPU;
 };

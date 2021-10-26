@@ -24,6 +24,14 @@ Emulator::Emulator()
     bus_.reset(new BUS(*cpu_, *apu_, *ppu_, *ram_));
     cpu_->init(bus_.get());
     ppu_->init(bus_.get());
+
+    ASSERT(instance_ == nullptr);
+    instance_ = this;
+}
+
+Emulator::~Emulator()
+{
+    memset(&instance_, 0xDEAD, sizeof(instance_));
 }
 
 void Emulator::read_rom(const std::string& filename)
