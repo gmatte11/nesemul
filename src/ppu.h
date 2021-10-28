@@ -123,13 +123,6 @@ public:
     bool on_write_ppu(address_t addr, byte_t value);
     bool on_read_ppu(address_t addr, byte_t& value);
 
-    bool grab_dma_request()
-    {
-        bool requested = dma_requested_;
-        dma_requested_ = false;
-        return requested;
-    }
-
     void dma_copy_byte(byte_t rw_cycle);
 
     byte_t* data()
@@ -161,12 +154,24 @@ public:
 
     inline uint64_t frame() const { return frame_; }
     
+    bool grab_dma_request()
+    {
+        bool requested = dma_requested_;
+        dma_requested_ = false;
+        return requested;
+    }
+
     bool grab_frame_done()
     {
         bool done = frame_done_;
         frame_done_ = false;
         return done;
     } 
+
+    bool grab_end_of_line()
+    {
+        return cycle_ == 320;
+    }
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 

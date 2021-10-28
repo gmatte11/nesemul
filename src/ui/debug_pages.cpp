@@ -85,7 +85,13 @@ void PageDebugCPU::update()
 
 void PageDebugCPU::on_event(sf::Event& ev)
 {
+    Emulator* emulator = Emulator::instance();
 
+    switch (ev.key.code)
+    {
+    case sf::Keyboard::O: if (!ev.key.shift) emulator->step_once(); break;
+    case sf::Keyboard::I: emulator->step_frame(); break;
+    }
 }
 
 PageDebugPPU::PageDebugPPU()
@@ -157,6 +163,13 @@ void PageDebugPPU::update()
 
 void PageDebugPPU::on_event(sf::Event& ev)
 {
+    Emulator* emulator = Emulator::instance();
+
+    switch (ev.key.code)
+    {
+    case sf::Keyboard::L: if (!ev.key.shift) emulator->step_line(); break;
+    case sf::Keyboard::I: emulator->step_frame(); break;
+    }
 }
 
 PageDebugPAT::PageDebugPAT()

@@ -173,6 +173,11 @@ void Emulator::update()
                 ++cycle_;
                 break;
             }
+
+            if (mode_ == Mode::STEP_LINE && ppu_->grab_end_of_line())
+            {
+                break;
+            }
         }
 
         if (mode_ != Mode::RUN)

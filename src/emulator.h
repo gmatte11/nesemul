@@ -20,7 +20,8 @@ public:
         RUN,
         PAUSED,
         STEP_ONCE,
-        STEP_FRAME
+        STEP_FRAME,
+        STEP_LINE
     };
 
 public:
@@ -37,6 +38,7 @@ public:
 
     void step_once() { mode_ = Mode::STEP_ONCE; }
     void step_frame() { mode_ = Mode::STEP_FRAME; }
+    void step_line() { mode_ = Mode::STEP_LINE; }
     void toggle_pause() { mode_ = (is_paused()) ? Mode::RUN : Mode::PAUSED; }
 
     Disassembler disassembler_;
