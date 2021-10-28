@@ -138,9 +138,9 @@ void Emulator::update()
 
                 ppu_->step();
 
+                if ((cycle_ % 3) == 0)
                 {
-                    if ((cycle_ % 3) == 0)
-                        apu_->step();
+                    apu_->step();
 
                     if (dma_cycle_counter == 0)
                     {
