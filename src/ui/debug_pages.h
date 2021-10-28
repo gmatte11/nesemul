@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 #include <SFML/Graphics.hpp>
 
 #include <array>
@@ -58,7 +60,7 @@ private:
     void pal_update_(PPU const& ppu);
     void pat_update_(PPU const& ppu);
 
-    int pal_idx_ = 0;
+    byte_t pal_idx_ = 0;
 
     sf::RectangleShape selector_;
     sf::Sprite pal_sprite_;

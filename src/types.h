@@ -12,6 +12,16 @@
 typedef uint8_t byte_t;
 typedef uint16_t address_t;
 
+inline constexpr byte_t operator "" _byte(unsigned long long v)
+{
+    return static_cast<byte_t>(v);
+}
+
+inline constexpr address_t operator "" _addr(unsigned long long v)
+{
+    return static_cast<address_t>(v);
+}
+
 template <typename T>
 struct register_t
 {

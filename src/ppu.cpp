@@ -219,9 +219,9 @@ void PPU::dma_copy_byte(byte_t rw_cycle)
 
 void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& palette) const
 {
-    for (int y = 0; y < 128; ++y)
+    for (uint8_t y = 0; y < 128; ++y)
     {
-        for (int x = 0; x < 128; ++x)
+        for (uint8_t x = 0; x < 128; ++x)
         {
             byte_t tx = x / 8;
             byte_t ty = y / 8;
@@ -238,9 +238,9 @@ void PPU::tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const
 {
     Tile tile = get_pattern_tile(ntbyte, half);
 
-    for (int y = 0; y < 8; ++y)
+    for (uint8_t y = 0; y < 8; ++y)
     {
-        for (int x = 0; x < 8; ++x)
+        for (uint8_t x = 0; x < 8; ++x)
         {
             byte_t pixel = get_pixel(tile, x, y);
             image.set(x, y, palette.get(pixel));
@@ -268,7 +268,7 @@ void PPU::nametable_img(Output& image, byte_t nam_idx) const
     {
         for (int ntcol = 0; ntcol < (256 / 8); ++ntcol)
         {
-            tile.ntbyte_ = load_(ntaddr | ntrow * 32 + ntcol);
+            tile.ntbyte_ = load_(ntaddr | static_cast<address_t>(ntrow * 32 + ntcol));
             tile.atbyte_ = get_attribute_(ntaddr, ntrow / 2, ntcol / 2);
             tile.half_ = ppuctrl_.bg_pat_;
 
@@ -279,9 +279,9 @@ void PPU::nametable_img(Output& image, byte_t nam_idx) const
                 g_palette[load_(paladdr + 1)],
                 g_palette[load_(paladdr + 2)]);
 
-            for (int trow = 0; trow < 8; ++trow)
+            for (uint8_t trow = 0; trow < 8; ++trow)
             {
-                for (int tcol = 0; tcol < 8; ++tcol)
+                for (uint8_t tcol = 0; tcol < 8; ++tcol)
                 {
                     int col = (ntcol * 8) + tcol;
                     int row = (ntrow * 8) + trow;
@@ -505,7 +505,7 @@ void PPU::fg_eval_()
                         sprite.oam_idx_ = i;
 
                         Tile tile = get_pattern_tile(entry.tile, ppuctrl_.fg_pat_);
-                        load_sprite_(sprite.sprite_, tile, entry.att, entry.x + 1, y - entry.y - 1);
+                        load_sprite_(sprite.sprite_, tile, entry.att, entry.x + 1, static_cast<uint8_t>(y) - entry.y - 1);
 
                         ++sprites.count_;
                     }
@@ -629,10 +629,10 @@ void PPU::load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x
 
     for (byte_t tx = 0; tx < 8; ++tx)
     {
-        byte_t x = tx;
-        if (0b01 & flip) x = 7 - tx; //hori flip
-        sprite.lpat_ |= ((lpat >> x) & 0x1) << tx;
-        sprite.hpat_ |= ((hpat >> x) & 0x1) << tx;
+        byte_t local_x = tx;
+        if (0b01 & flip) local_x = 7 - tx; //hori flip
+        sprite.lpat_ |= ((lpat >> local_x) & 0x1) << tx;
+        sprite.hpat_ |= ((hpat >> local_x) & 0x1) << tx;
     }
 }
 

@@ -149,7 +149,7 @@ void Emulator::update()
                     else
                     {
                         if ((dma_cycle_counter & 0x1) == 0 && dma_cycle_counter <= 512)
-                            ppu_->dma_copy_byte(256 - (dma_cycle_counter / 2));
+                            ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter / 2));
                         --dma_cycle_counter;
                     }
                 }

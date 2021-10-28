@@ -42,8 +42,8 @@ std::pair<byte_t*, address_t> M000::get_bank(address_t addr) const
 {
     if (addr >= 0x8000)
     {
-        return  std::make_pair((addr < 0xC000) ? prg_l_ : prg_h_, addr & 0x3FFF);
+        return  std::pair((addr < 0xC000) ? prg_l_ : prg_h_, static_cast<address_t>(addr & 0x3FFF));
     }
 
-    return std::make_pair(nullptr, 0u);
+    return std::pair(nullptr, 0_addr);
 }

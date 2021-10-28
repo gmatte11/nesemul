@@ -24,7 +24,7 @@ NametableViewport::NametableViewport()
 void NametableViewport::update(PPU const& ppu)
 {
     Image<256, 240> image;
-    for (int i = 0; i < 4; ++i)
+    for (byte_t i = 0; i < 4; ++i)
     {
         ppu.nametable_img(image, i);
 

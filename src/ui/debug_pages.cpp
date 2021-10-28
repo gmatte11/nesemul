@@ -198,7 +198,7 @@ void PageDebugPAT::pal_update_(PPU const& ppu)
     buffer.create(tex.getSize().x, tex.getSize().y, sf::Color::Transparent);
     tex.update(buffer, 0, 0);
 
-    for (int i = 0; i < 8; ++i)
+    for (byte_t i = 0; i < 8; ++i)
     {
         Palette p = ppu.get_palette(i);
 
