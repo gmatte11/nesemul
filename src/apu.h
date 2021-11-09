@@ -24,9 +24,9 @@ struct PulseChannel
         byte_t enabled : 1; // (bit 11)
     } timer;
 
-    bool len_enabled_ : 1;
-    bool len_halted_ : 1;
-    byte_t len_counter_;
+    bool len_enabled_ : 1 {};
+    bool len_halted_ : 1 {};
+    byte_t len_counter_ {};
 
     void on_clock(bool half_frame);
     void on_write(address_t addr, byte_t value);
@@ -38,6 +38,7 @@ struct TriangleChannel
     bool len_enabled_ : 1;
     bool len_halted_ : 1;
     byte_t len_counter_;
+    uint16_t timer_ = 0;
 
     void on_clock(bool half_frame);
     void on_write(address_t addr, byte_t value);
@@ -57,7 +58,14 @@ struct NoiseChannel
 
 struct DMChannel
 {
-    bool enabled_ : 1;
+    address_t sample_addr_;
+    uint16_t sample_len_;
+    uint8_t output_level_;
+
+    uint8_t rate_idx_ = 0;
+    bool enabled_ : 1 {};
+    bool irq_enabled_ : 1 {};
+    bool loop_ : 1 {};
 
     void on_clock(bool half_frame);
     void on_write(address_t addr, byte_t value);
@@ -82,10 +90,11 @@ private:
     NoiseChannel noise_;
     DMChannel dmc_;
 
-    byte_t sequencer_mode_;
-    byte_t frame_irq_;
-    byte_t cycle_reset_delay_;
-
     uint32_t cycle_ = 0;
     bool odd_cycle_ = false;
+    bool five_steps_sequence_ = false;
+    bool irq_inhibit_ = false;
+    bool frame_irq_ = false;
+
+    uint8_t sequencer_change_delay_;
 };

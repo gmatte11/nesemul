@@ -8,6 +8,7 @@
 
 #include <iterator>
 #include <algorithm>
+#include <fstream>
 
 void PageBase::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
@@ -31,6 +32,7 @@ void PageDebugCPU::update()
 
     BUS* bus = emulator->get_bus();
     CPU const& cpu = *emulator->get_cpu();
+    PPU const& ppu = *emulator->get_ppu();
 
     fmt::memory_buffer buf;
 
@@ -51,6 +53,9 @@ void PageDebugCPU::update()
             , cpu_state.register_y_
             , cpu_state.stack_pointer_);
     }
+
+    fmt::format_to(buf, "VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
+    fmt::format_to(buf, "Frame time: {}\n", emulator->cpu_cycle_per_frame);
 
     for (int offset = -5; offset <= 5; ++offset)
     {
@@ -87,10 +92,22 @@ void PageDebugCPU::on_event(sf::Event& ev)
 {
     Emulator* emulator = Emulator::instance();
 
+    auto flush_report = [=]
+    {
+        std::string s = emulator->get_cpu()->get_state().stats_.report();
+        
+        std::ofstream out("callstats_report.txt");
+        if (out.is_open())
+        {
+            out.write(s.data(), s.length());
+        }
+    };
+
     switch (ev.key.code)
     {
     case sf::Keyboard::O: if (!ev.key.shift) emulator->step_once(); break;
     case sf::Keyboard::I: emulator->step_frame(); break;
+    case sf::Keyboard::Q: if (ev.key.shift) flush_report();
     }
 }
 

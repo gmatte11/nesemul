@@ -1,62 +1,90 @@
 #include "apu.h"
+#include "emulator.h"
 
-constexpr byte_t length_table[] = { 10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
+constexpr byte_t length_table[] = { 11, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
                                     12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30 };
+
+constexpr uint16_t dmc_rate_table[] = { 428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 84, 72, 54 };
+
+enum : uint32_t
+{
+    SEQ_STEP_1 = 3728,
+    SEQ_STEP_2 = 7456,
+    SEQ_STEP_3 = 11185,
+    SEQ_STEP_4 = 14914,
+    SEQ_STEP_5 = 18640,
+};
 
 void APU::reset()
 {
     cycle_ = 0;
     odd_cycle_ = false;
-    cycle_reset_delay_ = 0;
+    five_steps_sequence_ = false;
+    irq_inhibit_ = false;
+    frame_irq_ = false;
+    sequencer_change_delay_ = 0;
+
+    pulse1_.on_ctrl(false);
+    pulse2_.on_ctrl(false);
+    triangle_.on_ctrl(false);
+    noise_.on_ctrl(false);
+    dmc_.on_ctrl(false);
 }
 
 void APU::step()
 {
+    bool quarter = false;
+    bool half = false;
+
+    if (!five_steps_sequence_ && cycle_ == SEQ_STEP_4)
+        frame_irq_ = !irq_inhibit_;
+
     if (odd_cycle_)
     {
-        if (sequencer_mode_ == 0 && cycle_ >= 14915)
-        {
-            frame_irq_ = 1;
+        if (!five_steps_sequence_ && cycle_ >= SEQ_STEP_4 + 1)
             cycle_ = 0;
-        }
-        else if (sequencer_mode_ == 1 && cycle_ >= 18641)
-        {
+        else if (five_steps_sequence_ && cycle_ >= SEQ_STEP_5 + 1)
             cycle_ = 0;
-        }
-
-        bool quarter = false;
-        bool half = false;
 
         switch (cycle_)
         {
-        case 7456: // 2
-        case 18640: // 5
+        case SEQ_STEP_2: 
+        case SEQ_STEP_5: 
             half = true;
-            // fall-through
-        case 3728: // 1
-        case 11185: // 3
+            break;
+
+        case SEQ_STEP_1: 
+        case SEQ_STEP_3: 
             quarter = true;
             break;
 
-        case 14914: // 4
-            quarter = half = (sequencer_mode_ == 0);
+        case SEQ_STEP_4:
+            if (!five_steps_sequence_)
+            {
+                half = true;
+                if (frame_irq_)
+                    Emulator::instance()->get_cpu()->interrupt(false);
+            }
             break;
         }
-
-        if (quarter || half)
-        {
-            pulse1_.on_clock(half);
-            pulse2_.on_clock(half);
-            triangle_.on_clock(half);
-            noise_.on_clock(half);
-            dmc_.on_clock(half);
-        }
-
+        
         ++cycle_;
     }
 
-    if (cycle_reset_delay_ > 0 && --cycle_reset_delay_ == 0)
+    if (sequencer_change_delay_ > 0 && --sequencer_change_delay_ == 0)
+    {
+        half |= five_steps_sequence_;
         cycle_ = 0;
+    }
+
+    if (quarter || half)
+    {
+        pulse1_.on_clock(half);
+        pulse2_.on_clock(half);
+        triangle_.on_clock(half);
+        noise_.on_clock(half);
+        dmc_.on_clock(half);
+    }
 
     odd_cycle_ = !odd_cycle_;
 }
@@ -109,14 +137,16 @@ bool APU::on_write(address_t addr, byte_t value)
 
     if (addr == 0x4017)
     {
-        // TODO: write should be delayed by 3 or 4 CPU cycle depending on odd_cycle_.
-        sequencer_mode_ = value & 0x80 ? 1 : 0;
-        if (value & 0x40)
-            frame_irq_ = 0;
+        // Write is delayed by 3 or 4 CPU cycle depending on odd_cycle_.
+        five_steps_sequence_ = value & 0xB0;
+        irq_inhibit_ = value & 0x40;
 
-        cycle_reset_delay_ = 3 + (odd_cycle_) ? 1 : 0;
+        if (irq_inhibit_)
+            frame_irq_ = false;
 
-        return true;
+        sequencer_change_delay_ = 3 + (odd_cycle_) ? 1 : 0;
+
+         return true;
     }
 
     return false;
@@ -133,8 +163,8 @@ bool APU::on_read(address_t addr, byte_t& value)
         status.noise = (noise_.len_counter_ > 0);
         status.dmc = dmc_.enabled_;
 
-        status.frame_int = frame_irq_ != 0;
-        frame_irq_ = 0;
+        status.frame_int = frame_irq_;
+        frame_irq_ = false;
 
         value = status.get();
 
@@ -184,6 +214,9 @@ void TriangleChannel::on_clock(bool half_frame)
         if (len_counter_ > 0 && !len_halted_)
             --len_counter_;
     }
+
+    if (timer_ > 0)
+        --timer_;
 }
 
 void TriangleChannel::on_write(address_t addr, byte_t value)
@@ -194,8 +227,10 @@ void TriangleChannel::on_write(address_t addr, byte_t value)
         len_halted_ = value & 0x80;
         break;
     case 1:
+        timer_ = (timer_ & 0xFF00) + value;
         break;
     case 2:
+        timer_ = (timer_ & 0x00FF) + (static_cast<uint16_t>(value & 0x07) << 8);
         break;
     case 3:
         if (len_enabled_)
@@ -254,12 +289,18 @@ void DMChannel::on_write(address_t addr, byte_t value)
     switch (addr - 0x4010)
     {
     case 0:
+        irq_enabled_ = value & 0x80;
+        loop_ = value & 0x40;
+        rate_idx_ = value & 0x0F;
         break;
     case 1:
+        output_level_ = value & 0x7F;
         break;
     case 2:
+        sample_addr_ = 0xC000 + static_cast<address_t>(value) * 64;
         break;
     case 3:
+        sample_len_ = (value << 4) + 1;
         break;
     }
 }

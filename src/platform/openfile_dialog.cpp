@@ -15,6 +15,7 @@ bool openfile_dialog(std::string& filepath)
     dialog.lpstrFile = path;
     dialog.nMaxFile = sizeof(path);
     dialog.lpstrInitialDir = ".\\data";
+    dialog.Flags = OFN_DONTADDTORECENT;
 
     if (GetOpenFileName(&dialog) == TRUE)
     {

@@ -118,7 +118,7 @@ void Emulator::reset()
     apu_->reset();
     ppu_->reset();
     cycle_ = 0;
-    dma_cycle_counter = 0;
+    dma_cycle_counter_ = 0;
 }
 
 void Emulator::update()
@@ -128,31 +128,43 @@ void Emulator::update()
 
     if (mode_ != Mode::PAUSED)
     {
+        
+        cpu_cycle_start_of_frame = get_cpu()->get_state().cycle_;
+
         // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
         while (!ppu_->grab_frame_done())
         {
             try
             {
-                if (ppu_->grab_dma_request())
-                    dma_cycle_counter = 513 + (cpu_->get_state().cycle_ & 0x1);
+                for (int i = 0; i < 3; ++i)
+                    ppu_->step();
 
-                ppu_->step();
-
-                if ((cycle_ % 3) == 0)
+                // Debugging vblank timing
+                uint64_t cycle = get_cpu()->get_state().cycle_;
+                if (ppu_->is_in_vblank() && cpu_cycle_at_vblank == 0)
+                    cpu_cycle_at_vblank = cycle;
+                else if (!ppu_->is_in_vblank() && cpu_cycle_at_vblank != 0)
                 {
-                    apu_->step();
-
-                    if (dma_cycle_counter == 0)
-                    {
-                        cpu_->step();
-                    }
-                    else
-                    {
-                        if ((dma_cycle_counter & 0x1) == 0 && dma_cycle_counter <= 512)
-                            ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter / 2));
-                        --dma_cycle_counter;
-                    }
+                    cpu_cycle_last_vblank = cycle - cpu_cycle_at_vblank;
+                    cpu_cycle_at_vblank = 0;
                 }
+
+                apu_->step();
+
+                if (dma_cycle_counter_ == 0)
+                {
+                    cpu_->step();
+                }
+                else
+                {
+                    --dma_cycle_counter_;
+                    if ((dma_cycle_counter_ & 0x1) == 0 && dma_cycle_counter_ <= 512)
+                        ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter_ / 2));
+                    cpu_->dma_clock();
+                }
+
+                if (ppu_->grab_dma_request())
+                    dma_cycle_counter_ = 513 + (cpu_->get_state().cycle_ & 0x1);
             }
             catch (std::exception e)
             {
@@ -168,16 +180,22 @@ void Emulator::update()
                 break;
             }
 
-            if (mode_ == Mode::STEP_ONCE && cpu_->get_state().idle_ticks_ == 0)
+            cycle_++;
+
+            if (mode_ == Mode::STEP_ONCE && cpu_->get_state().state_ == CPU_State::kFetching)
             {
-                ++cycle_;
                 break;
             }
 
-            if (mode_ == Mode::STEP_LINE && ppu_->grab_end_of_line())
+            if (mode_ == Mode::STEP_LINE && ppu_->is_at_end_of_line())
             {
                 break;
             }
+        }
+
+        {
+            uint64_t cpu_cycle = get_cpu()->get_state().cycle_;
+            cpu_cycle_per_frame = cpu_cycle - cpu_cycle_start_of_frame;
         }
 
         if (mode_ != Mode::RUN)

@@ -25,56 +25,124 @@ std::string _str(address_t addr)
     return fmt::format("{:04x}", addr);
 }
 
+std::string CallStats::report() const
+{
+    fmt::basic_memory_buffer<char, 4096> buf;
+
+    fmt::format_to(buf, "OPS MIN MAX COUNT\n");
+    fmt::format_to(buf, "{:-<{}}\n\n", "-", 25);
+
+    uint8_t ops = 0;
+    for (Entry const& entry :  data_)
+    {
+        if (entry.count_ > 0)
+            fmt::format_to(buf, "{:02X}  {: <3} {: <3} {}\n", ops, entry.timing_.min, entry.timing_.max, entry.count_);
+
+        ++ops;
+    }
+
+    return fmt::to_string(buf);
+}
+
 void CPU::step()
 {
-    if (idle_ticks_ == 0 && int_.first)
+    for (;;)
     {
-        if (int_.second)
-            nmi_();
-        else
-            irq_();
-
-        int_ = {false, false};
-    }
-
-    if (idle_ticks_ == 0)
-    {
-        instr_.opcode = bus_->read_cpu(program_counter_ + 0);
-        instr_.op1 = bus_->read_cpu(program_counter_ + 1);
-        instr_.op2 = bus_->read_cpu(program_counter_ + 2);
-
-#if 0
-        log_(data.opcode, addr);
-#endif
-        if (opcode_data(instr_.opcode).operation == kUKN)
+        if (state_ == kFetching)
         {
-            program_counter_ = old_pc_;
-            throw std::runtime_error(fmt::format("Unrecognized opcode {:02x}", instr_.opcode));
+            state_ = step_fetch_();
+            ASSERT(idle_ticks_ > 0);
+            break;
         }
 
-        idle_ticks_ = opcode_data(instr_.opcode).timing;
+        if (state_ == kIdle || state_ == kIRQ)
+        {
+            if (--idle_ticks_ > 0)
+                break;
+            
+            state_ = (state_ == kIdle) ? kExecuting : kFetching;
+        }
 
-        if (is_branch_(instr_.opcode))
-            idle_ticks_ += idle_ticks_from_branching_(instr_.opcode, instr_.to_addr());
-        else
-            idle_ticks_ += idle_ticks_from_addressing_(opcode_data(instr_.opcode).addressing, instr_.to_addr());
-
-        old_pc_ = program_counter_;
-        program_counter_ += opcode_data(instr_.opcode).get_size();
-        exec_(instr_.opcode, instr_.to_addr());
+        if (state_ == kExecuting)
+        {
+            state_ = step_execute_();
+            break;
+        }
     }
-
-    if (idle_ticks_ > 0)
-        --idle_ticks_;
 
     ++cycle_;
 }
 
-int CPU::idle_ticks_from_branching_(byte_t opcode, address_t addr)
+auto CPU::step_fetch_() -> State
+{
+    if (int_.first)
+    {
+        if (int_.second)
+            nmi_();
+        else if (!get_status_(kIntDisable))
+            irq_();
+
+        int_ = {false, false};
+
+        if (idle_ticks_ > 0)
+            return kIRQ;
+    }
+
+    instr_ = fetch_instr_(program_counter_);
+
+#if 0
+    log_(instr_);
+#endif
+
+    if (opcode_data(instr_.opcode).operation == kUKN)
+    {
+        program_counter_ = old_pc_;
+        throw std::runtime_error(fmt::format(FMT_STRING("Unrecognized opcode {:02X}"), instr_.opcode));
+    }
+
+    auto& opdata = opcode_data(instr_.opcode);
+    instr_.meta = opdata;
+
+    idle_ticks_ = opdata.timing - 1;
+
+    if (is_branch_(opdata.operation))
+        idle_ticks_ += idle_ticks_from_branching_(instr_);
+    else
+        idle_ticks_ += idle_ticks_from_addressing_(instr_);
+
+    instr_.time = idle_ticks_ + 1;
+
+    return kIdle;
+}
+
+auto CPU::step_execute_() -> State
+{
+    old_pc_ = program_counter_;
+    program_counter_ += opcode_data(instr_.opcode).get_size();
+    exec_(instr_);
+
+    auto& entry = stats_.data_[instr_.opcode];
+    if (entry.count_ > 0)
+    {
+        auto mm = std::minmax({entry.timing_.min, entry.timing_.max, instr_.time});
+        entry.timing_.min = mm.first;
+        entry.timing_.max = mm.second;
+    }
+    else
+    {
+        entry.timing_.min = entry.timing_.max = instr_.time;
+    }
+
+    ++entry.count_;
+
+    return kFetching;
+}
+
+uint8_t CPU::idle_ticks_from_branching_(Instr const& instr)
 {
     bool success = false;
 
-    switch (opcode)
+    switch (instr.meta.operation)
     {
     case kBCC: success = !get_status_(kCarry); break;
     case kBCS: success = get_status_(kCarry); break;
@@ -90,25 +158,40 @@ int CPU::idle_ticks_from_branching_(byte_t opcode, address_t addr)
     if (!success)
         return 0;
 
-    address_t next_pc = program_counter_ + static_cast<int8_t>(0xFF & addr);
-    bool page_crossed = ((next_pc & 0xFF00) != (program_counter_ & 0xFF00));
+    
+    address_t pc = program_counter_ + instr_.meta.get_size();
+    address_t next_pc = pc + std::bit_cast<int8_t>(instr_.operands[0]);
+    bool page_crossed = ((next_pc & 0xFF00) != (pc & 0xFF00));
 
     return 1 + (page_crossed ? 1 : 0);
 }
 
-int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
+uint8_t CPU::idle_ticks_from_addressing_(Instr const& instr)
 {
-    address_t addr = 0;
+    metadata const& meta = instr.meta;
 
-    switch (addr_mode)
+    address_t addr = 0;
+    address_t page_addr = 0;
+
+    switch (meta.addressing)
     {
-    case kAbsoluteX: addr = indexed_abs_addr(operands, register_x_); break;
-    case kAbsoluteY: addr = indexed_abs_addr(operands, register_y_); break;
-    case kIndirectY: 
-        operands = indirect_pz_addr(0xFF & page_zero_addr(operands)); 
-        addr = operands + register_y_;
+    case kAbsoluteX: 
+        if (meta.timing != 4) return 0;
+        page_addr = instr.to_addr();
+        addr = indexed_abs_addr(page_addr, register_x_);
         break;
-    default: addr = operands;
+    case kAbsoluteY: 
+        if (meta.timing != 4) return 0;
+        page_addr = instr.to_addr();
+        addr = indexed_abs_addr(page_addr, register_y_); 
+        break;
+    case kIndirectY: 
+        if (meta.timing != 5) return 0;
+        page_addr = indirect_pz_addr(0xFF & page_zero_addr(instr.to_addr())); 
+        addr = page_addr + register_y_; 
+        break;
+    default:
+        return 0;
     }
 
     // TODO
@@ -126,7 +209,7 @@ int CPU::idle_ticks_from_addressing_(byte_t addr_mode, address_t operands)
         return 0;
     }*/
 
-    bool page_crossed = ((addr & 0xFF00) != (operands & 0xFF00));
+    bool page_crossed = ((addr & 0xFF00) != (page_addr & 0xFF00));
     return page_crossed ? 1 : 0;
 }
 
@@ -136,8 +219,6 @@ void CPU::reset()
     program_counter_ = load_addr_(0xFFFC);
     //program_counter_ = 0x8000; //for CPU tests with nestest.nes
 
-    instr_.opcode = 0xFF;
-
     accumulator_ = 0;
     register_x_ = 0;
     register_y_ = 0;
@@ -145,7 +226,8 @@ void CPU::reset()
     stack_pointer_ = 0xFD;
 
     cycle_ = 0;
-    idle_ticks_ = 8;
+    idle_ticks_ = 7;
+    state_ = kIRQ;
 }
 
 void CPU::interrupt(bool nmi /*= false*/)
@@ -153,24 +235,24 @@ void CPU::interrupt(bool nmi /*= false*/)
     int_ = {true, nmi};
 }
 
-void CPU::log_(byte_t opcode, address_t addr)
+void CPU::log_(Instr instr)
 {
-    auto& opdata = opcode_data(opcode);
+    auto& opdata = opcode_data(instr.opcode);
     auto it = log_ring_[log_idx_].begin();
     
-    it = fmt::format_to(it, "{:04x}    {:02x}", program_counter_, opcode);
+    it = fmt::format_to(it, "{:04x}    {:02x}", program_counter_, instr.opcode);
 
     if (opdata.get_size() > 1)
-        it = fmt::format_to(it, "  {:02x}", addr & 0xFF);
+        it = fmt::format_to(it, "  {:02x}", instr.operands[0]);
     else
         it = fmt::format_to(it, "    ");
 
     if (opdata.get_size() > 2)
-        it = fmt::format_to(it, "  {:02x}", (addr >> 4) & 0xFF);
+        it = fmt::format_to(it, "  {:02x}", instr.operands[1]);
     else
         it = fmt::format_to(it, "    ");
 
-    it = fmt::format_to(it, " {} {:<27}", opdata.str, debug_addr_(opcode_data(opcode).addressing, addr));
+    it = fmt::format_to(it, " {} {:<27}", opdata.str, debug_addr_(opdata.addressing, instr.to_addr()));
     fmt::format_to(it, " A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x}", accumulator_, register_x_, register_y_, status_, stack_pointer_);
 
     //fmt::print("{}\n", log_ring_[log_idx_].data());
@@ -179,9 +261,6 @@ void CPU::log_(byte_t opcode, address_t addr)
 
 void CPU::irq_()
 {
-    if (get_status_(kIntDisable))
-        return;
-
     store_stack_(program_counter_);
 
     set_status_(kBreak, false);
@@ -203,11 +282,26 @@ void CPU::nmi_()
 
     address_t vector = 0xFFFA;
     program_counter_ = load_addr_(vector);
-    idle_ticks_ = 8;
+    idle_ticks_ = 7;
 }
 
-void CPU::exec_(byte_t opcode, address_t addr)
+auto CPU::fetch_instr_(address_t pc) -> Instr
 {
+    Instr i;
+    auto& [op1, op2] = i.operands;
+
+    i.opcode = bus_->read_cpu(program_counter_ + 0);
+    op1 = bus_->read_cpu(program_counter_ + 1);
+    op2 = bus_->read_cpu(program_counter_ + 2);
+
+    return i;
+}
+
+void CPU::exec_(Instr instr)
+{
+    const byte_t opcode = instr.opcode;
+    const address_t addr = instr.to_addr();
+
     const byte_t op = opcode_data(opcode).operation;
     const byte_t ad = opcode_data(opcode).addressing;
 
@@ -226,7 +320,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
             case kIndirectY : return indirect_indexed_addr(addr, register_y_);
             
             default: 
-                throw std::runtime_error(fmt::format("Invalid addressing {:02x} for opcode {} [{:02x}]", ad, opcode_data(opcode).str, opcode));
+                throw std::runtime_error(fmt::format(FMT_STRING("Invalid addressing {:02X} for opcode {} [{:02X}]"), ad, opcode_data(opcode).str, opcode));
         }
 
         return addr;
@@ -262,16 +356,16 @@ void CPU::exec_(byte_t opcode, address_t addr)
     case kAND: and_(to_operand(addr)); break;
     case kASL: call_mutating_operation(&CPU::asl_, addr); break; 
 
-    case kBCC: bcc_(addr); break;
-    case kBCS: bcs_(addr); break;
-    case kBEQ: beq_(addr); break; 
+    case kBCC: bcc_(instr_.operands[0]); break;
+    case kBCS: bcs_(instr_.operands[0]); break;
+    case kBEQ: beq_(instr_.operands[0]); break; 
     case kBIT: bit_(to_absolute_addr(addr)); break; 
-    case kBMI: bmi_(addr); break;
-    case kBNE: bne_(addr); break;
-    case kBPL: bpl_(addr); break; 
+    case kBMI: bmi_(instr_.operands[0]); break;
+    case kBNE: bne_(instr_.operands[0]); break;
+    case kBPL: bpl_(instr_.operands[0]); break; 
     case kBRK: brk_(); break; 
-    case kBVC: bvc_(addr); break;
-    case kBVS: bvs_(addr); break;
+    case kBVC: bvc_(instr_.operands[0]); break;
+    case kBVS: bvs_(instr_.operands[0]); break;
 
     case kCLC: clc_(); break; 
     case kCLD: cld_(); break;
@@ -338,7 +432,7 @@ void CPU::exec_(byte_t opcode, address_t addr)
     case kTYA: tya_(); break;
 
     default:
-        throw std::runtime_error(fmt::format("Unimplemented operation {:02x} for opcode [{:02x}]", op, opcode_data(opcode).str, opcode));
+        throw std::runtime_error(fmt::format(FMT_STRING("Unimplemented operation {:02X} for opcode {} [{:02X}]"), op, opcode_data(opcode).str, opcode));
     }
 }
 
@@ -544,22 +638,22 @@ void CPU::asl_(byte_t& operand)
     set_status_(kNegative, operand & kNegative);
 }
 
-void CPU::bcc_(address_t addr)
+void CPU::bcc_(byte_t operand)
 {
     if (!get_status_(kCarry))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
-void CPU::bcs_(address_t addr)
+void CPU::bcs_(byte_t operand)
 {
     if (get_status_(kCarry))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
-void CPU::beq_(address_t addr)
+void CPU::beq_(byte_t operand)
 {
     if (get_status_(kZero))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
 void CPU::bit_(address_t addr)
@@ -572,22 +666,22 @@ void CPU::bit_(address_t addr)
     set_status_(0x20, true); // always 1 flag
 }
 
-void CPU::bmi_(address_t addr)
+void CPU::bmi_(byte_t operand)
 {
     if (get_status_(kNegative))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
-void CPU::bne_(address_t addr)
+void CPU::bne_(byte_t operand)
 {
     if (!get_status_(kZero))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
-void CPU::bpl_(address_t addr)
+void CPU::bpl_(byte_t operand)
 {
     if (!get_status_(kNegative))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
 void CPU::brk_()
@@ -600,16 +694,16 @@ void CPU::brk_()
     program_counter_ = load_addr_(0xFFFE);
 }
 
-void CPU::bvc_(address_t addr)
+void CPU::bvc_(byte_t operand)
 {
     if (!get_status_(kOverflow))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
-void CPU::bvs_(address_t addr)
+void CPU::bvs_(byte_t operand)
 {
     if (get_status_(kOverflow))
-        program_counter_ += static_cast<int8_t>(0xFF & addr);
+        program_counter_ += std::bit_cast<int8_t>(operand);
 }
 
 void CPU::clc_()

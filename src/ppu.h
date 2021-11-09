@@ -168,9 +168,14 @@ public:
         return done;
     } 
 
-    bool grab_end_of_line()
+    bool is_at_end_of_line()
     {
         return cycle_ == 320;
+    }
+
+    bool is_in_vblank()
+    {
+        return is_in_vblank_;
     }
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
@@ -282,7 +287,7 @@ private:
     // scroll (debug)
     byte_t scroll_x_;
     byte_t scroll_y_;
-    bool is_in_vblank = false;
+    bool is_in_vblank_ = false;
     bool frame_done_ = false;
 
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)

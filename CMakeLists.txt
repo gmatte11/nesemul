@@ -13,6 +13,6 @@ find_package(fmt CONFIG REQUIRED)
 file(GLOB SOURCES "src/*.cpp" "src/mappers/*.cpp" "src/ui/*.cpp" "src/platform/*.cpp")
 add_executable(nesemul ${SOURCES})
 
-target_compile_options(nesemul PUBLIC /std:c++20 /Z7 /W4 /WX /wd4100)
+target_compile_options(nesemul PUBLIC /std:c++latest /Z7 /W4 /WX /wd4100)
 target_link_options(nesemul PUBLIC /DEBUG:FASTLINK)
 target_link_libraries(nesemul PRIVATE sfml-system sfml-graphics sfml-window fmt::fmt fmt::fmt-header-only)

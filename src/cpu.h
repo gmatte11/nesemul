@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.h"
+#include "ops.h"
 
 #include <array>
 #include <vector>
@@ -8,6 +9,26 @@
 #include <string>
 
 class BUS;
+
+
+struct CallStats
+{
+    struct Timing
+    {
+        uint8_t min;
+        uint8_t max;
+    };
+
+    struct Entry
+    {
+        uint64_t count_ = 0;
+        Timing timing_ = {};
+    };
+
+    std::array<Entry, 0x100> data_;
+
+    std::string report() const;
+};
 
 struct CPU_State
 {
@@ -23,8 +44,16 @@ struct CPU_State
         kNegative = 1 << 7,
     };
 
-    unsigned long long cycle_ = 0ull;
-    int idle_ticks_ = 0;
+    enum State
+    {
+        kIdle = 0,
+        kIRQ,
+        kFetching,
+        kExecuting,
+    } state_{};
+
+    uint64_t cycle_ = 0ull;
+    uint8_t idle_ticks_ = 0;
 
     address_t program_counter_ = 0x0000;
     address_t old_pc_ = 0x0000;
@@ -36,14 +65,18 @@ struct CPU_State
     byte_t status_ = 0x24;
     byte_t stack_pointer_ = 0xFD;
 
-    struct instruction
+    struct Instr
     {
         byte_t opcode = 0xFF;
-        byte_t op1;
-        byte_t op2;
+        byte_t operands[2];
 
-        address_t to_addr() const { return static_cast<address_t>(op2) << 8 | op1; }
+        address_t to_addr() const { return static_cast<address_t>(operands[1]) << 8 | operands[0]; }
+
+        ops::metadata meta;
+        uint8_t time = 0;
     } instr_;
+
+    CallStats stats_;
 };
 
 // Emulate 6502 CPU
@@ -58,6 +91,8 @@ public:
     void step();
     void reset();
 
+    void dma_clock() { ++cycle_; }
+
     void interrupt(bool nmi = false);
 
     CPU_State const& get_state() const { return *this; }
@@ -66,13 +101,17 @@ public:
     int log_idx_ = 0;
 
 private:
-    void exec_(byte_t opcode, address_t addr);
+    State step_fetch_();
+    State step_execute_();
+
+    Instr fetch_instr_(address_t pc);
+    void exec_(Instr instr);
     void irq_();
     void nmi_();
-    void log_(byte_t opcode, address_t addr);
+    void log_(Instr instr);
 
-    int idle_ticks_from_branching_(byte_t opcode, address_t addr);
-    int idle_ticks_from_addressing_(byte_t addr_mode, address_t addr);
+    uint8_t idle_ticks_from_branching_(Instr const& instr);
+    uint8_t idle_ticks_from_addressing_(Instr const& instr);
 
     //interrupt
     std::pair<bool, bool> int_ = {false, false};
@@ -112,16 +151,16 @@ private:
     void adc_(byte_t operand);
     void and_(byte_t operand);
     void asl_(byte_t& operand);
-    void bcc_(address_t addr);
-    void bcs_(address_t addr);
-    void beq_(address_t addr);
+    void bcc_(byte_t operand);
+    void bcs_(byte_t operand);
+    void beq_(byte_t operand);
     void bit_(address_t addr);
-    void bmi_(address_t addr);
-    void bne_(address_t addr);
-    void bpl_(address_t addr);
+    void bmi_(byte_t operand);
+    void bne_(byte_t operand);
+    void bpl_(byte_t operand);
     void brk_();
-    void bvc_(address_t addr);
-    void bvs_(address_t addr);
+    void bvc_(byte_t operand);
+    void bvs_(byte_t operand);
     void clc_();
     void cld_();
     void cli_();

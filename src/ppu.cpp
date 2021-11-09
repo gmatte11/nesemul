@@ -27,8 +27,6 @@ static Color g_palette[] = {
 
 const PPU::SecondaryOAM::Entry PPU::SecondaryOAM::empty_{Sprite{0xFF, 0xFF, 0xFF, 0xFF}, 0xFF};
 
-DEOPTIMIZE
-
 void PPU::step()
 {
     pre_frame_();
@@ -49,7 +47,7 @@ void PPU::reset()
 
     scroll_x_ = 0;
     scroll_y_ = 0;
-    is_in_vblank = false;
+    is_in_vblank_ = false;
 
     cursor_.v.set(0);
     cursor_.t.set(0);
@@ -335,7 +333,7 @@ void PPU::pre_frame_()
         if (scanline_ == -1)
         {
             ppustatus_.vblank_ = 0; // end of vblank
-            is_in_vblank = false;
+            is_in_vblank_ = false;
             ppustatus_.sprite_0_hit_ = 0;
             ppustatus_.sprite_overflow_ = 0;
         }
@@ -343,7 +341,7 @@ void PPU::pre_frame_()
         if (scanline_ == 241)
         {
             ppustatus_.vblank_ = 1; // start of vblank
-            is_in_vblank = true;
+            is_in_vblank_ = true;
             if (ppuctrl_.nmi_)
                 bus_->cpu_.interrupt(true); // generate NMI
         }
