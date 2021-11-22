@@ -126,9 +126,8 @@ void Emulator::update()
     if (!is_ready())
         return;
 
-    if (mode_ != Mode::PAUSED)
+    if (!is_paused() || steps_ > 0)
     {
-        
         cpu_cycle_start_of_frame = get_cpu()->get_state().cycle_;
 
         // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
@@ -141,9 +140,9 @@ void Emulator::update()
 
                 // Debugging vblank timing
                 uint64_t cycle = get_cpu()->get_state().cycle_;
-                if (ppu_->is_in_vblank() && cpu_cycle_at_vblank == 0)
+                if (ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank == 0)
                     cpu_cycle_at_vblank = cycle;
-                else if (!ppu_->is_in_vblank() && cpu_cycle_at_vblank != 0)
+                else if (!ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank != 0)
                 {
                     cpu_cycle_last_vblank = cycle - cpu_cycle_at_vblank;
                     cpu_cycle_at_vblank = 0;
@@ -198,8 +197,8 @@ void Emulator::update()
             cpu_cycle_per_frame = cpu_cycle - cpu_cycle_start_of_frame;
         }
 
-        if (mode_ != Mode::RUN)
-            mode_ = Mode::PAUSED;
+        if (steps_ > 0)
+            --steps_;
     }
 }
 

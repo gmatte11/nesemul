@@ -102,7 +102,24 @@ struct Latch
     bool selector = false;
 };
 
-class PPU
+struct PPU_State
+{
+    // timings
+    uint64_t frame_ = 0;
+    int16_t scanline_ = -1;
+    uint16_t cycle_ = 0;
+
+    // Nametable mirroring
+    Mirroring mirroring_;
+
+    // scroll (debug)
+    byte_t scroll_x_;
+    byte_t scroll_y_;
+    bool is_in_vblank_ = false;
+    bool frame_done_ = false;
+};
+
+class PPU : private PPU_State
 {
 public:
     using Output = Image<256, 240>;
@@ -173,10 +190,8 @@ public:
         return cycle_ == 320;
     }
 
-    bool is_in_vblank()
-    {
-        return is_in_vblank_;
-    }
+    PPU_State& get_state() { return *this; }
+    PPU_State const& get_state() const { return *this; }
 
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
@@ -195,16 +210,8 @@ private:
     void render_();
     void tick_();
 
-    // timings
-    int16_t scanline_ = -1;
-    uint16_t cycle_ = 0;
-    uint64_t frame_ = 0;
-
     // Output image
     Output output_;
-
-    // Nametable mirroring
-    Mirroring mirroring_;
 
     // memory
     std::array<byte_t, 0x4000> memory_ {};
@@ -283,12 +290,6 @@ private:
     static_assert(sizeof(decltype(ppustatus_)) == sizeof(byte_t));
 
     byte_t oamaddr_;
-
-    // scroll (debug)
-    byte_t scroll_x_;
-    byte_t scroll_y_;
-    bool is_in_vblank_ = false;
-    bool frame_done_ = false;
 
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
     struct Cursor

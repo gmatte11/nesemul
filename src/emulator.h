@@ -36,9 +36,9 @@ public:
     bool is_paused() { return mode_ != Mode::RUN; }
     bool is_ready() { return cart_ != nullptr; }
 
-    void step_once() { mode_ = Mode::STEP_ONCE; }
-    void step_frame() { mode_ = Mode::STEP_FRAME; }
-    void step_line() { mode_ = Mode::STEP_LINE; }
+    void step_once() { mode_ = Mode::STEP_ONCE; steps_ = 1; }
+    void step_frame() { mode_ = Mode::STEP_FRAME; steps_ = 1; }
+    void step_line() { mode_ = Mode::STEP_LINE; steps_ = 1; }
     void toggle_pause() { mode_ = (is_paused()) ? Mode::RUN : Mode::PAUSED; }
 
     Disassembler disassembler_;
@@ -71,6 +71,7 @@ private:
     std::unique_ptr<Cartridge> cart_;
 
     Mode mode_ = Mode::RUN;
+    int steps_ = 0;
     int cycle_ = 0;
     int dma_cycle_counter_ = 0;
 };
