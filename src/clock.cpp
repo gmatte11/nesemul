@@ -39,3 +39,8 @@ void Timer::set_timeout(time_unit timeout)
     if (started())
         start_time_ = Clock::now_us();
 }
+
+time_unit Timer::elapsed_us() const
+{
+    return std::max(Clock::now_us() - start_time_, 0ll);
+}

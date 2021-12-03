@@ -1,10 +1,6 @@
 #include "openfile_dialog.h"
 #include "platform_defines.h"
 
-#if IS_WINDOWS
-#include <windows.h>
-#endif
-
 bool openfile_dialog(std::string& filepath)
 {
 #if IS_WINDOWS

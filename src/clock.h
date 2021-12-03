@@ -24,6 +24,8 @@ public:
     void set_timeout(time_unit timeout);
     time_unit get_timeout() const { return timeout_; }
 
+    time_unit elapsed_us() const;
+
 private:
     time_unit timeout_ = 0;
     time_unit start_time_ = 0;
