@@ -136,35 +136,10 @@ void Emulator::update()
         {
             try
             {
-                for (int i = 0; i < 3; ++i)
-                    ppu_->step();
+                if (cycle_ % 3 == 0)
+                    clock_cpu_();
 
-                // Debugging vblank timing
-                uint64_t cycle = get_cpu()->get_state().cycle_;
-                if (ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank == 0)
-                    cpu_cycle_at_vblank = cycle;
-                else if (!ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank != 0)
-                {
-                    cpu_cycle_last_vblank = cycle - cpu_cycle_at_vblank;
-                    cpu_cycle_at_vblank = 0;
-                }
-
-                apu_->step();
-
-                if (dma_cycle_counter_ == 0)
-                {
-                    cpu_->step();
-                }
-                else
-                {
-                    --dma_cycle_counter_;
-                    if ((dma_cycle_counter_ & 0x1) == 0 && dma_cycle_counter_ <= 512)
-                        ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter_ / 2));
-                    cpu_->dma_clock();
-                }
-
-                if (ppu_->grab_dma_request())
-                    dma_cycle_counter_ = 513 + (cpu_->get_state().cycle_ & 0x1);
+                clock_ppu_();
             }
             catch (std::exception e)
             {
@@ -214,4 +189,41 @@ void Emulator::press_button(Controller::Button button)
 void Emulator::release_button(Controller::Button button)
 {
     bus_->ctrl_.release(button);
+}
+
+void Emulator::clock_cpu_()
+{
+    apu_->step();
+
+    if (dma_cycle_counter_ == 0)
+    {
+        cpu_->step();
+    }
+    else
+    {
+        --dma_cycle_counter_;
+        if ((dma_cycle_counter_ & 0x1) == 0 && dma_cycle_counter_ <= 512)
+            ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter_ / 2));
+        cpu_->dma_clock();
+    }
+
+    if (ppu_->grab_dma_request())
+        dma_cycle_counter_ = 513 + (cpu_->get_state().cycle_ & 0x1);
+}
+
+void Emulator::clock_ppu_()
+{
+    ppu_->step();
+
+    // Debugging vblank timing
+    uint64_t cycle = get_cpu()->get_state().cycle_;
+    if (ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank == 0)
+    {
+        cpu_cycle_at_vblank = cycle;
+    }
+    else if (!ppu_->get_state().is_in_vblank_ && cpu_cycle_at_vblank != 0)
+    {
+        cpu_cycle_last_vblank = cycle - cpu_cycle_at_vblank;
+        cpu_cycle_at_vblank = 0;
+    }
 }

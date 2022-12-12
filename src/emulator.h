@@ -51,6 +51,9 @@ public:
     uint64_t cpu_cycle_per_frame = 0;
 
 private:
+    void clock_ppu_();
+    void clock_cpu_();
+
     inline static Emulator* instance_ = nullptr;
 
     std::unique_ptr<BUS> bus_;
