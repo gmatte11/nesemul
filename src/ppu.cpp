@@ -29,7 +29,6 @@ const PPU::SecondaryOAM::Entry PPU::SecondaryOAM::empty_{Sprite{0xFF, 0xFF, 0xFF
 
 void PPU::step()
 {
-    pre_frame_();
     bg_eval_();
     fg_eval_();
     render_();
@@ -317,44 +316,6 @@ Palette PPU::get_palette(byte_t idx) const
     }
 }
 
-void PPU::pre_frame_()
-{
-    // cycle skip on odd frame 
-    if (ppumask_.render_bg_ || ppumask_.render_fg_)
-    {
-        if (scanline_ == 0 && cycle_ == 0 && (frame_ & 0x1) != 0)
-            cycle_ = 1;
-    }
-
-    if (cycle_ == 1)
-    {
-        // status checks
-        if (scanline_ == -1)
-        {
-            ppustatus_.vblank_ = 0; // end of vblank
-            is_in_vblank_ = false;
-            ppustatus_.sprite_0_hit_ = 0;
-            ppustatus_.sprite_overflow_ = 0;
-        }
-
-        if (scanline_ == 241)
-        {
-            ppustatus_.vblank_ = 1; // start of vblank
-            is_in_vblank_ = true;
-            if (ppuctrl_.nmi_)
-                bus_->cpu_.interrupt(true); // generate NMI
-        }
-    }
-
-    // Transfer vertical scroll bits
-    if (scanline_ == -1 && cycle_ == 304 && (ppumask_.render_bg_ || ppumask_.render_fg_))
-    {
-        cursor_.v.Y = cursor_.t.Y;
-        cursor_.v.y = cursor_.t.y;
-        cursor_.v.NY = cursor_.t.NY;
-    }
-}
-
 void PPU::bg_eval_()
 {
     auto& v = cursor_.v;
@@ -593,6 +554,22 @@ void PPU::render_()
 
 void PPU::tick_()
 {
+    // scanline -1: dummy scanline, single cycle skipped on odd-frame, vblank is unset.
+    // scanlines 0..239: rendering scanlines
+    // scanline  240: empty scanline.
+    // scanlines 241-260: vblank is set a the 2nd cycle of the 241st scanline and also trigger the vblank's NMI.
+
+    const bool rendering_enabled = ppumask_.render_bg_ || ppumask_.render_fg_;
+    
+    if (scanline_ == -1)
+    {
+        // cycle skip on odd frame
+        if (rendering_enabled && cycle_ == 339 && (frame_ & 0x1) != 0)
+            ++cycle_;
+    }
+
+    ++cycle_counter_;
+
     ++cycle_;
     if (cycle_ > 340)
     {
@@ -605,6 +582,35 @@ void PPU::tick_()
             ++frame_;
             frame_done_ = true;
         }
+    }
+
+    // dummy (pre-render) scanline
+    if (scanline_ == -1)
+    {
+        if (cycle_ == 1)
+        {
+            ppustatus_.vblank_ = 0; // end of vblank
+            is_in_vblank_ = false;
+            ppustatus_.sprite_0_hit_ = 0;
+            ppustatus_.sprite_overflow_ = 0;
+        }
+
+        // Transfer vertical scroll bits
+        if (rendering_enabled && cycle_ >= 280 && cycle_ <= 304)
+        {
+            cursor_.v.Y = cursor_.t.Y;
+            cursor_.v.y = cursor_.t.y;
+            cursor_.v.NY = cursor_.t.NY;
+        }
+    }
+
+    // first scanline of vblank
+    if (scanline_ == 241 && cycle_ == 1)
+    {
+        ppustatus_.vblank_ = 1; // start of vblank
+        is_in_vblank_ = true;
+        if (ppuctrl_.nmi_)
+            bus_->cpu_.interrupt(true); // generate NMI
     }
 }
 

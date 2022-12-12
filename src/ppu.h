@@ -204,7 +204,6 @@ public:
     Palette get_palette(byte_t idx) const;
 
 private:
-    void pre_frame_();
     void bg_eval_();
     void fg_eval_();
     void render_();
