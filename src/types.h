@@ -38,9 +38,8 @@ struct register_t
     register_t& operator^=(base_t value) { set(get() ^ value); return *this; }
 };
 
+#define NES_BREAKPOINT __debugbreak()
+#define NES_DEOPTIMIZE __pragma(optimize("",off))
 
-#define BREAKPOINT __debugbreak()
-#define DEOPTIMIZE __pragma(optimize("",off))
-
-#define ASSERT(X) { if(!(X)) { __debugbreak(); } }
+#define NES_ASSERT(X) { if(!(X)) { __debugbreak(); } }
 #endif // __NESEMUL_TYPES_H__

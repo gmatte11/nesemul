@@ -51,7 +51,7 @@ void CPU::step()
         if (state_ == kFetching)
         {
             state_ = step_fetch_();
-            ASSERT(idle_ticks_ > 0);
+            NES_ASSERT(idle_ticks_ > 0);
             break;
         }
 

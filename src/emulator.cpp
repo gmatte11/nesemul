@@ -25,7 +25,7 @@ Emulator::Emulator()
     cpu_->init(bus_.get());
     ppu_->init(bus_.get());
 
-    ASSERT(instance_ == nullptr);
+    NES_ASSERT(instance_ == nullptr);
     instance_ = this;
 }
 
@@ -168,13 +168,13 @@ void Emulator::update()
             catch (std::exception e)
             {
                 fmt::print("Exception: {}\n", e.what());
-                BREAKPOINT;
+                NES_BREAKPOINT;
                 mode_ = Mode::PAUSED;
                 break;
             }
             catch (...)
             {
-                BREAKPOINT;
+                NES_BREAKPOINT;
                 mode_ = Mode::PAUSED;
                 break;
             }

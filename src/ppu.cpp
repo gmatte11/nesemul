@@ -137,8 +137,7 @@ bool PPU::on_write_cpu(address_t addr, byte_t value)
         // oamdma
     case 0x4014:
     {
-        if (oamaddr_ != 0)
-            BREAKPOINT;
+        NES_ASSERT(oamaddr_ == 0);
 
         dma_requested_ = true;
         dma_page_idx_ = value;
@@ -208,7 +207,7 @@ bool PPU::on_read_ppu(address_t addr, byte_t& value)
 
 void PPU::dma_copy_byte(byte_t rw_cycle)
 {
-    ASSERT(rw_cycle >= 0 && rw_cycle < 256);
+    NES_ASSERT(rw_cycle >= 0 && rw_cycle < 256);
     address_t page_addr = dma_page_idx_ << 8;
 
     byte_t data = bus_->read_cpu(page_addr | rw_cycle);
@@ -646,7 +645,7 @@ void PPU::store_(address_t addr, byte_t value)
 
 address_t PPU::mirror_addr_(address_t addr) const
 {
-    ASSERT(addr < 0x4000);
+    NES_ASSERT(addr < 0x4000);
 
     // $3F20-$3FFF mirrors $3F00-$3F1F
     if (addr >= 0x3F20 && addr < 0x4000)
