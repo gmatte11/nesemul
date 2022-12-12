@@ -42,6 +42,7 @@ void PPU::reset()
     scanline_ = -1;
     cycle_ = 0;
     frame_ = 0;
+    cycle_counter_ = 0;
 
     ppuctrl_.set(0);
     ppumask_.set(0);
@@ -138,7 +139,7 @@ bool PPU::on_write_cpu(address_t addr, byte_t value)
         // oamdma
     case 0x4014:
     {
-        NES_ASSERT(oamaddr_ == 0);
+        //NES_ASSERT(oamaddr_ == 0);
 
         dma_requested_ = true;
         dma_page_idx_ = value;

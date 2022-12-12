@@ -33,6 +33,7 @@ private:
 
     Emulator* emulator_;
 
+    PageDebugStep debug_step_;
     PageDebugCPU debug_cpu_;
     PageDebugPPU debug_ppu_;
     PageDebugPAT debug_pat_;

@@ -42,6 +42,7 @@ SFMLRenderer::SFMLRenderer(Emulator* emulator)
 {
     window_.reset(new sf::RenderWindow(sf::VideoMode(1028, 720), "NESEMUL"));
 
+    debug_step_.setPosition({8.f, 520.f});
     debug_cpu_.setPosition({520.f, 20.f});
     debug_ppu_.setPosition({520.f, 20.f});
     debug_pat_.setPosition({514.f, 720.f - 280.f});
@@ -120,18 +121,14 @@ void SFMLRenderer::poll_events_()
                 }
             }
 
-            switch(debug_page_)
-            {
-                case 1:
-                    debug_cpu_.on_event(ev);
-                    debug_pat_.on_event(ev);
-                    break;
-                
-                case 2: 
-                    debug_ppu_.on_event(ev);
-                    debug_pat_.on_event(ev);
-                    break;
-            }
+            debug_step_.on_event(ev);
+
+            if (debug_page_ != 0)
+                debug_pat_.on_event(ev);
+
+            if (debug_page_ == 1)
+                debug_cpu_.on_event(ev);
+
         }
 
         if (ev.type == sf::Event::KeyReleased)
@@ -165,6 +162,9 @@ void SFMLRenderer::draw()
 
     if (debug_page_ > 0)
     {
+        debug_step_.update();
+        window_->draw(debug_step_);
+
         debug_pat_.update();
         window_->draw(debug_pat_);
 
@@ -185,7 +185,9 @@ void SFMLRenderer::draw()
         text.setPosition({520.f, 0.f});
         text.setFillColor(sf::Color::White);
 
-        auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), step_rate_ / 10, (emulator_->is_paused()) ? "(P)" : "");
+        std::string_view mode_str = emulator_->is_debugging() ? "(D)" : 
+                                (emulator_->is_paused() ? "(P)" : "");
+        auto sfmt = fmt::format("FRAME: {}  ({}%) {}", ppu.frame(), step_rate_ / 10, mode_str);
         text.setString(sfmt);
 
         window_->draw(text);

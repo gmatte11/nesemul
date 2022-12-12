@@ -49,6 +49,8 @@ public:
     uint64_t cpu_cycle_last_vblank = 0;
     uint64_t cpu_cycle_start_of_frame = 0;
     uint64_t cpu_cycle_per_frame = 0;
+    uint64_t ppu_cycle_start_of_frame = 0;
+    uint64_t ppu_cycle_per_frame = 0;
 
 private:
     void clock_ppu_();

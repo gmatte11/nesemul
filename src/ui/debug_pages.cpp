@@ -1,5 +1,6 @@
 #include "debug_pages.h"
 
+#include "debugger.h"
 #include "emulator.h"
 
 #include "ui/global.h"
@@ -14,6 +15,45 @@ void PageBase::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
     for (auto* d : drawables_)
         target.draw(*d, getTransform());
+}
+
+
+PageDebugStep::PageDebugStep()
+{
+    text_.setFont(ui::get_font());
+    text_.setPosition({0.f, 0.f});
+    text_.setCharacterSize(10);
+    text_.setFillColor(sf::Color::White);
+
+    drawables_ = { &text_ };
+}
+
+void PageDebugStep::update()
+{
+    Emulator* emulator = Emulator::instance();
+
+    BUS* bus = emulator->get_bus();
+    CPU const& cpu = *emulator->get_cpu();
+    PPU const& ppu = *emulator->get_ppu();
+
+    fmt::memory_buffer buf;
+    fmt::format_to(buf, "VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
+    fmt::format_to(buf, "CPU cycles: {}   PPU cycles: {}\n", emulator->cpu_cycle_per_frame, emulator->ppu_cycle_per_frame);
+    fmt::format_to(buf, "PPU: scanline {} cycle {} vblank {}", ppu.get_state().scanline_, ppu.get_state().cycle_, ppu.get_state().is_in_vblank_);
+
+    text_.setString(fmt::to_string(buf));
+}
+
+void PageDebugStep::on_event(sf::Event& ev)
+{
+    Debugger* debugger = Debugger::instance();
+
+    switch (ev.key.code)
+    {
+    case sf::Keyboard::O: if (!ev.key.shift) debugger->request_break(Debugger::MODE_CPU_FETCH); break;
+    case sf::Keyboard::I: debugger->request_break(Debugger::MODE_PPU_FRAME); break;
+    case sf::Keyboard::L: if (!ev.key.shift) debugger->request_break(Debugger::MODE_PPU_LINE); break;
+    }
 }
 
 PageDebugCPU::PageDebugCPU()
@@ -32,7 +72,6 @@ void PageDebugCPU::update()
 
     BUS* bus = emulator->get_bus();
     CPU const& cpu = *emulator->get_cpu();
-    PPU const& ppu = *emulator->get_ppu();
 
     fmt::memory_buffer buf;
 
@@ -54,8 +93,6 @@ void PageDebugCPU::update()
             , cpu_state.stack_pointer_);
     }
 
-    fmt::format_to(buf, "VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
-    fmt::format_to(buf, "Frame time: {}\n", emulator->cpu_cycle_per_frame);
 
     for (int offset = -5; offset <= 5; ++offset)
     {
@@ -105,8 +142,6 @@ void PageDebugCPU::on_event(sf::Event& ev)
 
     switch (ev.key.code)
     {
-    case sf::Keyboard::O: if (!ev.key.shift) emulator->step_once(); break;
-    case sf::Keyboard::I: emulator->step_frame(); break;
     case sf::Keyboard::Q: if (ev.key.shift) flush_report();
     }
 }
@@ -176,17 +211,6 @@ void PageDebugPPU::update()
     }
 
     oam_text_.setString(fmt::to_string(buffer));
-}
-
-void PageDebugPPU::on_event(sf::Event& ev)
-{
-    Emulator* emulator = Emulator::instance();
-
-    switch (ev.key.code)
-    {
-    case sf::Keyboard::L: if (!ev.key.shift) emulator->step_line(); break;
-    case sf::Keyboard::I: emulator->step_frame(); break;
-    }
 }
 
 PageDebugPAT::PageDebugPAT()

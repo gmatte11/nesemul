@@ -130,6 +130,7 @@ void Emulator::update()
     if (is_stepping())
     {
         cpu_cycle_start_of_frame = get_cpu()->get_state().cycle_;
+        ppu_cycle_start_of_frame = get_ppu()->get_state().cycle_counter_;
 
         // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
         while (!ppu_->grab_frame_done())
@@ -164,6 +165,9 @@ void Emulator::update()
         {
             const uint64_t cpu_cycle = get_cpu()->get_state().cycle_;
             cpu_cycle_per_frame = cpu_cycle - cpu_cycle_start_of_frame;
+
+            const uint64_t ppu_cycle = get_ppu()->get_state().cycle_counter_;
+            ppu_cycle_per_frame = ppu_cycle - ppu_cycle_start_of_frame;
         }
     }
 }

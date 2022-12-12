@@ -22,6 +22,18 @@ protected:
     std::vector<sf::Drawable*> drawables_;
 };
 
+class PageDebugStep : public PageBase
+{
+public:
+    PageDebugStep();
+
+    void update();
+    void on_event(sf::Event& ev);
+
+private:
+    sf::Text text_;
+};
+
 class PageDebugCPU : public PageBase
 {
 public:
@@ -40,7 +52,6 @@ public:
     PageDebugPPU();
 
     void update();
-    void on_event(sf::Event& ev);
 
 private:
     sf::Text oam_text_;

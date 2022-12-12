@@ -4,6 +4,11 @@
 
 static sf::Clock global_clock_;
 
+time_unit Clock::now_ms()
+{
+    return global_clock_.getElapsedTime().asMilliseconds();
+}
+
 time_unit Clock::now_us()
 {
     return global_clock_.getElapsedTime().asMicroseconds();
