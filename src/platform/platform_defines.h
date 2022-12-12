@@ -17,13 +17,6 @@
 
 namespace threading
 {
-    inline void sleep_ms(int64_t ms)
-    {
-#if IS_WINDOWS
-        Sleep((DWORD)ms);
-#endif
-    }
-
     inline void set_thread_high_priority()
     {
 #if IS_WINDOWS

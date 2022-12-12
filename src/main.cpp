@@ -27,8 +27,8 @@ int main(int argc, char* argv[])
                     break;
             }
 
-            time_unit remaining_ms = std::max(((sixtieth_us - timer.elapsed_us()) / 1000) - 1, 0ll);
-            threading::sleep_ms(remaining_ms);
+            time_unit remaining_us = std::max(sixtieth_us - timer.elapsed_us(), 0ll);
+            sf::sleep(sf::microseconds(remaining_us));
         }
     }
     catch (const std::exception& e)
