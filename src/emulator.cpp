@@ -20,6 +20,7 @@ Emulator::Emulator()
     , apu_(new APU)
     , ppu_(new PPU)
     , ram_(new RAM)
+    , debugger_(*this)
 {
     bus_.reset(new BUS(*cpu_, *apu_, *ppu_, *ram_));
     cpu_->init(bus_.get());
@@ -126,7 +127,7 @@ void Emulator::update()
     if (!is_ready())
         return;
 
-    if (!is_paused() || steps_ > 0)
+    if (is_stepping())
     {
         cpu_cycle_start_of_frame = get_cpu()->get_state().cycle_;
 
@@ -169,37 +170,40 @@ void Emulator::update()
             {
                 fmt::print("Exception: {}\n", e.what());
                 NES_BREAKPOINT;
-                mode_ = Mode::PAUSED;
+                debug_break_ = true;
                 break;
             }
             catch (...)
             {
                 NES_BREAKPOINT;
-                mode_ = Mode::PAUSED;
+                debug_break_ = true;
                 break;
             }
 
             cycle_++;
-
-            if (mode_ == Mode::STEP_ONCE && cpu_->get_state().state_ == CPU_State::kFetching)
-            {
+            
+            if (debug_break_)
                 break;
-            }
-
-            if (mode_ == Mode::STEP_LINE && ppu_->is_at_end_of_line())
-            {
-                break;
-            }
         }
 
         {
-            uint64_t cpu_cycle = get_cpu()->get_state().cycle_;
+            const uint64_t cpu_cycle = get_cpu()->get_state().cycle_;
             cpu_cycle_per_frame = cpu_cycle - cpu_cycle_start_of_frame;
         }
-
-        if (steps_ > 0)
-            --steps_;
     }
+}
+
+void Emulator::toggle_pause()
+{
+    if (is_debugging())
+    {
+        paused_ = false;
+        debug_break_ = false;
+        debugger_.resume();
+        return;
+    }
+
+    paused_ = !paused_;
 }
 
 void Emulator::press_button(Controller::Button button)

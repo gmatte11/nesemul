@@ -10,20 +10,11 @@
 #include "ram.h"
 #include "cartridge.h"
 #include "controller.h"
+#include "debugger.h"
 #include "disassembler.h"
 
 class Emulator
 {
-public:
-    enum class Mode
-    {
-        RUN,
-        PAUSED,
-        STEP_ONCE,
-        STEP_FRAME,
-        STEP_LINE
-    };
-
 public:
     Emulator();
     ~Emulator();
@@ -33,22 +24,21 @@ public:
     void reset();
     void update();
 
-    bool is_paused() { return mode_ != Mode::RUN; }
-    bool is_ready() { return cart_ != nullptr; }
+    bool is_stepping() const { return  !debug_break_ && (!paused_ || is_debugging()); }
+    bool is_debugging() const { return debugger_.get_mode() != Debugger::MODE_RUNNING; }
+    bool is_paused() const { return paused_; }
+    bool is_ready() const { return cart_ != nullptr; }
 
-    void step_once() { mode_ = Mode::STEP_ONCE; steps_ = 1; }
-    void step_frame() { mode_ = Mode::STEP_FRAME; steps_ = 1; }
-    void step_line() { mode_ = Mode::STEP_LINE; steps_ = 1; }
-    void toggle_pause() { mode_ = (is_paused()) ? Mode::RUN : Mode::PAUSED; }
+    void toggle_pause();
+
+    void debug_break() { debug_break_ = true; }
+    void debug_step() { debug_break_ = false; }
 
     Disassembler disassembler_;
     BUS* get_bus() const { return bus_.get(); }
     CPU* get_cpu() const { return cpu_.get(); }
     PPU* get_ppu() const { return ppu_.get(); }
     APU* get_apu() const { return apu_.get(); }
-
-    void set_mode(Mode mode) { mode_ = mode; }
-    Mode get_mode() const { return mode_; }
 
     void press_button(Controller::Button b);
     void release_button(Controller::Button b);
@@ -70,8 +60,10 @@ private:
     std::unique_ptr<RAM> ram_;
     std::unique_ptr<Cartridge> cart_;
 
-    Mode mode_ = Mode::RUN;
-    int steps_ = 0;
-    int cycle_ = 0;
+    Debugger debugger_;
+    uint64_t cycle_ = 0;
     int dma_cycle_counter_ = 0;
+
+    bool paused_ = false;
+    bool debug_break_ = false;
 };

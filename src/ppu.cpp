@@ -1,4 +1,6 @@
 #include "ppu.h"
+
+#include "debugger.h"
 #include "ram.h"
 
 #include <cstring>
@@ -576,11 +578,14 @@ void PPU::tick_()
         cycle_ = 0;
         ++scanline_;
 
+        Debugger::instance()->on_ppu_line();
+
         if (scanline_ > 260)
         {
             scanline_ = -1;
             ++frame_;
             frame_done_ = true;
+            Debugger::instance()->on_ppu_frame();
         }
     }
 

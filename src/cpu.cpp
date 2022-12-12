@@ -1,9 +1,10 @@
 #include "cpu.h"
 
-#include "types.h"
-#include "ops.h"
 #include "bus.h"
+#include "debugger.h"
+#include "ops.h"
 #include "ram.h"
+#include "types.h"
 
 #include <stdexcept>
 #include <sstream>
@@ -52,6 +53,7 @@ void CPU::step()
         {
             state_ = step_fetch_();
             NES_ASSERT(idle_ticks_ > 0);
+            Debugger::instance()->on_cpu_fetch();
             break;
         }
 
@@ -73,7 +75,7 @@ void CPU::step()
     ++cycle_;
 }
 
-auto CPU::step_fetch_() -> State
+CPU::State CPU::step_fetch_()
 {
     if (int_.first)
     {
