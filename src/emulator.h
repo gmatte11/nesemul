@@ -25,7 +25,7 @@ public:
     void update();
 
     bool is_stepping() const { return  !debug_break_ && (!paused_ || is_debugging()); }
-    bool is_debugging() const { return debugger_.get_mode() != Debugger::MODE_RUNNING; }
+    bool is_debugging() const { return debug_break_ || debugger_.get_mode() != Debugger::MODE_RUNNING; }
     bool is_paused() const { return paused_; }
     bool is_ready() const { return cart_ != nullptr; }
 

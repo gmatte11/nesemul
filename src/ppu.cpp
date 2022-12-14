@@ -540,9 +540,9 @@ void PPU::render_()
                 }
             }
 
-            bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
-            bool render_bg = ppumask_.render_bg_;
-            bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
+            const bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
+            const bool render_bg = ppumask_.render_bg_;
+            const bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
 
             if (sprite_0_eval)
             {

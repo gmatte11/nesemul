@@ -36,10 +36,30 @@ void PageDebugStep::update()
     CPU const& cpu = *emulator->get_cpu();
     PPU const& ppu = *emulator->get_ppu();
 
+    PPU_State const& ppu_state = ppu.get_state();
+    address_t vram_addr = ppu.get_vram_addr();
+
     fmt::memory_buffer buf;
     fmt::format_to(buf, "VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
     fmt::format_to(buf, "CPU cycles: {}   PPU cycles: {}\n", emulator->cpu_cycle_per_frame, emulator->ppu_cycle_per_frame);
-    fmt::format_to(buf, "PPU: scanline {} cycle {} vblank {}", ppu.get_state().scanline_, ppu.get_state().cycle_, ppu.get_state().is_in_vblank_);
+    fmt::format_to(buf, "PPU: scanline {} cycle {} vblank {}\n", ppu_state.scanline_, ppu_state.cycle_, ppu_state.is_in_vblank_);
+    
+    struct VRAM
+    {
+        address_t X : 5;
+        address_t Y : 5;
+        address_t N : 2;
+        address_t y : 3;
+    } v;
+
+    v = *reinterpret_cast<VRAM*>(&vram_addr);
+    byte_t N = v.N;
+    byte_t X = v.X;
+    byte_t Y = v.Y;
+    byte_t x = 0;
+    byte_t y = v.y;
+
+    fmt::format_to(buf, "VRAM N:{} X:{} Y:{} x:{} y:{}\n", N, X, Y, x, y);
 
     text_.setString(fmt::to_string(buf));
 }

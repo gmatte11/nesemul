@@ -193,6 +193,8 @@ public:
     PPU_State& get_state() { return *this; }
     PPU_State const& get_state() const { return *this; }
 
+    address_t get_vram_addr() const { return cursor_.v.get(); }
+
     void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
 
     void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
