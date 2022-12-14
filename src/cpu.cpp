@@ -77,14 +77,15 @@ void CPU::step()
 
 CPU::State CPU::step_fetch_()
 {
-    if (int_.first)
+    if (nmi_requested_ || irq_requested_)
     {
-        if (int_.second)
+        if (nmi_requested_)
             nmi_();
         else if (!get_status_(kIntDisable))
             irq_();
 
-        int_ = {false, false};
+        irq_requested_ = false;
+        nmi_requested_ = false;
 
         if (idle_ticks_ > 0)
             return kIRQ;
@@ -227,14 +228,22 @@ void CPU::reset()
     status_ = 0x24;
     stack_pointer_ = 0xFD;
 
+    irq_requested_ = false;
+    nmi_requested_ = false;
+
     cycle_ = 0;
     idle_ticks_ = 7;
     state_ = kIRQ;
 }
 
-void CPU::interrupt(bool nmi /*= false*/)
+void CPU::pull_irq()
 {
-    int_ = {true, nmi};
+    irq_requested_ = true;
+}
+
+void CPU::pull_nmi()
+{
+    nmi_requested_ = true;
 }
 
 void CPU::log_(Instr instr)

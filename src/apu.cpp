@@ -63,7 +63,7 @@ void APU::step()
             {
                 half = true;
                 if (frame_irq_)
-                    Emulator::instance()->get_cpu()->interrupt(false);
+                    Emulator::instance()->get_cpu()->pull_irq();
             }
             break;
         }

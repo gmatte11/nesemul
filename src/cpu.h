@@ -65,6 +65,10 @@ struct CPU_State
     byte_t status_ = 0x24;
     byte_t stack_pointer_ = 0xFD;
 
+    //interrupts
+    bool irq_requested_ = false;
+    bool nmi_requested_ = false;
+
     struct Instr
     {
         byte_t opcode = 0xFF;
@@ -93,7 +97,8 @@ public:
 
     void dma_clock() { ++cycle_; }
 
-    void interrupt(bool nmi = false);
+    void pull_irq();
+    void pull_nmi();
 
     CPU_State const& get_state() const { return *this; }
 
@@ -112,9 +117,6 @@ private:
 
     uint8_t idle_ticks_from_branching_(Instr const& instr);
     uint8_t idle_ticks_from_addressing_(Instr const& instr);
-
-    //interrupt
-    std::pair<bool, bool> int_ = {false, false};
 
     // bus
     BUS* bus_ = nullptr;

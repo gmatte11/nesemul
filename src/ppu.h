@@ -313,6 +313,7 @@ private:
 
     byte_t dma_page_idx_ = 0;
     bool dma_requested_ = false;
+    bool suppress_vblank_ = false;
 
     friend class PageDebugPPU;
 };

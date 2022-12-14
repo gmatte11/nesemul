@@ -72,9 +72,16 @@ bool PPU::on_write_cpu(address_t addr, byte_t value)
     {
         // ppuctrl
     case 0x2000:
+        {
+        const bool was_nmi_enabled = ppuctrl_.nmi_;
         ppuctrl_.set(value);
+
+        if (ppustatus_.vblank_ && !was_nmi_enabled && ppuctrl_.nmi_)
+            bus_->cpu_.pull_nmi();
+
         cursor_.t.NX = ppuctrl_.nam_x_;
         cursor_.t.NY = ppuctrl_.nam_y_;
+        }
         return true;
 
         // ppumask
@@ -163,6 +170,10 @@ bool PPU::on_read_cpu(address_t addr, byte_t& value)
         value = ppustatus_.get();
         ppustatus_.vblank_ = 0;
         cursor_.w = false;
+
+        if (scanline_ == 241 && (cycle_ == 1 || cycle_ ==  2))
+            suppress_vblank_ = true;
+
         return true;
 
     case 0x2004:
@@ -613,10 +624,16 @@ void PPU::tick_()
     // first scanline of vblank
     if (scanline_ == 241 && cycle_ == 1)
     {
-        ppustatus_.vblank_ = 1; // start of vblank
+        if (!suppress_vblank_)
+            ppustatus_.vblank_ = 1; // start of vblank
+        suppress_vblank_ = false;
         is_in_vblank_ = true;
-        if (ppuctrl_.nmi_)
-            bus_->cpu_.interrupt(true); // generate NMI
+    }
+
+    if (scanline_ == 241 && cycle_ == 20)
+    {
+        if (ppustatus_.vblank_ && ppuctrl_.nmi_)
+            bus_->cpu_.pull_nmi();
     }
 }
 
