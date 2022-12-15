@@ -371,24 +371,25 @@ void PPU::bg_eval_()
 
         if (scanline_ >= -1 && scanline_ < 240)
         {
-            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 337))
+            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 336))
             {
-                bg_shifter_.shift();
                 Tile& tile = bg_next_tile_;
 
                 int op = (cycle_ - 1) % 8;
                 switch (op)
                 {
-                case 0: // NT byte
-                {
+                case 0:
                     bg_shifter_.load(tile);
+                    break;
 
+                case 1: // NT byte
+                {
                     address_t ntaddr = 0x2000 | (v.get() & 0x0FFF);
                     tile.ntbyte_ = load_(ntaddr);
                 }
                 break;
 
-                case 2: // AT byte
+                case 3: // AT byte
                 {
                     address_t ataddr = 0x23C0 | (v.get() & 0x0C00) | ((v.get() >> 4) & 0x38) | ((v.get() >> 2) & 0x07);
                     byte_t areashift = ((v.Y & 0x02) ? 4 : 0) + ((v.X & 0x02) ? 2 : 0);
@@ -396,7 +397,7 @@ void PPU::bg_eval_()
                 }
                 break;
 
-                case 4: // Low PAT byte
+                case 5: // Low PAT byte
                 {
                     tile.half_ = ppuctrl_.bg_pat_ & 0x1;
 
@@ -409,7 +410,7 @@ void PPU::bg_eval_()
                 }
                 break;
 
-                case 6: // High PAT byte
+                case 7: // High PAT byte
                 {
                     address_t addr
                         = static_cast<address_t>(tile.half_) << 12
@@ -418,9 +419,8 @@ void PPU::bg_eval_()
 
                     tile.hpat_ = load_(addr + 8);
                 }
-                break;
 
-                case 7: // Horizontal increment
+                // Increment horizontal scroll bits
                 {
                     if (v.X == 31)
                     {
@@ -520,6 +520,8 @@ void PPU::render_()
                 bg_pixel = ((bg_shifter_.hpat_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.lpat_ & mux) ? 0b01 : 0b00);
                 bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
             }
+
+            bg_shifter_.shift();
 
             {
                 auto& sprites = secondary_oam_.read();
