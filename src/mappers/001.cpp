@@ -1,5 +1,6 @@
 #include "001.h"
 #include "cartridge.h"
+#include "emulator.h"
 
 bool M001::on_cpu_read(address_t addr, byte_t& value) 
 {
@@ -49,6 +50,13 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
                     control_ = register_;
                 else
                     control_ |= 0xC;
+
+                const byte_t mirroring = control_ & 0x3;
+                NT_Mirroring m = NT_Mirroring::None;
+                if (mirroring == 2) m = NT_Mirroring::Vertical;
+                if (mirroring == 3) m = NT_Mirroring::Horizontal;
+
+                Emulator::instance()->get_ppu()->set_mirroring(m);
             }
             break;
 
@@ -96,9 +104,10 @@ bool M001::on_ppu_read(address_t addr, byte_t& value)
 
 bool M001::on_ppu_write(address_t addr, byte_t value)
 {
-    if (addr < 0x2000 && chr_l_ == cart_->chr_ram_.data())
+    if (addr < 0x2000)
     {
-        cart_->chr_ram_[addr & 0x1FFF] = value;
+        // CHR RAM is always at bank 0.
+        cart_->chr_[0][addr] = value;
         return true;
     }
 
@@ -115,26 +124,24 @@ std::pair<byte_t*, address_t> M001::get_bank(address_t addr) const
     return std::pair(nullptr, 0_addr);
 }
 
-void M001::chr_switch(bool low)
+void M001::chr_switch(bool set_bank_0)
 {
-    bool mod_4kb = control_ & 0x10;
+    const bool mode_8kb = (control_ & 0x10) == 0;
 
-    if (mod_4kb)
-    {
-        int idx = register_ & 0x1FFF;
-        address_t offset = (idx & 0x01) ? 0x1000 : 0;
+    if (mode_8kb && !set_bank_0)
+        return;
 
-        byte_t *& chr = (low) ? chr_l_ : chr_h_;
-        chr = cart_->chr_rom_[idx >> 1].data() + offset;
-    }
-    else if (low)
-    {
-        if (register_ < cart_->chr_rom_.size())
-        {
-            chr_l_ = cart_->chr_rom_[register_ >> 1].data();
-            chr_h_ = chr_l_ + 0x1000;
-        }
-    }
+    byte_t *& bank = set_bank_0 ? chr_l_ : chr_h_;
+
+    int idx = register_;
+
+    if (mode_8kb)
+        idx &= ~0x1;
+
+    bank = cart_->chr_[idx].data();
+
+    if (mode_8kb)
+        chr_h_ = chr_l_ + 0x1000;
 }
 
 void M001::prg_switch()
