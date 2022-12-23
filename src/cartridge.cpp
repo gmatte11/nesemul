@@ -1,47 +1,38 @@
 #include "cartridge.h"
 
-#include <fstream>
+#include "ines.h"
 
 Cartridge::Cartridge(byte_t ines_mapper_code)
 {
     mapper_ = Mapper::create(ines_mapper_code, this);
 }
 
-void Cartridge::load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_banks, byte_t prg_ram_banks)
+void Cartridge::load_roms(INESReader& reader)
 {
-    // Program rom (PRG-ROM)
-    if (prg_rom_banks > 0)
-    {
-        prg_rom_.reserve(prg_rom_banks);
-        byte_t* prg_buf = new byte_t[prg_rom_banks * 0x4000];
-        ifs.read(prg_buf, prg_rom_banks * 0x4000);
-        byte_t* cur = prg_buf;
+    INESHeader& h = reader.header_;
 
-        for (int i = 0; i < prg_rom_banks; ++i)
+    // 16 kb Program rom banks (PRG-ROM)
+    if (h.prg_rom_size_ > 0)
+    {
+        prg_rom_.reserve(h.prg_rom_size_);
+
+        for (int i = 0; i < h.prg_rom_size_; ++i)
         {
             auto& bank = prg_rom_.emplace_back();
-            std::memcpy(bank.data(), cur, 0x4000);
-            cur += 0x4000;
+            reader.read_prg_rom(i, bank);
         }
-        delete[] prg_buf;
     }
 
-    // Character rom (CHR-ROM)
-    if (chr_rom_banks > 0)
+    // 8 kb Character rom banks (CHR-ROM)
+    if (h.chr_rom_size_ > 0)
     {
-        chr_rom_.reserve(chr_rom_banks);
-        byte_t* chr_buf = new byte_t[chr_rom_banks * 0x2000];
-        ifs.read(chr_buf, chr_rom_banks * 0x2000);
-        byte_t* cur = chr_buf;
+        chr_.reserve(h.chr_rom_size_);
 
-        for (int i = 0; i < chr_rom_banks; ++i)
+        for (int i = 0; i < h.chr_rom_size_; ++i)
         {
-            auto& bank = chr_rom_.emplace_back();
-            std::memcpy(bank.data(), cur, 0x2000);
-            cur += 0x2000;
+            auto& bank = chr_.emplace_back();
+            reader.read_chr_rom(i, bank);
         }
-
-        delete[] chr_buf;
     }
 
     mapper_->post_load();

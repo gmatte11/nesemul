@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <string>
+#include <string_view>
 
 #include "bus.h"
 #include "cpu.h"
@@ -19,7 +19,7 @@ public:
     Emulator();
     ~Emulator();
 
-    void read_rom(const std::string& filename);
+    void read_rom(std::string_view filename);
 
     void reset();
     void update();

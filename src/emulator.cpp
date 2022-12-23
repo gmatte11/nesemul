@@ -2,18 +2,11 @@
 
 #include "types.h"
 #include "clock.h"
+#include "ines.h"
 
 #include <fmt/core.h>
 
-#include <fstream>
-#include <string>
-#include <vector>
 #include <stdexcept>
-#include <sstream>
-#include <cstring>
-#include <memory>
-
-#include <iostream>
 
 Emulator::Emulator()
     : cpu_(new CPU)
@@ -35,82 +28,61 @@ Emulator::~Emulator()
     memset(&instance_, 0xDEAD, sizeof(instance_));
 }
 
-void Emulator::read_rom(const std::string& filename)
+void Emulator::read_rom(std::string_view filename)
 {
     cart_.reset();
+    
+    fmt::print("Loading {}\n\n", filename);
 
-    bifstream ifs(filename, std::ios_base::binary);
+    INESReader reader;
+    if (!reader.read_from_file(filename))
+        throw std::runtime_error(fmt::format("Can't open file {}", filename));
 
-    if (ifs)
+    INESHeader& h = reader.header_;
+
+    auto mirroring_name = [mir = h.mirroring_]
     {
-        byte_t header[16];
-        ifs.read(header, 16);
+        using namespace std::literals;
 
-        fmt::print("Loading {}\n\n", filename);
-
-        if (std::memcmp(header, "NES", 3) != 0 && header[3] != 0x1a)
-            throw std::runtime_error("Bad file format");
-
-        bool nes20 = (0x3 & (header[7] >> 2)) == 2;
-        if (nes20)
-            throw std::runtime_error("NES 2.0 header not yet supported.");
-
-        
-        Mirroring mir = Mirroring::None;
-        if ((0x1 & (header[6] >> 3)) == 0)
+        switch (mir)
         {
-            mir = (0x1 & header[6]) ? Mirroring::Vertical : Mirroring::Horizontal;
+        case NT_Mirroring::None:
+            return "four-screen"sv;
+
+        case NT_Mirroring::Single:
+            return "single-screen"sv;
+
+        case NT_Mirroring::Horizontal:
+            return "horizontal"sv;
+
+        case NT_Mirroring::Vertical:
+            return "vertical"sv;
         }
 
-        ppu_->set_mirroring(mir);
+        return "UNKNOWN"sv;
+    };
 
-        bool battery = 0x1 & (header[6] >> 1);
-        bool trainer = 0x1 & (header[6] >> 2);
-        bool fourscreen = 0x1 & (header[6] >> 3);
+    fmt::print("config:\n    iNES version: {}\n    mirroring: {}\n    battery: {}\n    trainer: {}\n\n",
+        h.is_ines2_ ? "2" : "1",
+        mirroring_name(),
+        h.has_prg_ram_,
+        h.has_trainer_);
 
-        byte_t mapper = (byte_t)((header[7] & 0xF0) | (header[6] >> 4));
-        fmt::print("mapper: {:03}\n\n", mapper);
-        cart_.reset(new Cartridge(mapper));
+    // Compatibility
+    if (!h.is_ines2_ && h.prg_ram_size_ == 0)
+        h.prg_ram_size_ = 1;
 
-        fmt::print("config:\n    mirroring: {}\n    battery: {}\n    trainer: {}\n    four-screen: {}\n\n", 
-            (mir == Mirroring::Vertical ? "vertical" : "horizontal"),
-            battery,
-            trainer,
-            fourscreen,
-            (0x1 & (header[7] >> 0)),
-            (0x1 & (header[7] >> 1))
-        );
+    fmt::print("num_16kb_prg_rom_banks: {}\n", h.prg_rom_size_);
+    fmt::print("num_8kb_chr_rom_banks: {}\n", h.chr_rom_size_);
+    fmt::print("num_8kb_prg_ram_banks: {}\n", h.prg_ram_size_);
 
+    cart_.reset(new Cartridge(h.mapper_));
+    cart_->load_roms(reader);
 
-        byte_t num_16kb_prg_rom_banks = header[4];
-        fmt::print("num_16kb_prg_rom_banks: {}\n", num_16kb_prg_rom_banks);
+    ppu_->set_mirroring(h.mirroring_);
 
-        byte_t num_8kb_chr_rom_banks = header[5];
-        fmt::print("num_8kb_chr_rom_banks: {}\n", num_8kb_chr_rom_banks);
-
-        byte_t num_8kb_prg_ram_banks = header[8];
-        if (num_8kb_prg_ram_banks == 0)
-            num_8kb_prg_ram_banks = 1; // compatibility
-
-        //if (0x1 & (header[10] >> 4))
-        //    num_8kb_prg_ram_banks = 1; // ??
-        fmt::print("num_8kb_prg_ram_banks: {}\n", num_8kb_prg_ram_banks);
-
-        ifs.seekg(16);
-
-        // trainer is 512B, skip it for now
-        if (trainer)
-            ifs.ignore(512);
-
-        cart_->load_roms(ifs, num_16kb_prg_rom_banks, num_8kb_chr_rom_banks, num_8kb_prg_ram_banks);
-        bus_->load_cartridge(cart_.get());
-
-        disassembler_.load(cart_.get());
-    }
-    else
-    {
-        throw std::runtime_error(fmt::format("Can't open file {}", filename));
-    }
+    bus_->load_cartridge(cart_.get());
+    disassembler_.load(cart_.get());
 }
 
 void Emulator::reset()

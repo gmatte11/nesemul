@@ -3,8 +3,7 @@
 #include "types.h"
 #include "mapper.h"
 
-#include <iosfwd>
-using bifstream = std::basic_ifstream<byte_t>;
+class INESReader;
 
 class Cartridge
 {
@@ -31,7 +30,7 @@ public:
     bool on_ppu_read(address_t addr, byte_t& value) { return mapper_->on_ppu_read(addr, value); }
     bool on_ppu_write(address_t addr, byte_t value) { return mapper_->on_ppu_write(addr, value); }
 
-    void load_roms(bifstream& ifs, byte_t prg_rom_banks, byte_t chr_rom_banks, byte_t prg_ram_banks);
+    void load_roms(INESReader& reader);
 
     std::pair<byte_t*, address_t> get_bank(address_t addr) const;
 

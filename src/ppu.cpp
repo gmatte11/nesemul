@@ -714,12 +714,12 @@ address_t PPU::mirror_addr_(address_t addr) const
 
     switch (mirroring_)
     {
-    case Mirroring::Vertical:
+    case NT_Mirroring::Vertical:
         if (addr >= 0x2800 && addr < 0x3000)
             addr -= 0x0800;
         break;
 
-    case Mirroring::Horizontal:
+    case NT_Mirroring::Horizontal:
         if (addr >= 0x2400 && addr < 0x2800)
             addr -= 0x0400;
         

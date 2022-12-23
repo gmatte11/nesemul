@@ -38,6 +38,14 @@ struct register_t
     register_t& operator^=(base_t value) { set(get() ^ value); return *this; }
 };
 
+enum class NT_Mirroring : byte_t
+{
+    None,
+    Single,
+    Horizontal,
+    Vertical,
+};
+
 #define NES_BREAKPOINT __debugbreak()
 #define NES_DEOPTIMIZE __pragma(optimize("",off))
 

@@ -9,12 +9,6 @@
 #include <array>
 #include <cstring>
 
-enum class Mirroring
-{
-    None,
-    Horizontal,
-    Vertical
-};
 
 class Palette
 {
@@ -113,7 +107,7 @@ struct PPU_State
     uint16_t cycle_ = 0;
 
     // Nametable mirroring
-    Mirroring mirroring_;
+    NT_Mirroring mirroring_;
 
     // scroll (debug)
     byte_t scroll_x_;
@@ -195,7 +189,7 @@ public:
 
     address_t get_vram_addr() const { return cursor_.v.get(); }
 
-    void set_mirroring(Mirroring mirroring) { mirroring_ = mirroring; }
+    void set_mirroring(NT_Mirroring mirroring) { mirroring_ = mirroring; }
 
     void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
     void tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const;

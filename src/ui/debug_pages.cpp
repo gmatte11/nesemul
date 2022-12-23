@@ -7,7 +7,6 @@
 
 #include <fmt/format.h>
 
-#include <iterator>
 #include <algorithm>
 #include <fstream>
 
