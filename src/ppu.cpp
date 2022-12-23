@@ -141,6 +141,7 @@ bool PPU::on_write_cpu(address_t addr, byte_t value)
     case 0x2007:
         store_(cursor_.v.get() & 0x3FFF, value);
         cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v &= 0x7FFF;
         return true;
 
         // oamdma
@@ -171,7 +172,7 @@ bool PPU::on_read_cpu(address_t addr, byte_t& value)
         ppustatus_.vblank_ = 0;
         cursor_.w = false;
 
-        if (scanline_ == 241 && (cycle_ == 1 || cycle_ ==  2))
+        if (scanline_ == 241 && cycle_ <=  1)
             suppress_vblank_ = true;
 
         return true;
@@ -182,13 +183,18 @@ bool PPU::on_read_cpu(address_t addr, byte_t& value)
 
     case 0x2007:
     {
-        value = read_buffer_;
-        read_buffer_ = load_(cursor_.v.get() & 0x3FFF);
+        const address_t vram_addr = cursor_.v.get() & 0x3FFF;
 
-        if (cursor_.v.get() >= 0x3F00 && cursor_.v.get() < 0x4000)
+        value = read_buffer_;
+        read_buffer_ = load_(vram_addr);
+
+        // palette read is instantaneous
+        if (vram_addr >= 0x3F00 && vram_addr < 0x4000)
             value = read_buffer_;
 
         cursor_.v += (ppuctrl_.addr_inc_) ? 32 : 1;
+        cursor_.v &= 0x7FFF;
+
         return true;
     }
     }
@@ -198,9 +204,17 @@ bool PPU::on_read_cpu(address_t addr, byte_t& value)
 
 bool PPU::on_write_ppu(address_t addr, byte_t value)
 {
-    if (addr <= 0x4000)
+    addr = mirror_addr_(addr);
+    
+    if (addr >= 0x2000 && addr < 0x3000)
     {
-        memory_[mirror_addr_(addr)] = value;
+        memory_[addr - 0x2000] = value;
+        return true;
+    }
+
+    if (addr >= 0x3F00 && addr < 0x3F20)
+    {
+        palette_[addr & 0xFF] = value;
         return true;
     }
 
@@ -209,9 +223,17 @@ bool PPU::on_write_ppu(address_t addr, byte_t value)
 
 bool PPU::on_read_ppu(address_t addr, byte_t& value)
 {
-     if (addr <= 0x4000)
+    addr = mirror_addr_(addr);
+    
+    if (addr >= 0x2000 && addr < 0x3000)
     {
-        value = memory_[mirror_addr_(addr)];
+        value = memory_[addr - 0x2000];
+        return true;
+    }
+
+    if (addr >= 0x3F00 && addr < 0x3F20)
+    {
+        value = palette_[addr & 0xFF];
         return true;
     }
 

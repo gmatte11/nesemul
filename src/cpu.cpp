@@ -278,8 +278,7 @@ void CPU::irq_()
     set_status_(kIntDisable, true);
     store_stack_(status_);
 
-    address_t vector = 0xFFFE;
-    program_counter_ = load_addr_(vector);
+    program_counter_ = load_addr_(0xFFFE);
     idle_ticks_ = 7;
 }
 
@@ -291,8 +290,7 @@ void CPU::nmi_()
     set_status_(kIntDisable, true);
     store_stack_(status_);
 
-    address_t vector = 0xFFFA;
-    program_counter_ = load_addr_(vector);
+    program_counter_ = load_addr_(0xFFFA);
     idle_ticks_ = 7;
 }
 
@@ -697,11 +695,12 @@ void CPU::bpl_(byte_t operand)
 
 void CPU::brk_()
 {
+    store_stack_(program_counter_);
+
     set_status_(kBreak, true);
     set_status_(kIntDisable, true);
-    store_stack_(program_counter_);
     store_stack_(status_);
-    set_status_(kBreak, false);
+    
     program_counter_ = load_addr_(0xFFFE);
 }
 

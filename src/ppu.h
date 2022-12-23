@@ -215,8 +215,9 @@ private:
     Output output_;
 
     // memory
-    std::array<byte_t, 0x4000> memory_ {};
-    std::array<byte_t, 0x100> oam_ {};
+    std::array<byte_t, 0x1000> memory_;
+    std::array<byte_t, 0x20> palette_;
+    std::array<byte_t, 0x100> oam_;
 
     // BG rendering
     Tile bg_next_tile_;
@@ -302,6 +303,7 @@ private:
             address_t NX : 1; // Nametable X component (bit 10)
             address_t NY : 1; // Nametable Y component (bit 11)
             address_t y : 3; // Fine y scroll (bits 12-14)
+            address_t _ : 1;
         };
         static_assert(sizeof(VRAM) == sizeof(address_t));
 
