@@ -39,7 +39,6 @@ private:
 
 public:
     std::vector<PRG_BANK> prg_rom_;
-    std::array<byte_t, 0x2000> wram_;
-    std::vector<CHR_BANK> chr_rom_;
-    std::array<byte_t, 0x2000> chr_ram_;
+    std::array<byte_t, 0x2000> wram_ {};
+    std::vector<CHR_BANK> chr_;
 };

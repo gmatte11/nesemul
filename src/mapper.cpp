@@ -25,13 +25,10 @@ void Mapper::post_load()
     prg_l_ = cart_->prg_rom_.front().data();
     prg_h_ = cart_->prg_rom_.back().data();
     
-    if (!cart_->chr_rom_.empty())
-    {
-        chr_l_ = cart_->chr_rom_.front().data();
-    }
-    else
-    {
-        chr_l_ = cart_->chr_ram_.data(); 
-    }
+    // A single bank of CHR RAM is created when no CHR ROM is available in the cartridge.
+    if (cart_->chr_.empty())
+        cart_->chr_.emplace_back();
+
+    chr_l_ = cart_->chr_.front().data();
     chr_h_ = chr_l_ + 0x1000;
 }
