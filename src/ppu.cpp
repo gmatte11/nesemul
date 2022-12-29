@@ -3,8 +3,6 @@
 #include "debugger.h"
 #include "ram.h"
 
-#include <cstring>
-
 static Color g_palette[] = {
     /* 0x00 - 0x03 */ {84, 84, 84},    {0, 30, 116},    {8, 16, 144},    {48, 0, 136},
     /* 0x04 - 0x07 */ {68, 0, 100},    {92, 0, 48},     {84, 4, 0},      {60, 24, 0},
@@ -356,92 +354,92 @@ void PPU::bg_eval_()
 {
     auto& v = cursor_.v;
 
-    if (ppumask_.render_bg_ || ppumask_.render_fg_)
+    if (!ppumask_.render_bg_ && !ppumask_.render_fg_)
+        return;
+
+    if (scanline_ >= -1 && scanline_ < 240)
     {
-        if (scanline_ >= -1 && scanline_ < 240)
+        if (cycle_ == 256)
         {
-            if (cycle_ == 256)
+            // Vertical increment
+            if (v.y < 7)
             {
-                // Vertical increment
-                if (v.y < 7)
+                v.y++;
+            }
+            else
+            {
+                v.y = 0;
+                if (v.Y == 29)
                 {
-                    v.y++;
+                    v.Y = 0;
+                    v.NY = ~v.NY;
+                }
+                else if (v.Y == 31)
+                {
+                    v.Y = 0;
                 }
                 else
                 {
-                    v.y = 0;
-                    if (v.Y == 29)
-                    {
-                        v.Y = 0;
-                        v.NY = ~v.NY;
-                    }
-                    else if (v.Y == 31)
-                    {
-                        v.Y = 0;
-                    }
-                    else
-                    {
-                        v.Y++;
-                    }
+                    v.Y++;
                 }
             }
+        }
 
-            // Transfer horizontal scroll bits
-            if (cycle_ == 257)
+        // Transfer horizontal scroll bits
+        if (cycle_ == 257)
+        {
+            v.X = cursor_.t.X;
+            v.NX = cursor_.t.NX;
+        }
+
+        // up to cycle 337 to shift the bg_shifter_  once more.
+        if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 337))
+        {
+            Tile& tile = bg_next_tile_;
+
+            int op = (cycle_ - 1) % 8;
+            switch (op)
             {
-                v.X = cursor_.t.X;
-                v.NX = cursor_.t.NX;
+            case 0:
+                bg_shifter_.load(tile);
+                break;
+
+            case 1: // NT byte
+            {
+                address_t ntaddr = 0x2000 | (v.get() & 0x0FFF);
+                tile.ntbyte_ = load_(ntaddr);
             }
+            break;
 
-            // up to cycle 337 to shift the bg_shifter_  once more.
-            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 337))
+            case 3: // AT byte
             {
-                Tile& tile = bg_next_tile_;
+                address_t ataddr = 0x23C0 | (v.get() & 0x0C00) | ((v.get() >> 4) & 0x38) | ((v.get() >> 2) & 0x07);
+                byte_t areashift = ((v.Y & 0x02) ? 4 : 0) + ((v.X & 0x02) ? 2 : 0);
+                tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
+            }
+            break;
 
-                int op = (cycle_ - 1) % 8;
-                switch (op)
-                {
-                case 0:
-                    bg_shifter_.load(tile);
-                    break;
+            case 5: // Low PAT byte
+            {
+                tile.half_ = ppuctrl_.bg_pat_ & 0x1;
 
-                case 1: // NT byte
-                {
-                    address_t ntaddr = 0x2000 | (v.get() & 0x0FFF);
-                    tile.ntbyte_ = load_(ntaddr);
-                }
-                break;
+                address_t addr
+                    = static_cast<address_t>(tile.half_) << 12
+                    | static_cast<address_t>(tile.ntbyte_) << 4
+                    | static_cast<address_t>(v.y);
 
-                case 3: // AT byte
-                {
-                    address_t ataddr = 0x23C0 | (v.get() & 0x0C00) | ((v.get() >> 4) & 0x38) | ((v.get() >> 2) & 0x07);
-                    byte_t areashift = ((v.Y & 0x02) ? 4 : 0) + ((v.X & 0x02) ? 2 : 0);
-                    tile.atbyte_ = (load_(ataddr) >> areashift) & 0x3;
-                }
-                break;
+                tile.lpat_ = load_(addr);
+            }
+            break;
 
-                case 5: // Low PAT byte
-                {
-                    tile.half_ = ppuctrl_.bg_pat_ & 0x1;
+            case 7: // High PAT byte
+            {
+                address_t addr
+                    = static_cast<address_t>(tile.half_) << 12
+                    | static_cast<address_t>(tile.ntbyte_) << 4
+                    | static_cast<address_t>(v.y);
 
-                    address_t addr
-                        = static_cast<address_t>(tile.half_) << 12
-                        | static_cast<address_t>(tile.ntbyte_) << 4
-                        | static_cast<address_t>(v.y);
-
-                    tile.lpat_ = load_(addr);
-                }
-                break;
-
-                case 7: // High PAT byte
-                {
-                    address_t addr
-                        = static_cast<address_t>(tile.half_) << 12
-                        | static_cast<address_t>(tile.ntbyte_) << 4
-                        | static_cast<address_t>(v.y);
-
-                    tile.hpat_ = load_(addr + 8);
-                }
+                tile.hpat_ = load_(addr + 8);
 
                 // Increment horizontal scroll bits
                 {
@@ -456,7 +454,7 @@ void PPU::bg_eval_()
                     }
                 }
                 break;
-                }
+            }
             }
         }
     }
