@@ -284,7 +284,7 @@ Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
 {
     Tile t;
     t.ntbyte_ = ntbyte;
-    t.half_ = half & 0x1;
+    t.half_ = half != 0;
     return t;
 }
 
@@ -358,42 +358,43 @@ void PPU::bg_eval_()
 
     if (ppumask_.render_bg_ || ppumask_.render_fg_)
     {
-        if (cycle_ == 256)
+        if (scanline_ >= -1 && scanline_ < 240)
         {
-            // Vertical increment
-            if (v.y < 7)
+            if (cycle_ == 256)
             {
-                v.y++;
-            }
-            else
-            {
-                v.y = 0;
-                if (v.Y == 29)
+                // Vertical increment
+                if (v.y < 7)
                 {
-                    v.Y = 0;
-                    v.NY = ~v.NY;
-                }
-                else if (v.Y == 31)
-                {
-                    v.Y = 0;
+                    v.y++;
                 }
                 else
                 {
-                    v.Y++;
+                    v.y = 0;
+                    if (v.Y == 29)
+                    {
+                        v.Y = 0;
+                        v.NY = ~v.NY;
+                    }
+                    else if (v.Y == 31)
+                    {
+                        v.Y = 0;
+                    }
+                    else
+                    {
+                        v.Y++;
+                    }
                 }
             }
-        }
 
-        // Transfer horizontal scroll bits
-        if (cycle_ == 257)
-        {
-            v.X = cursor_.t.X;
-            v.NX = cursor_.t.NX;
-        }
+            // Transfer horizontal scroll bits
+            if (cycle_ == 257)
+            {
+                v.X = cursor_.t.X;
+                v.NX = cursor_.t.NX;
+            }
 
-        if (scanline_ >= -1 && scanline_ < 240)
-        {
-            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 336))
+            // up to cycle 337 to shift the bg_shifter_  once more.
+            if ((cycle_ > 0 && cycle_ <= 256) || (cycle_ > 320 && cycle_ <= 337))
             {
                 Tile& tile = bg_next_tile_;
 
