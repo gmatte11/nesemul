@@ -66,21 +66,17 @@ struct Sprite
     byte_t lpat_ = 0;
     byte_t hpat_ = 0;
     byte_t att_ = 0;
-    int16_t x_ = 0;
+    byte_t x_ = 0;
 
-    bool is_visible() const
+    byte_t get_pat(byte_t col)
     {
-        return x_ <= 0 && x_ > -8;
-    }
-
-    void shift()
-    {
-        --x_;
-        if (x_ < 0)
+        if (col >= x_ && col < x_ + 8)
         {
-            lpat_ <<= 1;
-            hpat_ <<= 1;
+            const byte_t mask = 0x80 >> (col - x_);
+            return ((hpat_ & mask) ? 0b10 : 0b00) | ((lpat_ & mask) ? 0b01 : 0b00);
         }
+
+        return 0;
     }
 };
 
@@ -220,15 +216,11 @@ private:
     // sprite rendering
     struct SecondaryOAM
     {
-        struct Entry
-        {
-            Sprite sprite_;
-            int oam_idx_;
-        };
-        std::array<Entry, 8> list_ {};
+        std::array<Sprite, 8> list_ {};
         int count_ = 0;
+        bool has_sprite_0_ = false;
 
-        static const Entry empty_;
+        void reset();
     };
     Latch<SecondaryOAM> secondary_oam_;
 

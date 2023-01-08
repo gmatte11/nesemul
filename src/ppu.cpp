@@ -25,7 +25,6 @@ static Color g_palette[] = {
     /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
 };
 
-const PPU::SecondaryOAM::Entry PPU::SecondaryOAM::empty_{Sprite{0xFF, 0xFF, 0xFF, 0xFF}, 0xFF};
 
 void PPU::step()
 {
@@ -397,6 +396,8 @@ void PPU::bg_eval_()
         {
             Tile& tile = bg_next_tile_;
 
+            bg_shifter_.shift();
+
             int op = (cycle_ - 1) % 8;
             switch (op)
             {
@@ -465,13 +466,12 @@ void PPU::fg_eval_()
     if (!ppumask_.render_fg_ && !ppumask_.render_bg_)
         return;
 
-    if (scanline_ >= 0 && scanline_ < 240)
+    if (scanline_ > 0 && scanline_ < 240)
     {
         if (cycle_ == 1)
         {
             secondary_oam_.flip();
-            secondary_oam_.store().count_ = 0;
-            secondary_oam_.store().list_.fill(SecondaryOAM::empty_);
+            secondary_oam_.store().reset();
         }
 
         if (cycle_ == 256)
@@ -487,18 +487,20 @@ void PPU::fg_eval_()
                 };
 
                 Entry& entry = reinterpret_cast<Entry*>(oam_.data())[i];
-                int y = scanline_ + 1;
+                int y = scanline_;
 
-                if (entry.y < y && (y - entry.y) <= 8)
+                if (entry.y <= y && (y - entry.y) < 8)
                 {
                     auto& sprites = secondary_oam_.store();
                     if (sprites.count_ < 8)
                     {
                         auto& sprite = sprites.list_[sprites.count_];
-                        sprite.oam_idx_ = i;
+
+                        if (i == 0) 
+                            sprites.has_sprite_0_ = true;
 
                         Tile tile = get_pattern_tile(entry.tile, ppuctrl_.fg_pat_);
-                        load_sprite_(sprite.sprite_, tile, entry.att, entry.x + 1, static_cast<uint8_t>(y) - entry.y - 1);
+                        load_sprite_(sprite, tile, entry.att, entry.x, static_cast<byte_t>(y) - entry.y);
 
                         ++sprites.count_;
                     }
@@ -525,16 +527,16 @@ void PPU::render_()
         if (cycle_ > 0 && cycle_ <= 256)
         {
             int row = scanline_;
-            int col = cycle_ - 1;
+            int col = cycle_ - 1; // rendering of x=0 starts at cycle 1, x=255 at cycle 256.
             
             byte_t bg_pixel = 0;
             byte_t fg_pixel = 0;
             byte_t bg_pal = 0;
             byte_t fg_pal = 0;
             bool fg_priority = false;
-            bool has_sprite_0 = false;
+            bool is_sprite_0 = false;
 
-            if (ppumask_.render_bg_)
+            if (ppumask_.render_bg_ && (col > 7 || ppumask_.left_bg_))
             {
                 address_t mux = 0x8000 >> cursor_.x;
 
@@ -542,30 +544,27 @@ void PPU::render_()
                 bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
             }
 
-            bg_shifter_.shift();
-
             {
                 auto& sprites = secondary_oam_.read();
 
-                for (int i = 0; i < sprites.count_; ++i)
+                for (int i = 0; i < sprites.count_ && fg_pixel == 0; ++i)
                 {
-                    Sprite& sprite = sprites.list_[i].sprite_;
-                    sprite.shift();
+                    Sprite& sprite = sprites.list_[i];
+                    byte_t sprite_pat = sprite.get_pat(static_cast<byte_t>(col));
 
-                    if (fg_pixel == 0 && sprite.is_visible() && ppumask_.render_fg_) // TODO 8x16 sprites
+                    // TODO 8x16 sprites
+                    if (sprite_pat != 0 && ppumask_.render_fg_ && (col > 7 || ppumask_.left_fg_))
                     {
-                        fg_pixel = ((sprite.hpat_ & 0x80) ? 0b10 : 0b00) | ((sprite.lpat_ & 0x80) ? 0b01 : 0b00);
+                        fg_pixel = sprite_pat;
                         fg_pal = sprite.att_ & 0x3;
                         fg_priority = (sprite.att_ & 0x20) == 0;
                         
-                        has_sprite_0 = has_sprite_0 || sprites.list_[i].oam_idx_ == 0;
+                        is_sprite_0 = i == 0 && sprites.has_sprite_0_;
                     }
                 }
             }
 
-            const bool render_fg = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
-            const bool render_bg = ppumask_.render_bg_;
-            const bool sprite_0_eval = has_sprite_0 && ppumask_.render_fg_ && col < 255;
+            const bool sprite_0_eval = is_sprite_0 && ppumask_.render_fg_ && ppumask_.render_bg_ && col < 255;
 
             if (sprite_0_eval)
             {
@@ -573,13 +572,16 @@ void PPU::render_()
                     ppustatus_.sprite_0_hit_ = 1;
             }
 
+            const bool is_fg_pixel = ppumask_.render_fg_ && fg_pixel != 0 && (bg_pixel == 0 || fg_priority);
+            const bool is_bg_pixel = ppumask_.render_bg_; // only if the foreground pixel doesn't have priority.
+            
             Color color{0, 0, 0, 0xFF};
 
-            if (render_fg)
+            if (is_fg_pixel)
             {
                 color = get_palette(fg_pal + 4).get(fg_pixel);
             }
-            else if (render_bg)
+            else if (is_bg_pixel)
             {
                 color = get_palette(bg_pal).get(bg_pixel);
             }
@@ -658,6 +660,15 @@ void PPU::tick_()
         if (ppustatus_.vblank_ && ppuctrl_.nmi_)
             bus_->cpu_.pull_nmi();
     }
+}
+
+void PPU::SecondaryOAM::reset()
+{
+    static constexpr Sprite empty{0xFF, 0xFF, 0xFF, 0xFF};
+    
+    count_ = 0;
+    has_sprite_0_ = false;
+    list_.fill(empty);
 }
 
 void PPU::load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t ty)

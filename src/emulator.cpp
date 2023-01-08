@@ -104,7 +104,6 @@ void Emulator::update()
         cpu_cycle_start_of_frame = get_cpu()->get_state().cycle_;
         ppu_cycle_start_of_frame = get_ppu()->get_state().cycle_counter_;
 
-        // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
         while (!ppu_->grab_frame_done())
         {
             try
@@ -167,6 +166,7 @@ void Emulator::release_button(Controller::Button button)
     bus_->ctrl_.release(button);
 }
 
+// NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
 void Emulator::clock_cpu_()
 {
     apu_->step();
