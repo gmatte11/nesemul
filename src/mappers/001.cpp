@@ -35,24 +35,33 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
 
     if (addr >= 0x8000)
     {
-        bool full = register_ & 0b1;
-        (register_ >>= 1) |= ((0x1 & value) << 4);
-        bool reset = (0x80 & value);
+        const bool reset = (0x80 & value);
+        const int op = (addr & 0x6000) >> 13;
 
-        if (full || reset)
+        if (reset)
         {
-            int op = (addr >> 13) & 0b11;
+            register_ = {};
+            if (op == 0)
+                control_ |= 0xC;
+            else if (op == 3)
+                prg_h_ = cart_->prg_rom_.back().data();
+
+            return true;
+        }
+
+        (register_.latch >>= 1) |= ((0x1 & value) << 4);
+        ++register_.writes;
+
+        if (register_.writes >= 5)
+        {
             switch (op)
             {
             case 0: // control
             {
-                if (full)
-                    control_ = register_;
-                else
-                    control_ |= 0xC;
+                control_ = register_.latch;
 
                 const byte_t mirroring = control_ & 0x3;
-                NT_Mirroring m = NT_Mirroring::None;
+                NT_Mirroring m = NT_Mirroring::Single;
                 if (mirroring == 2) m = NT_Mirroring::Vertical;
                 if (mirroring == 3) m = NT_Mirroring::Horizontal;
 
@@ -61,24 +70,19 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
             break;
 
             case 1: // CHR bank 0
-                chr_switch(true);
+                chr_low_switch();
                 break;
 
             case 2: // CHR bank 1
-                chr_switch(false);
+                chr_high_switch();
                 break;
 
             case 3: // PRG bank
-            {
-                if (reset)
-                    prg_h_ = cart_->prg_rom_.back().data();
-                else
-                    prg_switch();
-            }
-            break;
+                prg_switch();
+                break;
             }
 
-            register_ = 0b10000;
+            register_ = {};
         }
 
         return true;
@@ -124,30 +128,43 @@ std::pair<byte_t*, address_t> M001::get_bank(address_t addr) const
     return std::pair(nullptr, 0_addr);
 }
 
-void M001::chr_switch(bool set_bank_0)
+void M001::chr_low_switch()
 {
     const bool mode_8kb = (control_ & 0x10) == 0;
-
-    if (mode_8kb && !set_bank_0)
-        return;
-
-    byte_t *& bank = set_bank_0 ? chr_l_ : chr_h_;
-
-    int idx = register_;
+    byte_t idx = register_.latch;
 
     if (mode_8kb)
-        idx &= ~0x1;
+        idx &= 0xFE;
 
-    bank = cart_->chr_[idx].data();
+    int chr_idx = idx >> 1;
+    int offset = (idx & 0x1) ? 0x1000 : 0;
+
+    NES_ASSERT(chr_idx < cart_->chr_.size());
+    chr_l_ = cart_->chr_[chr_idx].data() + offset;
 
     if (mode_8kb)
         chr_h_ = chr_l_ + 0x1000;
 }
 
+void M001::chr_high_switch()
+{
+    const bool mode_8kb = (control_ & 0x10) == 0;
+    byte_t idx = register_.latch;
+
+    if (mode_8kb)
+        return;
+
+    int chr_idx = idx >> 1;
+    int offset = (idx & 0x1) ? 0x1000 : 0;
+
+    NES_ASSERT(chr_idx < cart_->chr_.size());
+    chr_h_ = cart_->chr_[chr_idx].data() + offset;
+}
+
 void M001::prg_switch()
 {
     byte_t mode = (control_ >> 2) & 0b11;
-    byte_t idx = register_ & 0b1111;
+    byte_t idx = register_.latch & 0b1111;
 
     switch (mode)
     {
@@ -155,6 +172,7 @@ void M001::prg_switch()
     case 1:
     {
         idx = idx >> 1;
+        NES_ASSERT(idx < cart_->prg_rom_.size());
         prg_l_ = cart_->prg_rom_[idx].data();
         prg_h_ = (cart_->prg_rom_.size() > idx) ? cart_->prg_rom_[idx + 1].data() : prg_l_;
     }
@@ -163,6 +181,7 @@ void M001::prg_switch()
     case 2:
     {
         prg_l_ = cart_->prg_rom_.front().data();
+        NES_ASSERT(idx < cart_->prg_rom_.size());
         prg_h_ = cart_->prg_rom_[idx].data();
     } 
     break;
@@ -170,6 +189,7 @@ void M001::prg_switch()
     case 3:
     {
         prg_h_ = cart_->prg_rom_.back().data();
+        NES_ASSERT(idx < cart_->prg_rom_.size());
         prg_l_ = cart_->prg_rom_[idx].data();
     }
     break;

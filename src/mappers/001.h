@@ -16,9 +16,14 @@ public:
 
     std::pair<byte_t*, address_t> get_bank(address_t addr) const;
 private:
-    byte_t register_ = 0b10000;
+    struct : public register_t<byte_t> 
+    { 
+        byte_t latch : 5;
+        byte_t writes : 3;
+    } register_ = {};
     byte_t control_ = 0;
     
-    void chr_switch(bool low);
+    void chr_low_switch();
+    void chr_high_switch();
     void prg_switch();
 };
