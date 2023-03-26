@@ -10,7 +10,7 @@ void BUS::write_cpu(address_t addr, byte_t value)
     if (ppu_.on_write_cpu(addr, value)) ;
     else if (apu_.on_write(addr, value)) ;
     else if (ctrl_.on_write(addr, value)) ;
-    else if (cart_ != nullptr && cart_->on_cpu_write(addr, value)) ;
+    else if (cart_ && cart_->on_cpu_write(addr, value)) ;
     else ram_.on_write(addr, value);
 }
 
@@ -21,7 +21,7 @@ byte_t BUS::read_cpu(address_t addr)
     if (ppu_.on_read_cpu(addr, value)) ;
     else if (apu_.on_read(addr, value)) ;
     else if (ctrl_.on_read(addr, value)) ;
-    else if (cart_ != nullptr && cart_->on_cpu_read(addr, value)) ;
+    else if (cart_ && cart_->on_cpu_read(addr, value)) ;
     else ram_.on_read(addr, value);
     
     return value;

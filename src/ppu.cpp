@@ -487,9 +487,14 @@ void PPU::fg_eval_()
                 };
 
                 Entry& entry = reinterpret_cast<Entry*>(oam_.data())[i];
-                int y = scanline_;
 
-                if (entry.y <= y && (y - entry.y) < 8)
+                const bool long_sprite = ppuctrl_.sprite_size_;
+                const int height = long_sprite ? 16 : 8;
+                const int sprite_y = scanline_ - entry.y;
+                const bool is_visible = sprite_y >= 0 && sprite_y < height;
+                const bool bottom_half = long_sprite && sprite_y >= 8;
+
+                if (is_visible)
                 {
                     auto& sprites = secondary_oam_.store();
                     if (sprites.count_ < 8)
@@ -498,9 +503,15 @@ void PPU::fg_eval_()
 
                         if (i == 0) 
                             sprites.has_sprite_0_ = true;
+                        
+                        byte_t pat = long_sprite ? entry.tile & 0x1 :  ppuctrl_.fg_pat_;
+                        byte_t ntidx = long_sprite ? entry.tile & 0xFE : entry.tile;
 
-                        Tile tile = get_pattern_tile(entry.tile, ppuctrl_.fg_pat_);
-                        load_sprite_(sprite, tile, entry.att, entry.x, static_cast<byte_t>(y) - entry.y);
+                        if (bottom_half)
+                            ntidx++;
+
+                        Tile tile = get_pattern_tile(ntidx, pat);
+                        load_sprite_(sprite, tile, entry.att, entry.x, static_cast<byte_t>(sprite_y) & 0b111);
 
                         ++sprites.count_;
                     }
@@ -544,6 +555,7 @@ void PPU::render_()
                 bg_pal = ((bg_shifter_.hatt_ & mux) ? 0b10 : 0b00) | ((bg_shifter_.latt_ & mux) ? 0b01 : 0b00);
             }
 
+            if (ppumask_.render_fg_ && (col > 7 || ppumask_.left_fg_))
             {
                 auto& sprites = secondary_oam_.read();
 
@@ -552,11 +564,10 @@ void PPU::render_()
                     Sprite& sprite = sprites.list_[i];
                     byte_t sprite_pat = sprite.get_pat(static_cast<byte_t>(col));
 
-                    // TODO 8x16 sprites
-                    if (sprite_pat != 0 && ppumask_.render_fg_ && (col > 7 || ppumask_.left_fg_))
+                    if (sprite_pat != 0)
                     {
                         fg_pixel = sprite_pat;
-                        fg_pal = sprite.att_ & 0x3;
+                        fg_pal = (sprite.att_ & 0x3) + 4;
                         fg_priority = (sprite.att_ & 0x20) == 0;
                         
                         is_sprite_0 = i == 0 && sprites.has_sprite_0_;
@@ -579,12 +590,14 @@ void PPU::render_()
 
             if (is_fg_pixel)
             {
-                color = get_palette(fg_pal + 4).get(fg_pixel);
+                color = get_palette(fg_pal).get(fg_pixel);
             }
             else if (is_bg_pixel)
             {
                 color = get_palette(bg_pal).get(bg_pixel);
             }
+
+            // TODO: emphasis color
 
             output_.set(col, row, color);
         }

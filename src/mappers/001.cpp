@@ -111,7 +111,7 @@ bool M001::on_ppu_write(address_t addr, byte_t value)
     if (addr < 0x2000)
     {
         // CHR RAM is always at bank 0.
-        cart_->chr_[0][addr] = value;
+        cart_->chr_.front()[addr] = value;
         return true;
     }
 
@@ -171,26 +171,26 @@ void M001::prg_switch()
     case 0:
     case 1:
     {
-        idx = idx >> 1;
-        NES_ASSERT(idx < cart_->prg_rom_.size());
+        idx &= 0b1110;
+        NES_ASSERT(idx + 1 < cart_->prg_rom_.size());
         prg_l_ = cart_->prg_rom_[idx].data();
-        prg_h_ = (cart_->prg_rom_.size() > idx) ? cart_->prg_rom_[idx + 1].data() : prg_l_;
+        prg_h_ = cart_->prg_rom_[idx + 1].data();
     }
     break;
 
     case 2:
     {
-        prg_l_ = cart_->prg_rom_.front().data();
         NES_ASSERT(idx < cart_->prg_rom_.size());
+        prg_l_ = cart_->prg_rom_.front().data();
         prg_h_ = cart_->prg_rom_[idx].data();
     } 
     break;
    
     case 3:
     {
-        prg_h_ = cart_->prg_rom_.back().data();
         NES_ASSERT(idx < cart_->prg_rom_.size());
         prg_l_ = cart_->prg_rom_[idx].data();
+        prg_h_ = cart_->prg_rom_.back().data();
     }
     break;
     }
