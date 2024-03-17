@@ -2,6 +2,7 @@
 
 #include "debugger.h"
 #include "emulator.h"
+#include "utils.h"
 
 #include "ui/global.h"
 
@@ -31,17 +32,17 @@ void PageDebugStep::update()
 {
     Emulator* emulator = Emulator::instance();
 
-    BUS* bus = emulator->get_bus();
-    CPU const& cpu = *emulator->get_cpu();
+    //BUS* bus = emulator->get_bus();
+    //CPU const& cpu = *emulator->get_cpu();
     PPU const& ppu = *emulator->get_ppu();
 
     PPU_State const& ppu_state = ppu.get_state();
     address_t vram_addr = ppu.get_vram_addr();
 
-    fmt::memory_buffer buf;
-    fmt::format_to(buf, "VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
-    fmt::format_to(buf, "CPU cycles: {}   PPU cycles: {}\n", emulator->cpu_cycle_per_frame, emulator->ppu_cycle_per_frame);
-    fmt::format_to(buf, "PPU: scanline {} cycle {} vblank {}\n", ppu_state.scanline_, ppu_state.cycle_, ppu_state.is_in_vblank_);
+    StringBuilder sb;
+    sb.append_fmt("VBL timing: {}\n", emulator->cpu_cycle_last_vblank);
+    sb.append_fmt("CPU cycles: {}   PPU cycles: {}\n", emulator->cpu_cycle_per_frame, emulator->ppu_cycle_per_frame);
+    sb.append_fmt("PPU: scanline {} cycle {} vblank {}\n", ppu_state.scanline_, ppu_state.cycle_, ppu_state.is_in_vblank_);
     
     struct VRAM
     {
@@ -58,9 +59,9 @@ void PageDebugStep::update()
     byte_t x = 0;
     byte_t y = v.y;
 
-    fmt::format_to(buf, "VRAM N:{} X:{} Y:{} x:{} y:{}\n", N, X, Y, x, y);
+    sb.append_fmt("VRAM N:{} X:{} Y:{} x:{} y:{}\n", N, X, Y, x, y);
 
-    text_.setString(fmt::to_string(buf));
+    text_.setString(sb.to_string());
 }
 
 void PageDebugStep::on_event(sf::Event& ev)
@@ -92,11 +93,11 @@ void PageDebugCPU::update()
     BUS* bus = emulator->get_bus();
     CPU const& cpu = *emulator->get_cpu();
 
-    fmt::memory_buffer buf;
+    StringBuilder sb;
 
     CPU_State const& cpu_state = cpu.get_state();
     {
-        fmt::format_to(buf, "Flags: {}{}xx{}{}{}{}\n"
+        sb.append_fmt("Flags: {}{}xx{}{}{}{}\n"
             , (cpu_state.status_ & CPU_State::kNegative) ? 'N' : '-'
             , (cpu_state.status_ & CPU_State::kOverflow) ? 'O' : '-'
             , (cpu_state.status_ & CPU_State::kDecimal) ? 'D' : '-'
@@ -105,7 +106,7 @@ void PageDebugCPU::update()
             , (cpu_state.status_ & CPU_State::kCarry) ? 'C' : '-'
             );
 
-        fmt::format_to(buf, "A:{:02x} X:{:02x} Y:{:02x} SP:{:02x}\n"
+        sb.append_fmt("A:{:02x} X:{:02x} Y:{:02x} SP:{:02x}\n"
             , cpu_state.accumulator_
             , cpu_state.register_x_
             , cpu_state.register_y_
@@ -115,17 +116,17 @@ void PageDebugCPU::update()
 
     for (int offset = -5; offset <= 5; ++offset)
     {
-        buf.push_back('\n');
-        emulator->disassembler_.render(buf, cpu_state.program_counter_, offset);
+        sb.buf.push_back('\n');
+        emulator->disassembler_.render(sb, cpu_state.program_counter_, offset);
     }
 
     // Some tests write status value to $6000
-    fmt::format_to(buf, "\n\n$6000: {:02x}", bus->read_cpu(0x6000));
-    fmt::format_to(buf, "\n$6001: {:02x}", bus->read_cpu(0x6001));
-    fmt::format_to(buf, "\n$6002: {:02x}", bus->read_cpu(0x6002));
-    fmt::format_to(buf, "\n$6003: {:02x}", bus->read_cpu(0x6003));
+    sb.append_fmt("\n\n$6000: {:02x}", bus->read_cpu(0x6000));
+    sb.append_fmt("\n$6001: {:02x}", bus->read_cpu(0x6001));
+    sb.append_fmt("\n$6002: {:02x}", bus->read_cpu(0x6002));
+    sb.append_fmt("\n$6003: {:02x}", bus->read_cpu(0x6003));
 
-    fmt::format_to(buf, "\n\n$6004: ");
+    sb.append(fmt::string_view("\n\n$6004: "));
 
     {
         address_t it = 0x6004;
@@ -137,11 +138,11 @@ void PageDebugCPU::update()
                 break;
 
             ++it;
-            buf.push_back((char)c);
+            sb.buf.push_back((char)c);
         }
     }
 
-    text_.setString(fmt::to_string(buf));
+    text_.setString(sb.to_string());
 }
 
 void PageDebugCPU::on_event(sf::Event& ev)
@@ -202,7 +203,7 @@ void PageDebugPPU::update()
 {
     PPU const& ppu = *Emulator::instance()->get_ppu();
 
-    fmt::memory_buffer buffer;
+    StringBuilder sb;
     Image<8, 8> tile_buf;
 
     for (int i = 0; i < 32; ++i)
@@ -226,10 +227,10 @@ void PageDebugPPU::update()
         ppu.tile_img(tile_buf, s2.tile_, ppu.ppuctrl_.fg_pat_, ppu.get_palette((s1.att_ & 0x3) + 4));
         texture_.update(tile_buf.data(), 8, 8, 8, 8 * row);
 
-        fmt::format_to(buffer, "{:02x} ({:3}, {:3}), {:02x}\t{:02x} ({:3}, {:3}), {:02x}\n", s1.tile_, s1.x_, s1.y_, s1.att_, s2.tile_, s2.x_, s2.y_, s2.att_);
+        sb.append_fmt("{:02x} ({:3}, {:3}), {:02x}\t{:02x} ({:3}, {:3}), {:02x}\n", s1.tile_, s1.x_, s1.y_, s1.att_, s2.tile_, s2.x_, s2.y_, s2.att_);
     }
 
-    oam_text_.setString(fmt::to_string(buffer));
+    oam_text_.setString(sb.to_string());
 }
 
 PageDebugPAT::PageDebugPAT()

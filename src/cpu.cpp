@@ -26,14 +26,14 @@ std::string CallStats::report() const
 {
     fmt::basic_memory_buffer<char, 4096> buf;
 
-    fmt::format_to(buf, "OPS MIN MAX COUNT\n");
-    fmt::format_to(buf, "{:-<{}}\n\n", "-", 25);
+    auto it = fmt::format_to(buf.begin(), "OPS MIN MAX COUNT\n");
+    it = fmt::format_to(it, "{:-<{}}\n\n", "-", 25);
 
     uint8_t ops = 0;
     for (Entry const& entry :  data_)
     {
         if (entry.count_ > 0)
-            fmt::format_to(buf, "{:02X}  {: <3} {: <3} {}\n", ops, entry.timing_.min, entry.timing_.max, entry.count_);
+            it = fmt::format_to(it, "{:02X}  {: <3} {: <3} {}\n", ops, entry.timing_.min, entry.timing_.max, entry.count_);
 
         ++ops;
     }
@@ -49,7 +49,6 @@ void CPU::step()
         {
             state_ = step_fetch_();
             NES_ASSERT(idle_ticks_ > 0);
-            Debugger::instance()->on_cpu_fetch();
             break;
         }
 
@@ -110,6 +109,8 @@ CPU::State CPU::step_fetch_()
         idle_ticks_ += idle_ticks_from_addressing_(instr_);
 
     instr_.time = idle_ticks_ + 1;
+    
+    Debugger::instance()->on_cpu_fetch(*this);
 
     return kIdle;
 }
@@ -511,7 +512,7 @@ inline bool CPU::get_status_(byte_t status_mask)
 // #$00
 inline byte_t CPU::immediate_addr(address_t addr)
 {
-    return 0xFF & addr;
+    return static_cast<byte_t>(addr & 0xFF);
 }
 
 // $0000
@@ -884,7 +885,7 @@ void CPU::pha_()
 
 void CPU::php_()
 {
-    store_stack_(status_);
+    store_stack_(static_cast<byte_t>(status_ | 0b00110000));
 }
 
 void CPU::pla_()

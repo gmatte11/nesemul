@@ -24,7 +24,7 @@ void Debugger::resume()
     mode_ = MODE_RUNNING;
 }
 
-void Debugger::on_cpu_fetch()
+void Debugger::on_cpu_fetch(const CPU_State& state)
 {
     if (mode_ == MODE_CPU_FETCH)
         emulator_.debug_break();

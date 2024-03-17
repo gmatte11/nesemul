@@ -1,11 +1,16 @@
 #include "sfml_renderer.h"
 
+#include "utils.h"
+
 #include "emulator.h"
 #include "platform/openfile_dialog.h"
 
 #include "ui/global.h"
 #include "ui/debug_pages.h"
 #include "ui/game_viewport.h"
+#include "ui/imgui.h"
+
+#include <imgui-SFML.h>
 
 #include <fmt/format.h>
 
@@ -42,6 +47,8 @@ SFMLRenderer::SFMLRenderer(Emulator* emulator)
 {
     window_.reset(new sf::RenderWindow(sf::VideoMode(1028, 720), "NESEMUL"));
 
+    ImGui::SFML::Init(*window_);
+
     debug_step_.setPosition({8.f, 520.f});
     debug_cpu_.setPosition({520.f, 20.f});
     debug_ppu_.setPosition({520.f, 20.f});
@@ -49,13 +56,20 @@ SFMLRenderer::SFMLRenderer(Emulator* emulator)
 }
 
 SFMLRenderer::~SFMLRenderer()
-{}
+{
+    ImGui::SFML::Shutdown();
+}
 
 bool SFMLRenderer::update()
 {
-    poll_events_(); 
+    poll_events_();
 
     sf::Time t = clock_.getElapsedTime();
+    sf::Time delta = t - lastUpdate_;
+    lastUpdate_ = t;
+
+    ImGui::SFML::Update(*window_, delta);
+
     if ((t - lastFPS_).asSeconds() >= 1)
     {
         PPU const& ppu = *emulator_->get_ppu();
@@ -69,6 +83,9 @@ bool SFMLRenderer::update()
         sf::String title = fmt::format("NESEMUL (FPS: {})", fps_);
         window_->setTitle(title);
         draw();
+
+        ImGui::SFML::Render(*window_);
+
         window_->display();
     }
 
@@ -89,6 +106,8 @@ void SFMLRenderer::poll_events_()
     sf::Event ev;
     while (window_->pollEvent(ev))
     {
+        ImGui::SFML::ProcessEvent(*window_, ev);
+
         if (ev.type == sf::Event::Closed)
             window_->close();
 
@@ -156,7 +175,7 @@ void SFMLRenderer::draw()
     window_->clear(sf::Color(0x1e5dceff));
 
     PPU const& ppu = *emulator_->get_ppu();
-    CPU const& cpu = *emulator_->get_cpu();
+    //CPU const& cpu = *emulator_->get_cpu();
 
     draw_game(ppu);
 
@@ -192,6 +211,9 @@ void SFMLRenderer::draw()
 
         window_->draw(text);
     }
+
+    ui::imgui_mainmenu();
+    ui::imgui_debugwindows();
 }
 
 void SFMLRenderer::draw_game(PPU const& ppu)
@@ -202,7 +224,7 @@ void SFMLRenderer::draw_game(PPU const& ppu)
     sf::Vector2f viewSize = (debug_page_ == 0) ? sf::Vector2f{768.f, 720.f} : sf::Vector2f{512.f, 480.f};
     viewport.setSize(viewSize);
 
-    viewport.setPosition({0.f, 31.f});
+    viewport.setPosition({0.f, 16.f});
     window_->draw(viewport);
 }
 

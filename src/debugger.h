@@ -1,6 +1,7 @@
 #pragma once
 
 class Emulator;
+struct CPU_State;
 
 class Debugger
 {
@@ -23,7 +24,7 @@ public:
     void request_break(Mode mode);
     void resume();
 
-    void on_cpu_fetch();
+    void on_cpu_fetch(const CPU_State& state);
 
     void on_ppu_frame();
     void on_ppu_line();

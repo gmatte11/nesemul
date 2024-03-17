@@ -2,6 +2,7 @@
 
 #include "ops.h"
 #include "cartridge.h"
+#include "utils.h"
 
 #include <algorithm>
 
@@ -42,7 +43,7 @@ void Disassembler::load_bank(byte_t* rom, size_t size)
     bank.ops_.shrink_to_fit();
 }
 
-void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) const
+void Disassembler::render(StringBuilder& sb, address_t addr, int offset) const
 {
     if (cart_ == nullptr)
         return;
@@ -68,43 +69,51 @@ void Disassembler::render(fmt::memory_buffer& buf, address_t addr, int offset) c
     byte_t* op = bank.rom_ + rom_addr;
     ops::metadata const& data = ops::opcode_data(*op);
 
-    fmt::format_to(buf, "{}{:04X}  {:02X} ", (offset == 0) ? '*': ' ', addr, *op);
+    sb.append_fmt("{}{:04X}  {:02X} ", (offset == 0) ? '*': ' ', addr, *op);
+
+    auto print_operand = [&sb](byte_t* op)
+    {
+        if (op != nullptr)
+            sb.append_fmt("{:02X} ", *op);
+        else
+            sb.append(fmt::string_view("   "));
+    };
 
     byte_t* operand1 = (data.get_size() >= 2) ? op + 1 : nullptr;
     byte_t* operand2 = (data.get_size() == 3) ? op + 2 : nullptr;
 
-    fmt::format_to(buf, (operand1) ? "{:02X} " : "   ", (operand1) ? *operand1 : 0);
-    fmt::format_to(buf, (operand2) ? "{:02X} " : "   ", (operand2) ? *operand2 : 0);
+    print_operand(operand1);
+    print_operand(operand2);
 
     address_t read_addr = 0;
     if (operand1 && operand2)
         read_addr = static_cast<address_t>(*operand2) << 8 | *operand1;
 
-    fmt::format_to(buf, " {: >4}", data.str);
+    sb.append_fmt(" {: >4}", data.str);
     switch(data.addressing)
     {
         case ops::Addressing::kImmediate:
-            fmt::format_to(buf, "#${:02x}", *operand1);
+            sb.append_fmt("#${:02x}", *operand1);
             break;
 
         case ops::Addressing::kZeroPage:
-            fmt::format_to(buf, "${:02x}", *operand1);
+            sb.append_fmt("${:02x}", *operand1);
             break;
 
         case ops::Addressing::kZeroPageX:
-            fmt::format_to(buf, "${:02x},X", *operand1);
+            sb.append_fmt("${:02x},X", *operand1);
             break;
 
         case ops::Addressing::kAbsolute:
-            fmt::format_to(buf, "${:04x}", read_addr);
+            sb.append_fmt("${:04x}", read_addr);
             break;
 
         case ops::Addressing::kIndirect:
-            fmt::format_to(buf, "(${:04x})", read_addr);
+            sb.append_fmt("(${:04x})", read_addr);
             break;
 
         case ops::Addressing::kIndirectX:
-            fmt::format_to(buf, "(${:02x}),X", *operand1);
+            sb.append_fmt("(${:02x}),X", *operand1);
             break;
 
         default:

@@ -3,9 +3,8 @@
 
 #include <vector>
 
-#include <fmt/format.h>
-
 class Cartridge;
+struct StringBuilder;
 
 class Disassembler
 {
@@ -15,7 +14,7 @@ public:
     void load(Cartridge* cart);
     void load_bank(byte_t* rom, size_t size = 0x4000);
 
-    void render(fmt::memory_buffer& buf, address_t addr, int offset = 0) const;
+    void render(StringBuilder& buf, address_t addr, int offset = 0) const;
 
 private:
     struct Op
