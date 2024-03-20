@@ -24,17 +24,16 @@ public:
     void reset();
     void update();
 
-    bool is_stepping() const { return  !debug_break_ && (!paused_ || is_debugging()); }
-    bool is_debugging() const { return debug_break_ || debugger_.get_mode() != Debugger::MODE_RUNNING; }
+    bool is_stepping() const { return !is_paused() && !is_debugging(); }
+    bool is_debugging() const { return debugger_.get_mode() != Debugger::MODE_RUNNING; }
     bool is_paused() const { return paused_; }
     bool is_ready() const { return cart_ != nullptr; }
 
     void toggle_pause();
 
-    void debug_break() { debug_break_ = true; }
-    void debug_step() { debug_break_ = false; }
-
     Disassembler disassembler_;
+    Debugger debugger_;
+
     BUS* get_bus() const { return bus_.get(); }
     CPU* get_cpu() const { return cpu_.get(); }
     PPU* get_ppu() const { return ppu_.get(); }
@@ -65,10 +64,8 @@ private:
     std::unique_ptr<RAM> ram_;
     std::unique_ptr<Cartridge> cart_;
 
-    Debugger debugger_;
     uint64_t cycle_ = 0;
     int dma_cycle_counter_ = 0;
 
     bool paused_ = false;
-    bool debug_break_ = false;
 };

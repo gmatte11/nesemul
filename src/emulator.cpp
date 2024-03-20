@@ -117,19 +117,19 @@ void Emulator::update()
             {
                 fmt::print("Exception: {}\n", e.what());
                 NES_BREAKPOINT;
-                debug_break_ = true;
+                debugger_.break_now();
                 break;
             }
             catch (...)
             {
                 NES_BREAKPOINT;
-                debug_break_ = true;
+                debugger_.break_now();
                 break;
             }
 
             cycle_++;
             
-            if (debug_break_)
+            if (debugger_.get_mode() != Debugger::MODE_RUNNING)
                 break;
         }
 
@@ -148,7 +148,6 @@ void Emulator::toggle_pause()
     if (is_debugging())
     {
         paused_ = false;
-        debug_break_ = false;
         debugger_.resume();
         return;
     }

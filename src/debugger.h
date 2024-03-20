@@ -22,6 +22,7 @@ public:
     Mode get_mode() const { return mode_; }
 
     void request_break(Mode mode);
+    void break_now();
     void resume();
 
     void on_cpu_fetch(const CPU_State& state);
@@ -32,6 +33,7 @@ public:
 private:
     Emulator& emulator_;
     Mode mode_ = MODE_RUNNING;
+    Mode requested_mode_ = MODE_RUNNING;
 
     static Debugger* instance_;
 };
