@@ -61,25 +61,13 @@ struct TileShifter
     }
 };
 
-struct Sprite
+struct OAMSprite
 {
-    byte_t lpat_ = 0;
-    byte_t hpat_ = 0;
-    byte_t att_ = 0;
-    byte_t x_ = 0;
-
-    byte_t get_pat(byte_t col)
-    {
-        if (col >= x_ && col < x_ + 8)
-        {
-            const byte_t mask = 0x80 >> (col - x_);
-            return ((hpat_ & mask) ? 0b10 : 0b00) | ((lpat_ & mask) ? 0b01 : 0b00);
-        }
-
-        return 0;
-    }
+    byte_t y_;
+    byte_t tile_;
+    byte_t att_;
+    byte_t x_;
 };
-
 
 template <typename T>
 struct Latch
@@ -189,6 +177,7 @@ public:
 
     void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
     void tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const;
+    void sprite_img(OAMSprite& sprite, Image<8, 8>& image, byte_t oam_idx) const;
     Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
 
     void nametable_img(Output& image, byte_t nam_idx) const;
@@ -216,7 +205,26 @@ private:
     // sprite rendering
     struct SecondaryOAM
     {
-        std::array<Sprite, 8> list_ {};
+        struct Entry
+        {
+            byte_t lpat_ = 0;
+            byte_t hpat_ = 0;
+            byte_t att_ = 0;
+            byte_t x_ = 0;
+
+            byte_t get_pat(byte_t col)
+            {
+                if (col >= x_ && col < x_ + 8)
+                {
+                    const byte_t mask = 0x80 >> (col - x_);
+                    return ((hpat_ & mask) ? 0b10 : 0b00) | ((lpat_ & mask) ? 0b01 : 0b00);
+                }
+
+                return 0;
+            }
+        };
+
+        std::array<Entry, 8> list_ {};
         int count_ = 0;
         bool has_sprite_0_ = false;
 
@@ -224,7 +232,7 @@ private:
     };
     Latch<SecondaryOAM> secondary_oam_;
 
-    void load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t y);
+    void load_sprite_(SecondaryOAM::Entry& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t y);
 
     // memory access
     byte_t load_(address_t addr) const;

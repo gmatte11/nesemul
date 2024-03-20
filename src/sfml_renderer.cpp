@@ -116,7 +116,7 @@ void SFMLRenderer::poll_events_()
             switch (ev.key.code)
             {
             case sf::Keyboard::P: emulator_->toggle_pause(); break;
-            case sf::Keyboard::O: if (ev.key.shift) open_rom(*emulator_); break;
+            case sf::Keyboard::O: if (ev.key.control) open_rom(*emulator_); break;
 
             case sf::Keyboard::Hyphen: step_rate_ = std::max(step_rate_ - 100, 100ll); break;
             case sf::Keyboard::Equal: step_rate_ = std::min(step_rate_ + 100, 2000ll); break;

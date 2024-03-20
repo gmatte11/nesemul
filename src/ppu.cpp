@@ -277,6 +277,15 @@ void PPU::tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const
     }
 }
 
+void PPU::sprite_img(OAMSprite& sprite, Image<8, 8>& image, byte_t oam_idx) const
+{
+    if (oam_idx >= 64)
+        return;
+
+    sprite = reinterpret_cast<const OAMSprite*>(oam_.data())[oam_idx];
+    tile_img(image, sprite.tile_, ppuctrl_.fg_pat_, get_palette((sprite.att_ & 0x3) + 4));
+}
+
 Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
 {
     Tile t;
@@ -478,19 +487,11 @@ void PPU::fg_eval_()
         {
             for (int i = 0; i < 64; ++i)
             {
-                struct Entry
-                {
-                    byte_t y;
-                    byte_t tile;
-                    byte_t att;
-                    byte_t x;
-                };
-
-                Entry& entry = reinterpret_cast<Entry*>(oam_.data())[i];
+                const OAMSprite& oam_sprite = reinterpret_cast<OAMSprite*>(oam_.data())[i];
 
                 const bool long_sprite = ppuctrl_.sprite_size_;
                 const int height = long_sprite ? 16 : 8;
-                const int sprite_y = scanline_ - entry.y;
+                const int sprite_y = scanline_ - oam_sprite.y_;
                 const bool is_visible = sprite_y >= 0 && sprite_y < height;
                 const bool bottom_half = long_sprite && sprite_y >= 8;
 
@@ -499,19 +500,19 @@ void PPU::fg_eval_()
                     auto& sprites = secondary_oam_.store();
                     if (sprites.count_ < 8)
                     {
-                        auto& sprite = sprites.list_[sprites.count_];
+                        SecondaryOAM::Entry& sprite = sprites.list_[sprites.count_];
 
                         if (i == 0) 
                             sprites.has_sprite_0_ = true;
                         
-                        byte_t pat = long_sprite ? entry.tile & 0x1 :  ppuctrl_.fg_pat_;
-                        byte_t ntidx = long_sprite ? entry.tile & 0xFE : entry.tile;
+                        byte_t pat = long_sprite ? oam_sprite.tile_ & 0x1 :  ppuctrl_.fg_pat_;
+                        byte_t ntidx = long_sprite ? oam_sprite.tile_ & 0xFE : oam_sprite.tile_;
 
                         if (bottom_half)
                             ntidx++;
 
                         Tile tile = get_pattern_tile(ntidx, pat);
-                        load_sprite_(sprite, tile, entry.att, entry.x, static_cast<byte_t>(sprite_y) & 0b111);
+                        load_sprite_(sprite, tile, oam_sprite.att_, oam_sprite.x_, static_cast<byte_t>(sprite_y) & 0b111);
 
                         ++sprites.count_;
                     }
@@ -561,7 +562,7 @@ void PPU::render_()
 
                 for (int i = 0; i < sprites.count_ && fg_pixel == 0; ++i)
                 {
-                    Sprite& sprite = sprites.list_[i];
+                    SecondaryOAM::Entry& sprite = sprites.list_[i];
                     byte_t sprite_pat = sprite.get_pat(static_cast<byte_t>(col));
 
                     if (sprite_pat != 0)
@@ -677,14 +678,14 @@ void PPU::tick_()
 
 void PPU::SecondaryOAM::reset()
 {
-    static constexpr Sprite empty{0xFF, 0xFF, 0xFF, 0xFF};
+    static constexpr SecondaryOAM::Entry empty{0xFF, 0xFF, 0xFF, 0xFF};
     
     count_ = 0;
     has_sprite_0_ = false;
     list_.fill(empty);
 }
 
-void PPU::load_sprite_(Sprite& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t ty)
+void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t ty)
 {
     sprite.hpat_ = sprite.lpat_ = 0;
     sprite.att_ = attrib;
