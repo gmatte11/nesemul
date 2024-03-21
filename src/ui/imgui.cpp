@@ -347,6 +347,8 @@ void debug_cpu()
 
             TextFmt("$6004: {}", buf);
         }
+
+        End();
     }
 }
 

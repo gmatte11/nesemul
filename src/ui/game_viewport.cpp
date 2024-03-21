@@ -20,7 +20,6 @@ GameViewport::GameViewport()
 {
     texture_.create(256, 240);
     setTexture(&texture_, true);
-    setSize({256.f, 240.f});
 }
 
 void GameViewport::update(PPU const& ppu)

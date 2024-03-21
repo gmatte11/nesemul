@@ -111,6 +111,12 @@ void SFMLRenderer::poll_events_()
         if (ev.type == sf::Event::Closed)
             window_->close();
 
+        if (ev.type == sf::Event::Resized)
+        {
+            sf::FloatRect rect{ 0.f, 0.f, static_cast<float>(ev.size.width), static_cast<float>(ev.size.height) };
+            window_->setView(sf::View(rect));
+        }
+
         if (ev.type == sf::Event::KeyPressed)
         {
             switch (ev.key.code)
@@ -221,10 +227,31 @@ void SFMLRenderer::draw_game(PPU const& ppu)
     static GameViewport viewport;
     viewport.update(ppu);
 
-    sf::Vector2f viewSize = (debug_page_ == 0) ? sf::Vector2f{768.f, 720.f} : sf::Vector2f{512.f, 480.f};
-    viewport.setSize(viewSize);
+    static sf::Vector2f offset{0.f, 16.f};
+    sf::Vector2f viewSize{256.f, 240.f};
 
-    viewport.setPosition({0.f, 16.f});
+    bool resizable = debug_page_ == 0;
+
+    if (resizable)
+    {
+        sf::Vector2u winSizeu = window_->getSize();
+        sf::Vector2f winSize{ static_cast<float>(winSizeu.x), static_cast<float>(winSizeu.y) };
+        winSize -= offset;
+
+        if (winSize.x < winSize.y)
+        {
+            viewSize.x = winSize.x;
+            viewSize.y *= (winSize.x / viewSize.x);
+        }
+        else
+        {
+            viewSize.x *= (winSize.y / viewSize.y);
+            viewSize.y = winSize.y;
+        }
+    }
+
+    viewport.setSize(viewSize);
+    viewport.setPosition(offset);
     window_->draw(viewport);
 }
 
