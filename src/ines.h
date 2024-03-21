@@ -35,7 +35,7 @@ public:
     INESReader();
     ~INESReader();
 
-    bool read_from_file(std::string_view filename);
+    bool read_from_file(std::wstring_view filename);
 
     void read_prg_rom(int idx, std::span<byte_t, 0x4000> bank);
     void read_chr_rom(int idx, std::span<byte_t, 0x2000> bank);

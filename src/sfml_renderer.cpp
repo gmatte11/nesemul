@@ -26,7 +26,7 @@ static std::array<Map, 8> g_mapping = {
 
 static void open_rom(Emulator& emulator)
 {
-    std::string filepath;
+    std::wstring filepath;
     if (openfile_dialog(filepath))
     {
         try
@@ -37,8 +37,6 @@ static void open_rom(Emulator& emulator)
         {
             std::cerr << e.what() << '\n';
         }
-
-        emulator.reset();
     }
 }
 

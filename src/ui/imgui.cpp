@@ -3,7 +3,10 @@
 #include "emulator.h"
 #include "utils.h"
 
+#include "platform/platform_defines.h"
 #include "platform/openfile_dialog.h"
+
+#include "ui/global.h"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
@@ -129,7 +132,7 @@ struct ImGuiGlobals
 
 void open_rom_dialog(Emulator& emulator)
 {
-    std::string filepath;
+    std::wstring filepath;
     if (openfile_dialog(filepath))
     {
         try
@@ -140,9 +143,19 @@ void open_rom_dialog(Emulator& emulator)
         {
             std::cerr << e.what() << '\n';
         }
-
-        emulator.reset();
     }
+}
+
+std::string ws2s(std::wstring_view ws)
+{
+    std::string s;
+#if IS_WINDOWS
+    int wlen = static_cast<int>(ws.length());
+    int len = WideCharToMultiByte(CP_ACP, 0, ws.data(), wlen, nullptr, 0, nullptr, 0);
+    s.resize(len);
+    WideCharToMultiByte(CP_ACP, 0, ws.data(), wlen, s.data(), len, nullptr, 0);
+#endif
+    return s;
 }
 
 void ui::imgui_mainmenu()
@@ -156,13 +169,29 @@ void ui::imgui_mainmenu()
             if (imgui::MenuItem("Open ROM...", "Ctrl+O"))
                 open_rom_dialog(emulator);
 
+            auto recent_file = ui::get_recent_file(0);     
+            imgui::BeginDisabled(!recent_file.has_value());
+
             if (imgui::BeginMenu("Recent"))
             {
-                imgui::MenuItem("Recent 1");
-                imgui::MenuItem("Recent 2");
-                imgui::MenuItem("Recent 3");
+                if (recent_file.has_value() && imgui::MenuItem(ws2s(recent_file.value().basename).c_str()))
+                    emulator.read_rom(recent_file.value().fullpath);
+
+                for (int i = 1; i < 5; ++i)
+                {
+                    recent_file = ui::get_recent_file(i);
+
+                    if (!recent_file.has_value())
+                        break;
+
+                    if (imgui::MenuItem(ws2s(recent_file.value().basename).c_str()))
+                        emulator.read_rom(recent_file.value().fullpath);
+                }
+
                 imgui::EndMenu();
             }
+
+            imgui::EndDisabled();
 
             imgui::Separator();
 

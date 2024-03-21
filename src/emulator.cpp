@@ -4,7 +4,10 @@
 #include "clock.h"
 #include "ines.h"
 
+#include "ui/global.h"
+
 #include <fmt/core.h>
+#include <fmt/xchar.h>
 
 #include <stdexcept>
 
@@ -28,15 +31,15 @@ Emulator::~Emulator()
     memset(&instance_, 0xDEAD, sizeof(instance_));
 }
 
-void Emulator::read_rom(std::string_view filename)
+void Emulator::read_rom(std::wstring_view filename)
 {
     cart_.reset();
     
-    fmt::print("Loading {}\n\n", filename);
+    fmt::print(L"Loading {}\n\n", filename);
 
     INESReader reader;
     if (!reader.read_from_file(filename))
-        throw std::runtime_error(fmt::format("Can't open file {}", filename));
+        throw std::runtime_error("Can't open file");
 
     INESHeader& h = reader.header_;
 
@@ -83,6 +86,10 @@ void Emulator::read_rom(std::string_view filename)
 
     bus_->load_cartridge(cart_.get());
     disassembler_.load(cart_.get());
+
+    ui::push_recent_file(filename);
+
+    reset();
 }
 
 void Emulator::reset()

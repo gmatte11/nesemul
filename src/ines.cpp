@@ -74,7 +74,7 @@ bool INESHeader::init(std::span<byte_t, 16> data)
 INESReader::INESReader() = default;
 INESReader::~INESReader() = default;
 
-bool INESReader::read_from_file(std::string_view filename)
+bool INESReader::read_from_file(std::wstring_view filename)
 {
     stream_ = std::make_unique<bifstream>(filename.data(), std::ios_base::binary);
     bifstream& ifs = *stream_;

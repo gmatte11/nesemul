@@ -1,19 +1,19 @@
 #include "openfile_dialog.h"
 #include "platform_defines.h"
 
-bool openfile_dialog(std::string& filepath)
+bool openfile_dialog(std::wstring& filepath)
 {
 #if IS_WINDOWS
-    TCHAR path[MAX_PATH] = {};
+    WCHAR path[MAX_PATH] = {};
 
-    OPENFILENAME dialog = {};
-    dialog.lStructSize = sizeof(OPENFILENAME);
+    OPENFILENAMEW dialog = {};
+    dialog.lStructSize = sizeof(OPENFILENAMEW);
     dialog.lpstrFile = path;
     dialog.nMaxFile = sizeof(path);
-    dialog.lpstrInitialDir = ".\\data";
+    dialog.lpstrInitialDir = L".\\data";
     dialog.Flags = OFN_DONTADDTORECENT;
 
-    if (GetOpenFileName(&dialog) == TRUE)
+    if (GetOpenFileNameW(&dialog) == TRUE)
     {
         filepath = path;
         return true;

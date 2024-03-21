@@ -19,7 +19,7 @@ public:
     Emulator();
     ~Emulator();
 
-    void read_rom(std::string_view filename);
+    void read_rom(std::wstring_view filename);
 
     void reset();
     void update();

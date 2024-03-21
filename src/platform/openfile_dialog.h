@@ -1,3 +1,3 @@
 #include <string>
 
-bool openfile_dialog(std::string& filepath);
+bool openfile_dialog(std::wstring& filepath);
