@@ -17,7 +17,7 @@ public:
         Right   = 0b10000000
     };
 
-    bool on_read(address_t addr, byte_t& value);
+    bool on_read(address_t addr, byte_t& value) const;
     bool on_write(address_t addr, byte_t value);
 
     bool is_pressed(Button button) const { return (state() & button) != 0; }
@@ -26,7 +26,7 @@ public:
 
 private:
     byte_t buttons_state_ = 0;
-    byte_t read_state_ = 0;
+    mutable byte_t read_state_ = 0;
 
     byte_t& state() { return buttons_state_; }
     byte_t state() const { return buttons_state_; }

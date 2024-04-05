@@ -14,7 +14,7 @@ void BUS::write_cpu(address_t addr, byte_t value)
     else ram_.on_write(addr, value);
 }
 
-byte_t BUS::read_cpu(address_t addr)
+byte_t BUS::read_cpu(address_t addr) const
 {
     byte_t value = 0;
 
@@ -33,7 +33,7 @@ void BUS::write_ppu(address_t addr, byte_t value)
     else ppu_.on_write_ppu(addr, value);
 }
 
-byte_t BUS::read_ppu(address_t addr)
+byte_t BUS::read_ppu(address_t addr) const
 {
     byte_t value = 0;
 

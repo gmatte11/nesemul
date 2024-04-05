@@ -1,6 +1,6 @@
 #include "controller.h"
 
-bool Controller::on_read(address_t addr, byte_t& value)
+bool Controller::on_read(address_t addr, byte_t& value) const
 {
     if (addr == 0x4016)
     {

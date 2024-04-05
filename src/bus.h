@@ -26,10 +26,10 @@ public:
     }
 
     void write_cpu(address_t addr, byte_t value);
-    byte_t read_cpu(address_t addr);
+    byte_t read_cpu(address_t addr) const;
 
     void write_ppu(address_t addr, byte_t value);
-    byte_t read_ppu(address_t addr);
+    byte_t read_ppu(address_t addr) const;
 
     CPU& cpu_;
     APU& apu_;
