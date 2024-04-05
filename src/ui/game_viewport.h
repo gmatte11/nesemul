@@ -13,13 +13,3 @@ public:
 private:
     sf::Texture texture_;
 };
-
-class NametableViewport : public sf::RectangleShape
-{
-public:
-    NametableViewport();
-    void update(PPU const& ppu);
-
-private:
-    sf::Texture texture_;
-};
