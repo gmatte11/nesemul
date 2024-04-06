@@ -25,6 +25,11 @@ public:
 
     virtual std::pair<byte_t*, address_t> get_bank(address_t addr) const = 0;
 
+    std::pair<const byte_t*, const byte_t*> get_ppu_mapped_chr_banks() const
+    {
+        return { chr_l_, chr_h_ };
+    }
+
 protected:
     Cartridge* cart_;
 

@@ -34,6 +34,18 @@ public:
 
     std::pair<byte_t*, address_t> get_bank(address_t addr) const;
 
+    std::pair<const byte_t*, const byte_t*> get_chr_bank(int idx) const
+    {
+        if (idx == 0)
+            return mapper_->get_ppu_mapped_chr_banks();
+
+        if (idx == 1)
+            return { wram_.data(), wram_.data() + 0x1000 };
+
+        const byte_t* bank = chr_[idx - 2].data();
+        return { bank, bank + 0x1000 };
+    }
+
 private:
     Mapper* mapper_;
 
