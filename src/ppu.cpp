@@ -3,28 +3,6 @@
 #include "debugger.h"
 #include "ram.h"
 
-static Color g_palette[] = {
-    /* 0x00 - 0x03 */ {84, 84, 84},    {0, 30, 116},    {8, 16, 144},    {48, 0, 136},
-    /* 0x04 - 0x07 */ {68, 0, 100},    {92, 0, 48},     {84, 4, 0},      {60, 24, 0},
-    /* 0x08 - 0x0B */ {32, 42, 0},     {8, 58, 0},      {0, 64, 0},      {0, 60, 0},
-    /* 0x0C - 0x0F */ {0, 50, 60},     {0, 0, 0},       {0, 0, 0},       {0, 0, 0},
-
-    /* 0x10 - 0x13 */ {152, 150, 152}, {8, 76, 196},    {48, 50, 236},   {92, 30, 228},
-    /* 0x14 - 0x17 */ {136, 20, 176},  {160, 20, 100},  {152, 34, 32},   {120, 60, 0},
-    /* 0x18 - 0x1B */ {84, 90, 0},     {40, 114, 0},    {8, 124, 0},     {0, 118, 40},
-    /* 0x1C - 0x1F */ {0, 102, 120},   {0, 0, 0},       {0, 0, 0},       {0, 0, 0},
-    
-    /* 0x20 - 0x23 */ {236, 238, 236}, {76, 154, 236},  {120, 124, 236}, {176, 98, 236},
-    /* 0x24 - 0x27 */ {228, 84, 236},  {236, 88, 180},  {236, 106, 100}, {212, 136, 32},
-    /* 0x28 - 0x2B */ {160, 170, 0},   {116, 196, 0},   {76, 208, 32},   {56, 204, 108},
-    /* 0x2C - 0x2F */ {56, 180, 204},  {60, 60, 60},    {0, 0, 0},       {0, 0, 0},
-
-    /* 0x30 - 0x33 */ {236, 238, 236}, {168, 204, 236}, {188, 188, 236}, {212, 178, 236},
-    /* 0x34 - 0x37 */ {236, 174, 236}, {236, 174, 212}, {236, 180, 176}, {228, 196, 144},
-    /* 0x38 - 0x3B */ {204, 210, 120}, {180, 222, 120}, {168, 226, 144}, {152, 226, 180},
-    /* 0x3C - 0x3F */ {160, 214, 228}, {160, 162, 160}, {0, 0, 0},       {0, 0, 0}
-};
-
 
 void PPU::step()
 {
@@ -246,118 +224,6 @@ void PPU::dma_copy_byte(byte_t rw_cycle)
     oam_[rw_cycle] = data;
 }
 
-void PPU::patterntable_img(Image<128, 128>& image, byte_t index, Palette const& palette) const
-{
-    for (uint8_t y = 0; y < 128; ++y)
-    {
-        for (uint8_t x = 0; x < 128; ++x)
-        {
-            byte_t tx = x / 8;
-            byte_t ty = y / 8;
-            byte_t ntbyte = (ty << 4 | tx);
-
-            Tile tile = get_pattern_tile(ntbyte, index);
-            byte_t pixel = get_pixel(tile, x % 8, y % 8);
-            image.set(x, y, palette.get(pixel));
-        }
-    }
-}
-
-void PPU::tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const
-{
-    Tile tile = get_pattern_tile(ntbyte, half);
-
-    for (uint8_t y = 0; y < 8; ++y)
-    {
-        for (uint8_t x = 0; x < 8; ++x)
-        {
-            byte_t pixel = get_pixel(tile, x, y);
-            image.set(x, y, palette.get(pixel));
-        }
-    }
-}
-
-void PPU::sprite_img(OAMSprite& sprite, Image<8, 8>& image, byte_t oam_idx) const
-{
-    if (oam_idx >= 64)
-        return;
-
-    sprite = reinterpret_cast<const OAMSprite*>(oam_.data())[oam_idx];
-    tile_img(image, sprite.tile_, ppuctrl_.fg_pat_, get_palette((sprite.att_ & 0x3) + 4));
-}
-
-Tile PPU::get_pattern_tile(byte_t ntbyte, byte_t half) const
-{
-    Tile t;
-    t.ntbyte_ = ntbyte;
-    t.half_ = half != 0;
-    return t;
-}
-
-void PPU::nametable_img(Output& image, byte_t nam_idx) const
-{
-    static const address_t bg_palette_addr[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
-    static const address_t nametable_addr[] = {0x2000, 0x2400, 0x2800, 0x2C00};
-
-    address_t ntaddr = nametable_addr[nam_idx];
-    Tile tile;
-
-    for (int ntrow = 0; ntrow < (240 / 8); ++ntrow)
-    {
-        for (int ntcol = 0; ntcol < (256 / 8); ++ntcol)
-        {
-            tile.ntbyte_ = load_(ntaddr | static_cast<address_t>(ntrow * 32 + ntcol));
-            tile.atbyte_ = get_attribute_(ntaddr, ntrow / 2, ntcol / 2);
-            tile.half_ = ppuctrl_.bg_pat_;
-
-            address_t paladdr = bg_palette_addr[tile.atbyte_];
-            Palette palette(
-                g_palette[load_(0x3F00)],
-                g_palette[load_(paladdr + 0)],
-                g_palette[load_(paladdr + 1)],
-                g_palette[load_(paladdr + 2)]);
-
-            for (uint8_t trow = 0; trow < 8; ++trow)
-            {
-                for (uint8_t tcol = 0; tcol < 8; ++tcol)
-                {
-                    int col = (ntcol * 8) + tcol;
-                    int row = (ntrow * 8) + trow;
-
-                    byte_t pixel = get_pixel(tile, tcol, trow);
-                    image.set(col, row, palette.get(pixel));
-                }
-            }
-        }
-    }
-}
-
-Palette PPU::get_palette(byte_t idx) const
-{
-    if (idx < 4)
-    {
-        static constexpr address_t palette_bg[] = {0x3F01, 0x3F05, 0x3F09, 0x3F0D};
-        address_t paladdr = palette_bg[idx];
-        return Palette(
-            g_palette[load_(0x3F00)],
-            g_palette[load_(paladdr + 0)],
-            g_palette[load_(paladdr + 1)],
-            g_palette[load_(paladdr + 2)]
-        );
-    }
-    else
-    {
-        static constexpr address_t palette_fg[] = {0x3F11, 0x3F15, 0x3F19, 0x3F1D};
-        address_t paladdr = palette_fg[idx - 4];
-        return Palette(
-            {0xFF, 0xFF, 0xFF, 0x00},
-            g_palette[load_(paladdr + 0)],
-            g_palette[load_(paladdr + 1)],
-            g_palette[load_(paladdr + 2)]
-        );
-    }
-}
-
 void PPU::bg_eval_()
 {
     auto& v = cursor_.v;
@@ -511,7 +377,10 @@ void PPU::fg_eval_()
                         if (bottom_half)
                             ntidx++;
 
-                        Tile tile = get_pattern_tile(ntidx, pat);
+                        Tile tile;
+                        tile.ntbyte_ = ntidx;
+                        tile.half_ = pat;
+
                         load_sprite_(sprite, tile, oam_sprite.att_, oam_sprite.x_, static_cast<byte_t>(sprite_y) & 0b111);
 
                         ++sprites.count_;
@@ -591,11 +460,11 @@ void PPU::render_()
 
             if (is_fg_pixel)
             {
-                color = get_palette(fg_pal).get(fg_pixel);
+                color = ppu_read_palette(*bus_, fg_pal).get(fg_pixel);
             }
             else if (is_bg_pixel)
             {
-                color = get_palette(bg_pal).get(bg_pixel);
+                color = ppu_read_palette(*bus_, bg_pal).get(bg_pixel);
             }
 
             // TODO: emphasis color
@@ -685,7 +554,7 @@ void PPU::SecondaryOAM::reset()
     list_.fill(empty);
 }
 
-void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t ty)
+void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, byte_t attrib, byte_t x, byte_t ty)
 {
     sprite.hpat_ = sprite.lpat_ = 0;
     sprite.att_ = attrib;
@@ -761,42 +630,4 @@ address_t PPU::mirror_addr_(address_t addr) const
     }
 
     return addr;
-}
-
-byte_t PPU::get_attribute_(address_t ntaddr, int row, int col) const
-{
-    // The attribute table is located at the end of the nametable (offset $03C0)
-    address_t ataddr = ntaddr + 0x03C0;
-
-    // Offset of the requested byte
-    ataddr += static_cast<address_t>((row / 2) * 0x8 + (col / 2));
-
-    byte_t metatile = load_(ataddr);
-
-    int quadrant = 
-        ((row % 2 == 1) ? 0b10 : 0) | 
-        ((col % 2 == 1) ? 0b01 : 0);
-        
-    return 0b11 & (metatile >> (quadrant * 2));
-}
-
-byte_t PPU::get_pixel(Tile const& tile, uint8_t x, uint8_t y, byte_t flip /*= 0*/) const
-{
-    if (0b01 & flip) x = 7 - x; //hori flip
-    if (0b10 & flip) y = 7 - y; //vert flip
-
-    address_t addr = 
-        static_cast<address_t>(tile.half_ & 0x1) << 12 |
-        static_cast<address_t>(tile.ntbyte_) << 4 |
-        static_cast<address_t>(y & 0b111) << 0;
-
-    byte_t lpat = load_(addr);
-    byte_t hpat = load_(addr + 8);
-
-    byte_t mask = 1 << (7 - x);
-    byte_t pixel = 
-        (((hpat & mask) != 0) ? 0b10 : 0) | 
-        (((lpat & mask) != 0) ? 0b01 : 0);
-
-    return pixel;
 }

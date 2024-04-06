@@ -4,37 +4,12 @@
 #include "bus.h"
 #include "cpu.h"
 #include "cartridge.h"
-#include "image.h"
+#include "ui/ppu_utils.h"
 
 #include <array>
+#include <span>
 #include <cstring>
 
-
-class Palette
-{
-public:
-    Palette() = default;
-    Palette(Color *first) { std::memcpy(color_.data(), first, sizeof(color_)); }
-    Palette(Color const& c1, Color const& c2, Color const& c3, Color const& c4)
-    {
-        color_ = {c1, c2, c3, c4};
-    }
-
-    byte_t const* raw(int index) const { return reinterpret_cast<byte_t const*>(&color_[index]); }
-    Color const& get(int index) const { return color_[index]; }
-
-private:
-    std::array<Color, 4> color_;
-};
-
-struct Tile
-{
-    byte_t ntbyte_ = 0;
-    byte_t atbyte_ = 0;
-    byte_t half_ = 0;
-    byte_t lpat_ = 0;
-    byte_t hpat_ = 0;
-};
 
 struct TileShifter
 {
@@ -61,14 +36,6 @@ struct TileShifter
     }
 };
 
-struct OAMSprite
-{
-    byte_t y_;
-    byte_t tile_;
-    byte_t att_;
-    byte_t x_;
-};
-
 template <typename T>
 struct Latch
 {
@@ -91,15 +58,24 @@ struct PPU_State
     uint16_t cycle_ = 0;
 
     // Nametable mirroring
-    NT_Mirroring mirroring_;
+    NT_Mirroring mirroring_ = NT_Mirroring::None;
 
     // scroll (debug)
-    byte_t scroll_x_;
-    byte_t scroll_y_;
+    byte_t scroll_x_ = 0;
+    byte_t scroll_y_ = 0;
 
     // synchronization
     bool is_in_vblank_ = false;
     bool frame_done_ = false;
+    bool suppress_vblank_ = false;
+
+    // statefull memory accesses helpers
+    byte_t oamaddr_ = 0;
+    byte_t read_buffer_ = 0;
+
+    // Direct-oaM Access state
+    byte_t dma_page_idx_ = 0;
+    bool dma_requested_ = false;
 };
 
 class PPU : private PPU_State
@@ -150,8 +126,6 @@ public:
         return output_;
     }
 
-    byte_t load(address_t addr) const { return load_(addr); }
-
     inline uint64_t frame() const { return frame_; }
     
     bool grab_dma_request()
@@ -175,14 +149,8 @@ public:
 
     void set_mirroring(NT_Mirroring mirroring) { mirroring_ = mirroring; }
 
-    void patterntable_img(Image<128, 128>& image, byte_t half, Palette const& palette) const;
-    void tile_img(Image<8, 8>& image, byte_t ntbyte, byte_t half, Palette const& palette) const;
-    void sprite_img(OAMSprite& sprite, Image<8, 8>& image, byte_t oam_idx) const;
-    Tile get_pattern_tile(byte_t ntbyte, byte_t half) const;
-
-    void nametable_img(Output& image, byte_t nam_idx) const;
-
-    Palette get_palette(byte_t idx) const;
+    byte_t get_foreground_half() const { return ppuctrl_.fg_pat_; }
+    byte_t get_background_half() const { return ppuctrl_.bg_pat_; }
 
 private:
     void bg_eval_();
@@ -232,19 +200,13 @@ private:
     };
     Latch<SecondaryOAM> secondary_oam_;
 
-    void load_sprite_(SecondaryOAM::Entry& sprite, Tile const& tile, byte_t attrib, byte_t x, byte_t y);
+    void load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, byte_t attrib, byte_t x, byte_t y);
 
     // memory access
     byte_t load_(address_t addr) const;
     void store_(address_t addr, byte_t value);
 
     address_t mirror_addr_(address_t addr) const;
-
-    // attribute tables access (palettes)
-    byte_t get_attribute_(address_t ntaddr, int row, int col) const;
-
-    // Compute pixel from tile
-    byte_t get_pixel(Tile const& tile, uint8_t x, uint8_t y, byte_t flip = 0) const;
 
     // Connected devices
     BUS* bus_ = nullptr;
@@ -285,8 +247,6 @@ private:
     } ppustatus_;
     static_assert(sizeof(decltype(ppustatus_)) == sizeof(byte_t));
 
-    byte_t oamaddr_;
-
     // vram cursor (PPUSCROLL, PPUADDR and PPUDATA)
     struct Cursor
     {
@@ -307,11 +267,5 @@ private:
         byte_t x : 3; // Fine x scroll
         bool w : 1; // Write toggle
     } cursor_;
-    byte_t read_buffer_ = 0;
 
-    byte_t dma_page_idx_ = 0;
-    bool dma_requested_ = false;
-    bool suppress_vblank_ = false;
-
-    friend class PageDebugPPU;
 };

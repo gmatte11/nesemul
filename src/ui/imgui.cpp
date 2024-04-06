@@ -7,6 +7,7 @@
 #include "platform/openfile_dialog.h"
 
 #include "ui/global.h"
+#include "ui/ppu_utils.h"
 
 #include <SFML/Graphics.hpp>
 #include <imgui-SFML.h>
@@ -14,35 +15,42 @@
 #include <fmt/format.h>
 #include <iostream>
 
+struct ComboBoxModel
+{
+    void clear() 
+    { 
+        options_.clear();
+    }
+
+    void add_option(std::string_view sv)
+    {
+        constexpr char terminator[] = { '\0', '\0' };
+
+        if (options_.size() > 0)
+            options_.pop_back();
+        options_.append_range(sv);
+        options_.append_range(terminator);
+    }
+
+    explicit operator bool() const { return !options_.empty(); }
+
+    std::vector<char> options_;
+};
+
 struct OAMData
 {
     OAMData()
     {
-        for (sf::Texture& tex : textures_)
-            tex.create(8, 8);
+        texture_.create(64, 64);
     }
 
     void update()
     {
-        Emulator& emulator = *Emulator::instance();
-        PPU& ppu = *emulator.get_ppu();
-
-        ::Image<8, 8> tile_buf;
-
-        for (int i = 0; i < 64; ++i)
-        {
-            Sprite& sprite = sprites_[i];
-            sprite = reinterpret_cast<const Sprite*>(ppu.oam_data())[i];
-
-            ppu.sprite_img(sprite, tile_buf, static_cast<byte_t>(i));
-
-            textures_[i].update(tile_buf.data());
-        }
+        ui::ppu_oam_texture(texture_, sprites_);
     }
 
-    using Sprite = ::OAMSprite;
-    std::array<Sprite, 64> sprites_;
-    std::array<sf::Texture, 64> textures_;
+    std::array<OAMSprite, 64> sprites_;
+    sf::Texture texture_;
 };
 
 struct PATData
@@ -59,11 +67,28 @@ struct PATData
     void update()
     {
         Emulator& emulator = *Emulator::instance();
-        PPU& ppu = *emulator.get_ppu();
+        const BUS& bus = *emulator.get_bus();
+        const Cartridge& cart = *bus.cart_;
+
+        if (dirty_cart_check_ != &cart)
+        {
+            dirty_cart_check_ = &cart;
+
+            chrbnk_combo_model_.clear();
+            chrbnk_combo_model_.add_option("PPU Mapped");
+            chrbnk_combo_model_.add_option("CHR RAM");
+
+            for (size_t i = 0; i < cart.chr_.size(); ++i)
+            {
+                chrbnk_combo_model_.add_option(fmt::format("CHR bank {}", i));
+            }
+
+            pat_idx_ = 0;
+        }
 
         for (int i = 0; i < 8; ++i)
         {
-            Palette p = ppu.get_palette(static_cast<byte_t>(i));
+            Palette p = ppu_read_palette(bus, i);
             sf::Texture& tex = pal_textures_[i];
 
             for (int j = 0; j < 4; ++j)
@@ -74,17 +99,19 @@ struct PATData
             }
         }
 
-        Image<128, 128> buffer;
-        ppu.patterntable_img(buffer, 0, ppu.get_palette(static_cast<byte_t>(pal_idx_)));
-        pat_textures_[0].update(buffer.data());
+        Palette palette = ppu_read_palette(bus, pal_idx_);
 
-        ppu.patterntable_img(buffer, 1, ppu.get_palette(static_cast<byte_t>(pal_idx_)));
-        pat_textures_[1].update(buffer.data());
+        auto [chr_left, chr_right] = cart.get_chr_bank(pat_idx_);
+        ui::ppu_patterntable_texture(pat_textures_[0], { chr_left, 0x1000 }, palette);
+        ui::ppu_patterntable_texture(pat_textures_[1], { chr_right, 0x1000 }, palette);
     }
 
     std::array<sf::Texture, 8> pal_textures_;
     std::array<sf::Texture, 2> pat_textures_;
+    const void* dirty_cart_check_ = nullptr;
+    ComboBoxModel chrbnk_combo_model_;
     int pal_idx_ = 0;
+    int pat_idx_ = 0;
 };
 
 struct NAMData
@@ -96,18 +123,7 @@ struct NAMData
 
     void update()
     {
-        Emulator& emulator = *Emulator::instance();
-        const PPU& ppu = *emulator.get_ppu();
-
-        Image<256, 240> image;
-        for (byte_t i = 0; i < 4; ++i)
-        {
-            ppu.nametable_img(image, i);
-
-            int x = (i % 2 == 0) ? 0 : 256;
-            int y = (i / 2 == 0) ? 0 : 240;
-            texture_.update(image.data(), 256, 240, x, y);
-        }
+        ui::ppu_nametable_texture(texture_);
     }
 
     sf::Texture texture_;
@@ -428,13 +444,18 @@ void debug_oam()
 
         auto entry = [&](int index)
         {
-            const sf::Texture& tex = oam_data.textures_[index];
-            const OAMData::Sprite& sprite = oam_data.sprites_[index];
+            const int x = (index % 8) * 8;
+            const int y = (index / 8) * 8;
 
-            TextFmt("{:2}.", index + 1);
+            sf::IntRect rect{ x, y, 8, 8 };
+            sf::Sprite sfSprite(oam_data.texture_, rect);
+
+            const OAMSprite& sprite = oam_data.sprites_[index];
+
+            TextFmt("{:2}.", index);
 
             SameLine();
-            imgui::Image(tex, sf::Vector2f(16.f, 16.f));
+            imgui::Image(sfSprite, sf::Vector2f(16.f, 16.f));
 
             SameLine();
             TextFmt("{:02x} ({:3}, {:3}), {:02x}", sprite.tile_, sprite.x_, sprite.y_, sprite.att_);
@@ -504,16 +525,17 @@ void debug_pat()
             pat_data.pal_idx_ = selected;
         }
 
-        SeparatorText("Pattern table 1");
+        SeparatorText("Pattern tables");
         {
-            sf::Texture& tex = pat_data.pat_textures_[0];
-            imgui::Image(tex, sf::Vector2f(256.f, 256.f));
-        }
+            Combo("CHR bank", &pat_data.pat_idx_, pat_data.chrbnk_combo_model_.options_.data());
 
-        SeparatorText("Pattern table 2");
-        {
-            sf::Texture& tex = pat_data.pat_textures_[1];
-            imgui::Image(tex, sf::Vector2f(256.f, 256.f));
+            sf::Texture& tex1 = pat_data.pat_textures_[0];
+            imgui::Image(tex1, sf::Vector2f(256.f, 256.f));
+
+            NewLine();
+
+            sf::Texture& tex2 = pat_data.pat_textures_[1];
+            imgui::Image(tex2, sf::Vector2f(256.f, 256.f));
         }
 
         EndChild();
