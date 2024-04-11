@@ -17,7 +17,7 @@ Mapper* Mapper::create(byte_t ines_code, Cartridge* cart_)
         throw std::runtime_error(fmt::format("Unknown mapper {:03}", ines_code));
     }
 
-    return nullptr;
+    //return nullptr;
 }
 
 void Mapper::post_load()

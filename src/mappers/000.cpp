@@ -1,5 +1,13 @@
 #include "000.h"
 
+address_t M000::map_to_cpu_addr(address_t addr) const
+{
+    if (prg_h_ == prg_l_ && addr >= 0xC000)
+        return addr -= 0x4000;
+
+    return addr;
+}
+
 bool M000::on_cpu_read(address_t addr, byte_t& value) 
 {
     if (addr >= 0x8000 && addr < 0xC000)

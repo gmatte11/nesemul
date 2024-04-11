@@ -2,6 +2,12 @@
 #include "cartridge.h"
 #include "emulator.h"
 
+NES_DEOPTIMIZE
+address_t M001::map_to_cpu_addr(address_t addr) const
+{
+    return addr;
+}
+
 bool M001::on_cpu_read(address_t addr, byte_t& value) 
 {
     if (addr >= 0x6000 && addr < 0x8000)

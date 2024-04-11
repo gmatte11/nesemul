@@ -1,32 +1,30 @@
 #include "global.h"
 
+#include "imgui_cpu.h"
+#include "imgui_ppu.h"
+
 #include <algorithm>
-#include <array>
 #include <filesystem>
 #include <ranges>
 
-struct Globals
+static ui::Globals* globals_ = nullptr;
+
+ui::Globals& ui::Globals::get()
 {
-    bool init_ = false;
-    sf::Font font_;
+    return *globals_;
+}
 
-    std::array<ui::RecentFile, 5> recent_files_;
-
-    static Globals instance_;
-    static Globals& get() { return instance_; }
-};
-
-Globals Globals::instance_;
+ui::Globals::Globals()
+    : cpu_data_(new CPUData)
+    , ppu_data_(new PPUData)
+{
+    font_.loadFromFile("data/Emulogic-zrEw.ttf");
+}
 
 void ui::initialize()
 {
-    Globals& g = Globals::get();
-    
-    if (!g.init_)
-    {
-        g.init_ = true;
-        g.font_.loadFromFile("data/Emulogic-zrEw.ttf");
-    }
+    static Globals globals;
+    globals_ = &globals;
 }
 
 sf::Font const& ui::get_font()

@@ -85,7 +85,7 @@ void Emulator::read_rom(std::wstring_view filename)
     ppu_->set_mirroring(h.mirroring_);
 
     bus_->load_cartridge(cart_.get());
-    disassembler_.load(cart_.get());
+    disassembler_.load(*bus_);
 
     ui::push_recent_file(filename);
 

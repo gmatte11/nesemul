@@ -13,6 +13,13 @@ public:
 
     Cartridge(byte_t ines_mapper_code);
 
+    address_t map_to_cpu_addr(address_t addr)
+    {
+        if (addr >= 0x4020)
+            return mapper_->map_to_cpu_addr(addr);
+        return 0;
+    }
+
     bool on_cpu_read(address_t addr, byte_t& value) 
     { 
         if (addr >= 0x4020)
@@ -33,6 +40,11 @@ public:
     void load_roms(INESReader& reader);
 
     std::pair<byte_t*, address_t> get_bank(address_t addr) const;
+
+    std::pair<const byte_t*, const byte_t*> get_prg_banks() const
+    {
+        return mapper_->get_cpu_mapped_prg_banks();
+    }
 
     std::pair<const byte_t*, const byte_t*> get_chr_bank(int idx) const
     {

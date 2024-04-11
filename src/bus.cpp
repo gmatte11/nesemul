@@ -5,6 +5,12 @@
 #include "ram.h"
 #include "cartridge.h"
 
+address_t BUS::map_cpu_addr(address_t addr) const
+{
+    address_t effective = (cart_) ? cart_->map_to_cpu_addr(addr) : addr;
+    return effective;
+}
+
 void BUS::write_cpu(address_t addr, byte_t value)
 {
     if (ppu_.on_write_cpu(addr, value)) ;

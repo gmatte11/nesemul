@@ -25,6 +25,8 @@ public:
         cart_ = cart;
     }
 
+    address_t map_cpu_addr(address_t addr) const;
+
     void write_cpu(address_t addr, byte_t value);
     byte_t read_cpu(address_t addr) const;
 

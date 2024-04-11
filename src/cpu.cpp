@@ -329,7 +329,7 @@ void CPU::exec_(Instr instr)
                 throw std::runtime_error(fmt::format(FMT_STRING("Invalid addressing {:02X} for opcode {} [{:02X}]"), ad, opcode_data(opcode).str, opcode));
         }
 
-        return addr;
+        //return addr;
     };
 
     auto to_operand = [=](address_t addr)
