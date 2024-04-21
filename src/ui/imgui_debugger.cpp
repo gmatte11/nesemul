@@ -98,6 +98,153 @@ struct PrgModel
     void* cart_check = nullptr;
 };
 
+std::string cpu_flags_str(byte_t state_flags)
+{
+    return fmt::format("{}{}xx{}{}{}{}",
+                       (state_flags & CPU_State::kNegative) ? 'N' : '-',
+                       (state_flags & CPU_State::kOverflow) ? 'O' : '-',
+                       (state_flags & CPU_State::kDecimal) ? 'D' : '-',
+                       (state_flags & CPU_State::kIntDisable) ? 'I' : '-',
+                       (state_flags & CPU_State::kZero) ? 'Z' : '-',
+                       (state_flags & CPU_State::kCarry) ? 'C' : '-');
+}
+
+void breakpoints(Debugger& debugger)
+{
+    using namespace imgui;
+    const float textHeight = GetTextLineHeightWithSpacing();
+    const float textWidth = CalcTextSize("A").x;
+
+    using Reason = Breakpoint::Reason;
+    static Breakpoint input_cb;
+    bool do_add = false;
+
+    auto remove_it = debugger.breakpoints_.end();
+
+    static constexpr ImGuiTableFlags table_flags = ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
+
+    if (BeginTable("Breakpoints", 3, table_flags, ImVec2{0.f, textHeight * 4}))
+    {
+        const ImVec2 buttonPadding = GetStyle().FramePadding;
+        PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2.f, 2.f));
+
+        TableSetupColumn("Reason", 0, 0.f, 0);
+        TableSetupColumn("Value", 0, 0.f, ImGuiTableColumnFlags_Disabled);
+        TableSetupColumn("##Action", 0, 0.f, ImGuiTableColumnFlags_Disabled);
+
+        TableNextRow();
+        bool first_row = true;
+
+        {
+            TableSetColumnIndex(0);
+            PushItemWidth(textWidth * 10.f);
+            TableSetColumnIndex(1);
+            PushItemWidth(textWidth * 10.f);
+            TableSetColumnIndex(2);
+            PushItemWidth(textWidth * 3.f);
+        }
+
+        for (auto it = debugger.breakpoints_.begin(), e = debugger.breakpoints_.end(); it != e; ++it)
+        {
+            PushID(&*it);
+
+            if (!first_row)
+                TableNextRow();
+            first_row = false;
+
+            Breakpoint cb = *it;
+
+            TableSetColumnIndex(0);
+            AlignTextToFramePadding();
+            TextUnformatted(cb.reason_.to_string().data());
+
+            TableNextColumn();
+            AlignTextToFramePadding();
+            switch (cb.reason_)
+            {
+            case Reason::Addr:
+                TextFmt("{:04X}", std::get<address_t>(cb.break_value_));
+                break;
+
+            case Reason::Opcode:
+            {
+                byte_t opcode = std::get<byte_t>(cb.break_value_);
+                ops::metadata const& meta = ops::opcode_data(opcode);
+                TextFmt("{:02X} {}", opcode, meta.str);
+                break;
+            }
+
+            case Reason::Flag:
+            {
+                std::string str = cpu_flags_str(std::get<byte_t>(cb.break_value_));
+                TextUnformatted(str.data(), str.data() + str.length());
+                break;
+            }
+
+            }
+
+            TableNextColumn();
+            PushStyleVar(ImGuiStyleVar_FramePadding, buttonPadding);
+            if (Button("X"))
+                remove_it = it;
+            PopStyleVar();
+
+            PopID();
+        }
+
+        if (!first_row)
+            TableNextRow();
+
+        TableSetColumnIndex(0);
+        if (BeginCombo("##reason", input_cb.reason_.to_string().data()))
+        {
+            for (int i = 0; i < Reason::get_strings().size() - 1; ++i)
+            {
+                const bool selected = i == input_cb.reason_;
+                if (Selectable(Reason::get_strings()[i].data(), selected))
+                {
+                    input_cb.reason_ = Reason::from_value(i);
+
+                    if (i == 0)
+                        input_cb.break_value_ = 0_addr;
+                    else
+                        input_cb.break_value_ = 0_byte;
+                }
+
+                if (selected)
+                    SetItemDefaultFocus();
+            }
+            EndCombo();
+        }
+
+        TableNextColumn();
+        const bool is_addr = input_cb.reason_ == Reason::Addr;
+
+        const ImGuiDataType data_type = is_addr ? ImGuiDataType_U16 : ImGuiDataType_U8;
+        void* p_data = is_addr ? (void*)&std::get<address_t>(input_cb.break_value_) : (void*)&std::get<byte_t>(input_cb.break_value_);
+
+        InputScalar("##value", data_type, p_data, nullptr, nullptr, is_addr ? "%04X" : "%02X");
+
+        TableNextColumn();
+        PushStyleVar(ImGuiStyleVar_FramePadding, buttonPadding);
+        if (Button("+"))
+            do_add = true;
+        PopStyleVar();
+
+        EndTable();
+        PopStyleVar();
+    }
+
+    if (remove_it != debugger.breakpoints_.end())
+        debugger.breakpoints_.erase(remove_it);
+
+    if (do_add)
+    {
+        debugger.breakpoints_.push_back(input_cb);
+        input_cb = {};
+    }
+}
+
 void ui::imgui_debugger()
 {
     using namespace imgui;
@@ -142,7 +289,7 @@ void ui::imgui_debugger()
                 clipper.Begin(instrCount, textHeight);
 
                 if (sticky_idx >= 0)
-                    clipper.IncludeItemsByIndex(std::max(0, sticky_idx - 5), std::min(sticky_idx + 5, instrCount));
+                    clipper.IncludeItemByIndex(sticky_idx);
 
                 while (clipper.Step())
                 {
@@ -192,13 +339,7 @@ void ui::imgui_debugger()
         {
             SeparatorText("CPU State");
 
-            TextFmt("Flags: {}{}xx{}{}{}{}\n",
-                    (cpu_state.status_ & CPU_State::kNegative) ? 'N' : '-',
-                    (cpu_state.status_ & CPU_State::kOverflow) ? 'O' : '-',
-                    (cpu_state.status_ & CPU_State::kDecimal) ? 'D' : '-',
-                    (cpu_state.status_ & CPU_State::kIntDisable) ? 'I' : '-',
-                    (cpu_state.status_ & CPU_State::kZero) ? 'Z' : '-',
-                    (cpu_state.status_ & CPU_State::kCarry) ? 'C' : '-');
+            TextFmt("Flags: {} [{:02X}]\n", cpu_flags_str(cpu_state.status_), cpu_state.status_);
 
             TextFmt("A:{:02x} X:{:02x} Y:{:02x} SP:{:02x}\n",
                     cpu_state.accumulator_, cpu_state.register_x_, cpu_state.register_y_, cpu_state.stack_pointer_);
@@ -228,6 +369,10 @@ void ui::imgui_debugger()
                 debugger.resume();
 
             EndDisabled();
+
+            NewLine();
+            SeparatorText("Breakpoints");
+            breakpoints(emulator.debugger_);
 
             EndDisabled();
         }
