@@ -618,14 +618,15 @@ bool CPU::is_branch_(byte_t opcode) const
 void CPU::adc_(byte_t operand)
 {
     byte_t carry = (get_status_(kCarry)) ? 0x01 : 0x00;
-    bool neg_a = accumulator_ & kNegative;
-    bool neg_op = operand & kNegative;
+    const bool neg_a = accumulator_ & kNegative;
+    const bool neg_op = operand & kNegative;
 
-    accumulator_ += operand + carry;
+    const uint16_t sum = static_cast<uint16_t>(accumulator_) + operand + carry;
+    accumulator_ = static_cast<byte_t>(sum);
 
     set_status_(kZero, accumulator_ == 0);
     set_status_(kNegative, accumulator_ & kNegative);
-    set_status_(kCarry, accumulator_ < operand);
+    set_status_(kCarry, sum > 0xFF);
     set_status_(kOverflow, (neg_a == neg_op) && neg_a != get_status_(kNegative));
 }
 
@@ -959,16 +960,7 @@ void CPU::sax_(address_t addr)
 
 void CPU::sbc_(byte_t operand)
 {
-    byte_t carry = (!get_status_(kCarry)) ? 0x01 : 0x00;
-    bool neg_a = accumulator_ & kNegative;
-    bool neg_op = operand & kNegative;
-
-    accumulator_ = accumulator_ - operand - carry;
-
-    set_status_(kZero, accumulator_ == 0);
-    set_status_(kNegative, accumulator_ & kNegative);
-    set_status_(kCarry, accumulator_ < (operand | kNegative));
-    set_status_(kOverflow, (neg_a == !neg_op) && neg_a != get_status_(kNegative));
+    adc_(~operand);
 }
 
 void CPU::sec_()
