@@ -103,7 +103,7 @@ const ops::metadata operation_data[] = {
     // (Implemented) Unofficial opcodes are prefixed with an *
 
     // BRK(00)             ORA(01)                ???(02)                *SLO(03)               *NOP(04)               ORA(05)                ASL(06)                *SLO(07)
-    {BRK, Non, 7, " BRK"}, {ORA, InX, 6, " ORA"}, {XXX, Non, 2, "****"}, {SLO, InX, 8, "*SLO"}, {NOP, ZPg, 3, "*NOP"}, {ORA, ZPg, 3, " ORA"}, {ASL, ZPg, 5, " ASL"}, {SLO, ZPg, 5, "*SLO"},
+    {BRK, Imm, 7, " BRK"}, {ORA, InX, 6, " ORA"}, {XXX, Non, 2, "****"}, {SLO, InX, 8, "*SLO"}, {NOP, ZPg, 3, "*NOP"}, {ORA, ZPg, 3, " ORA"}, {ASL, ZPg, 5, " ASL"}, {SLO, ZPg, 5, "*SLO"},
    
     // PHP(08)             ORA(09)                ASL(0A)                *ANC(0B)               *NOP(0C)               ORA(0D)                ASL(0E)                *SLO(0F)
     {PHP, Non, 3, " PHP"}, {ORA, Imm, 2, " ORA"}, {ASL, Non, 2, " ASL"}, {ANC, Imm, 2, "*ANC"}, {NOP, Abs, 4, "*NOP"}, {ORA, Abs, 4, " ORA"}, {ASL, Abs, 6, " ASL"}, {SLO, Abs, 6, "*SLO"},

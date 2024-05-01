@@ -670,7 +670,7 @@ void CPU::bit_(address_t addr)
     set_status_(kOverflow, operand & kOverflow);
     operand &= accumulator_;
     set_status_(kZero, operand == 0);
-    set_status_(0x20, true); // always 1 flag
+    set_status_(kDummy, true);
 }
 
 void CPU::bmi_(byte_t operand)
@@ -696,8 +696,9 @@ void CPU::brk_()
     store_stack_(program_counter_);
 
     set_status_(kBreak, true);
-    set_status_(kIntDisable, true);
+    set_status_(kDummy, true);
     store_stack_(status_);
+    set_status_(kIntDisable, true);
     
     program_counter_ = load_addr_(0xFFFE);
 }

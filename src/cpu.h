@@ -40,6 +40,7 @@ struct CPU_State
         kIntDisable = 1 << 2,
         kDecimal = 1 << 3,
         kBreak = 1 << 4,
+        kDummy = 1 << 5,
         kOverflow = 1 << 6,
         kNegative = 1 << 7,
     };
