@@ -30,6 +30,9 @@ int main(int argc, char* argv[])
             time_unit remaining_us = std::max(sixtieth_us - timer.elapsed_us(), 0ll);
             sf::sleep(sf::microseconds(remaining_us));
         }
+
+        if (emul.get_cart() && emul.get_cart()->battery_)
+            emul.get_cart()->battery_->save_now();
     }
     catch (const std::exception& e)
     {

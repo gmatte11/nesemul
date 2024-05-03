@@ -82,6 +82,8 @@ bool INESReader::read_from_file(std::wstring_view filename)
     if (!ifs)
         return false;
 
+    filepath_ = filename;
+
     byte_t header[16];
     ifs.read(header, 16);
 

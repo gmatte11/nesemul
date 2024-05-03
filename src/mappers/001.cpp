@@ -2,7 +2,7 @@
 #include "cartridge.h"
 #include "emulator.h"
 
-NES_DEOPTIMIZE
+
 address_t M001::map_to_cpu_addr(address_t addr) const
 {
     return addr;
@@ -12,7 +12,8 @@ bool M001::on_cpu_read(address_t addr, byte_t& value)
 {
     if (addr >= 0x6000 && addr < 0x8000)
     {
-        value = cart_->wram_[addr & 0x1FFF];
+        if (!(cart_->battery_ && cart_->battery_->read(addr, value)))
+            value = cart_->wram_[addr & 0x1FFF];
         return true;
     }
 
@@ -35,7 +36,8 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
 {
     if (addr >= 0x6000 && addr < 0x8000)
     {
-        cart_->wram_[addr & 0x1FFF] = value;
+        if (!(cart_->battery_ && cart_->battery_->write(addr, value)))
+            cart_->wram_[addr & 0x1FFF] = value;
         return true;
     }
 

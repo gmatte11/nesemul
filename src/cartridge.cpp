@@ -35,6 +35,9 @@ void Cartridge::load_roms(INESReader& reader)
         }
     }
 
+    if (h.has_prg_ram_)
+        battery_.reset(new Battery(Battery::make_save_filepath(reader.filepath_)));
+
     mapper_->post_load();
 }
 

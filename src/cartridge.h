@@ -1,7 +1,8 @@
 #pragma once
 
-#include "types.h"
+#include "battery.h"
 #include "mapper.h"
+#include "types.h"
 
 class INESReader;
 
@@ -65,4 +66,6 @@ public:
     std::vector<PRG_BANK> prg_rom_;
     std::array<byte_t, 0x2000> wram_ {};
     std::vector<CHR_BANK> chr_;
+
+    std::unique_ptr<Battery> battery_;
 };

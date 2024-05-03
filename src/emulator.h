@@ -38,6 +38,7 @@ public:
     CPU* get_cpu() const { return cpu_.get(); }
     PPU* get_ppu() const { return ppu_.get(); }
     APU* get_apu() const { return apu_.get(); }
+    Cartridge* get_cart() const { return cart_.get(); }
 
     void press_button(Controller::Button b);
     void release_button(Controller::Button b);

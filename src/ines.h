@@ -41,6 +41,7 @@ public:
     void read_chr_rom(int idx, std::span<byte_t, 0x2000> bank);
 
     INESHeader header_;
+    std::wstring filepath_;
 
 private:
     std::unique_ptr<bifstream> stream_;
