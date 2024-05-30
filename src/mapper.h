@@ -1,21 +1,20 @@
 #pragma once
 
 #include "types.h"
+#include "cartridge.h"
 
 #include <array>
 #include <vector>
 
-class Cartridge;
-
 class Mapper
 {
 public:
-    static Mapper* create(byte_t ines_code, Cartridge* cart);
+    static Mapper* create(byte_t ines_code);
 
 public:
-    Mapper(Cartridge* cart) : cart_(cart) {}
+    Mapper() = default;
 
-    void post_load();
+    virtual void post_load(Cartridge& cart) {}
 
     virtual address_t map_to_cpu_addr(address_t addr) const = 0;    
 
@@ -27,21 +26,17 @@ public:
 
     virtual std::pair<byte_t*, address_t> get_bank(address_t addr) const = 0;
 
-    std::pair<const byte_t*, const byte_t*> get_cpu_mapped_prg_banks() const
+    const MemoryMap& get_cpu_mapped_prg_banks() const
     {
-        return { prg_l_, prg_h_ };
+        return prg_map_;
     }
 
-    std::pair<const byte_t*, const byte_t*> get_ppu_mapped_chr_banks() const
+    const MemoryMap& get_ppu_mapped_chr_banks() const
     {
-        return { chr_l_, chr_h_ };
+        return chr_map_;
     }
 
 protected:
-    Cartridge* cart_;
-
-    byte_t* prg_l_;
-    byte_t* prg_h_;
-    byte_t* chr_l_;
-    byte_t* chr_h_;
+    MemoryMap prg_map_;
+    MemoryMap chr_map_;
 };

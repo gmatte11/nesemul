@@ -1,5 +1,31 @@
 #include "000.h"
 
+M000::M000()
+    : prg_l_(prg_map_.map_[0].mem_)
+    , prg_h_(prg_map_.map_[1].mem_)
+    , chr_l_(chr_map_.map_[0].mem_)
+    , chr_h_(chr_map_.map_[1].mem_)
+{
+    prg_map_.map_[0].addr_ = 0x8000;
+    prg_map_.map_[0].size_ = 0x4000;
+    prg_map_.map_[1].addr_ = 0xC000;
+    prg_map_.map_[1].size_ = 0x4000;
+
+    chr_map_.map_[0].addr_ = 0x0000;
+    chr_map_.map_[0].size_ = 0x1000;
+    chr_map_.map_[1].addr_ = 0x1000;
+    chr_map_.map_[1].size_ = 0x1000;
+}
+
+void M000::post_load(Cartridge& cart)
+{
+    prg_l_ = cart.get_prg_bank(0);
+    prg_h_ = cart.get_prg_bank(-1);
+    
+    chr_l_ = cart.get_chr_bank(0);
+    chr_h_ = chr_l_ + 0x1000;
+}
+
 address_t M000::map_to_cpu_addr(address_t addr) const
 {
     if (prg_h_ == prg_l_ && addr >= 0xC000)

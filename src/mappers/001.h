@@ -6,7 +6,8 @@
 class M001 : public Mapper
 {
 public:
-    M001(Cartridge* cart) : Mapper(cart) {}
+    M001();
+    void post_load(Cartridge& cart) override;
 
     address_t map_to_cpu_addr(address_t addr) const override;
 
@@ -18,6 +19,13 @@ public:
 
     std::pair<byte_t*, address_t> get_bank(address_t addr) const;
 private:
+    Cartridge* cart_;
+
+    byte_t*& prg_l_;
+    byte_t*& prg_h_;
+    byte_t*& chr_l_;
+    byte_t*& chr_h_;
+
     struct : public register_t<byte_t> 
     { 
         byte_t latch : 5;

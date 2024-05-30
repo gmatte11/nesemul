@@ -11,22 +11,23 @@
 
 void Disassembler::load(const BUS& bus)
 {
-    Cartridge* cart = bus.cart_;
+    cart_ = bus.cart_;
 
     banks_.clear();
 
-    if (cart == nullptr)
+    if (cart_ == nullptr)
         return;
 
-    banks_.reserve(cart->prg_rom_.size());
+    auto rom_banks = cart_->get_prg_banks();
+    const int count = static_cast<int>(std::size(rom_banks));
 
-    for (size_t i = 0; i < cart->prg_rom_.size(); ++i)
+    banks_.reserve(count);
+
+    for (int i = 0; i < count; ++i)
     {
-        const auto& prg_bank = cart->prg_rom_[i];
-
         PrgBank& bank = banks_.emplace_back();
-        bank.rom_ = prg_bank.data();
-        bank.source_idx = static_cast<int>(i);
+        bank.rom_ = &*std::begin(rom_banks[i]);
+        bank.source_idx = i;
 
         load_bank_(bank, bank.rom_, rom_size);
     }
@@ -142,7 +143,12 @@ auto Disassembler::get_mapped_banks(const BUS& bus) -> std::pair<const PrgBank*,
 {
     if (bus.cart_ != nullptr)
     {
-        auto [bank1, bank2] = bus.cart_->get_prg_banks();
+        const MemoryMap& prg_map = bus.cart_->get_mapped_prg();
+
+        NES_ASSERT(prg_map.map_[0].mem_ != nullptr);
+
+        const byte_t* bank0 = prg_map.map_[0].mem_;
+        const byte_t* bank1 = (prg_map.map_[1].mem_ != nullptr) ? prg_map.map_[1].mem_ : nullptr;
 
         auto find_prg_bank = [this] (const byte_t* rom) -> const PrgBank*
         {
@@ -155,7 +161,7 @@ auto Disassembler::get_mapped_banks(const BUS& bus) -> std::pair<const PrgBank*,
             return nullptr;
         };
 
-        return { find_prg_bank(bank1), find_prg_bank(bank2) };
+        return { find_prg_bank(bank0), find_prg_bank(bank1) };
     }
 
     return { nullptr, nullptr };

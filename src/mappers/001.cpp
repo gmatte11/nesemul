@@ -2,6 +2,37 @@
 #include "cartridge.h"
 #include "emulator.h"
 
+M001::M001()
+    : prg_l_(prg_map_.map_[0].mem_)
+    , prg_h_(prg_map_.map_[1].mem_)
+    , chr_l_(chr_map_.map_[0].mem_)
+    , chr_h_(chr_map_.map_[1].mem_)
+{
+    prg_map_.map_[0].addr_ = 0x8000;
+    prg_map_.map_[0].size_ = 0x4000;
+    prg_map_.map_[1].addr_ = 0xC000;
+    prg_map_.map_[1].size_ = 0x4000;
+
+    chr_map_.map_[0].addr_ = 0x0000;
+    chr_map_.map_[0].size_ = 0x1000;
+    chr_map_.map_[1].addr_ = 0x1000;
+    chr_map_.map_[1].size_ = 0x1000;
+}
+
+void M001::post_load(Cartridge& cart)
+{
+    cart_ = &cart;
+
+    prg_l_ = cart.get_prg_bank(0);
+    prg_h_ = cart.get_prg_bank(-1);
+    
+    // A single bank of CHR RAM is created when no CHR ROM is available in the cartridge.
+    if (cart.chr_.empty())
+        cart.chr_.resize(Cartridge::chr_bank_sz);
+
+    chr_l_ = cart.get_chr_bank(0);
+    chr_h_ = chr_l_ + 0x1000;
+}
 
 address_t M001::map_to_cpu_addr(address_t addr) const
 {
@@ -52,7 +83,7 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
             if (op == 0)
                 control_ |= 0xC;
             else if (op == 3)
-                prg_h_ = cart_->prg_rom_.back().data();
+                prg_h_ = cart_->get_prg_bank(-1);
 
             return true;
         }
@@ -119,7 +150,7 @@ bool M001::on_ppu_write(address_t addr, byte_t value)
     if (addr < 0x2000)
     {
         // CHR RAM is always at bank 0.
-        cart_->chr_.front()[addr] = value;
+        cart_->get_chr_bank(0)[addr] = value;
         return true;
     }
 
@@ -147,8 +178,7 @@ void M001::chr_low_switch()
     int chr_idx = idx >> 1;
     int offset = (idx & 0x1) ? 0x1000 : 0;
 
-    NES_ASSERT(chr_idx < cart_->chr_.size());
-    chr_l_ = cart_->chr_[chr_idx].data() + offset;
+    chr_l_ = cart_->get_chr_bank(chr_idx) + offset;
 
     if (mode_8kb)
         chr_h_ = chr_l_ + 0x1000;
@@ -165,8 +195,7 @@ void M001::chr_high_switch()
     int chr_idx = idx >> 1;
     int offset = (idx & 0x1) ? 0x1000 : 0;
 
-    NES_ASSERT(chr_idx < cart_->chr_.size());
-    chr_h_ = cart_->chr_[chr_idx].data() + offset;
+    chr_h_ = cart_->get_chr_bank(chr_idx) + offset;
 }
 
 void M001::prg_switch()
@@ -180,25 +209,22 @@ void M001::prg_switch()
     case 1:
     {
         idx &= 0b1110;
-        NES_ASSERT(idx + 1 < cart_->prg_rom_.size());
-        prg_l_ = cart_->prg_rom_[idx].data();
-        prg_h_ = cart_->prg_rom_[idx + 1].data();
+        prg_l_ = cart_->get_prg_bank(idx);
+        prg_h_ = cart_->get_prg_bank(idx + 1);
     }
     break;
 
     case 2:
     {
-        NES_ASSERT(idx < cart_->prg_rom_.size());
-        prg_l_ = cart_->prg_rom_.front().data();
-        prg_h_ = cart_->prg_rom_[idx].data();
+        prg_l_ = cart_->get_prg_bank(0);
+        prg_h_ = cart_->get_prg_bank(idx);
     } 
     break;
    
     case 3:
     {
-        NES_ASSERT(idx < cart_->prg_rom_.size());
-        prg_l_ = cart_->prg_rom_[idx].data();
-        prg_h_ = cart_->prg_rom_.back().data();
+        prg_l_ = cart_->get_prg_bank(idx);
+        prg_h_ = cart_->get_prg_bank(-1);
     }
     break;
     }

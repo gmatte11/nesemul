@@ -22,11 +22,10 @@ void ui::PATData::update()
 
         chrbnk_combo_model_.clear();
         chrbnk_combo_model_.add_option("PPU Mapped");
-        chrbnk_combo_model_.add_option("CHR RAM");
 
         if (cart != nullptr)
         {
-            for (size_t i = 0; i < cart->chr_.size(); ++i)
+            for (size_t i = 0; i < std::size(cart->get_chr_banks()); ++i)
             {
                 chrbnk_combo_model_.add_option(fmt::format("CHR bank {}", i));
             }
@@ -52,9 +51,19 @@ void ui::PATData::update()
 
     if (cart != nullptr)
     {
-        auto [chr_left, chr_right] = cart->get_chr_bank(pat_idx_);
-        ui::ppu_patterntable_texture(pat_textures_[0], {chr_left, 0x1000}, palette);
-        ui::ppu_patterntable_texture(pat_textures_[1], {chr_right, 0x1000}, palette);
+        if (pat_idx_ == 0)
+        {
+            const MemoryMap& map = cart->get_mapped_chr();
+            NES_ASSERT(map.map_[0].size_ == 0x1000);
+            ui::ppu_patterntable_texture(pat_textures_[0], {map.map_[0].mem_, 0x1000}, palette);
+            ui::ppu_patterntable_texture(pat_textures_[1], {map.map_[1].mem_, 0x1000}, palette);
+        }
+        else
+        {
+            const byte_t* chr = cart->get_chr_bank(pat_idx_ - 1);
+            ui::ppu_patterntable_texture(pat_textures_[0], {chr, 0x1000}, palette);
+            ui::ppu_patterntable_texture(pat_textures_[1], {chr + 0x1000, 0x1000}, palette);
+        }
     }
 }
 
