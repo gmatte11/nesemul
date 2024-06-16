@@ -9,91 +9,146 @@
 #include "types.h"
 #include "utils.h"
 
+#include <ranges>
+
 struct PrgModel
 {
     using PrgBank = Disassembler::PrgBank;
     using Op = Disassembler::Op;
 
+    struct OpRange
+    {
+        const PrgBank* decoded_bank_;
+        address_t mapped_addr = 0_addr;
+        int first_idx_;
+        int size_;
+    };
+
+    std::array<OpRange, 4> ops_;
+
     void clear()
     {
-        banks_.fill(nullptr);
-        cart_check = nullptr;
+        ops_.fill({ nullptr, 0, 0 });
     }
 
     void reset(const BUS& bus, int prg_idx)
     {
+        clear();
+
         if (bus.cart_ == nullptr)
-        {
-            clear();
             return;
-        }
 
         Disassembler& disassembler = Emulator::instance()->disassembler_;
 
-        const PrgBank* bank1 = nullptr;
-        const PrgBank* bank2 = nullptr;
-
         if (prg_idx == 0)
         {
-            std::tie(bank1, bank2) = disassembler.get_mapped_banks(bus);
+            const MemoryMap& prg_map = bus.cart_->get_mapped_prg();
+
+            auto it = ops_.begin();
+            for (const auto& memory_bank : prg_map.map_)
+            {
+                for (const PrgBank& decoded_bank : disassembler.get_banks())
+                {
+                    if (memory_bank.mem_ >= decoded_bank.rom_ && memory_bank.mem_ < decoded_bank.rom_ + decoded_bank.rom_size_)
+                    {
+                        NES_ASSERT(memory_bank.mem_ + memory_bank.size_ <= decoded_bank.rom_ + decoded_bank.rom_size_);
+                       *it = decode_op_range(decoded_bank, memory_bank); 
+                    }
+                }
+
+                ++it;
+            }
         }
         else
         {
+            // TODO?
+            /*
+            const Disassembler::PrgBank* bank1 = nullptr;
+            const Disassembler::PrgBank* bank2 = nullptr;
+
             const int disassembler_bank_idx = (prg_idx - 1) * 2; 
 
             auto banks = disassembler.get_banks();
             bank1 = &banks[disassembler_bank_idx];
             bank2 = &banks[disassembler_bank_idx + 1];
+
+            banks_[0] = bank1;
+            banks_[1] = bank2;
+
+            if (banks_[0] != nullptr)
+                sizes_[0] = static_cast<int>(banks_[0]->ops_.size());
+
+            if (banks_[1] != nullptr)
+                sizes_[1] = static_cast<int>(banks_[1]->ops_.size());
+            */
+        }
+    }
+
+    static OpRange decode_op_range(const PrgBank& decoded_bank, const MemoryMap::Bank& memory_bank)
+    {
+        auto it = decoded_bank.ops_.begin();
+
+        int first_idx = 0;
+
+        const byte_t* op_ptr = decoded_bank.rom_;
+        while (op_ptr < memory_bank.mem_)
+        {
+            const int width = ops::opcode_data(it->opcode_).get_size();
+            op_ptr += width;
+            ++first_idx;
         }
 
-        banks_[0] = bank1;
-        banks_[1] = bank2;
+        int size = 0;
 
-        if (banks_[0] != nullptr)  
-            sizes_[0] = static_cast<int>(banks_[0]->ops_.size());
+        while (op_ptr < memory_bank.mem_ + memory_bank.size_)
+        {
+            const int width = ops::opcode_data(it->opcode_).get_size();
+            op_ptr += width;
+            ++size;
+        }
 
-        if (banks_[1] != nullptr) 
-            sizes_[1] = static_cast<int>(banks_[1]->ops_.size());
+        return { &decoded_bank, static_cast<address_t>(memory_bank.addr_ + first_idx), first_idx, size };
     }
 
     int size() const
     {
-        return sizes_[0] + sizes_[1];
+        return std::ranges::fold_left(ops_, 0, [](int init, const OpRange& rhs) { return init + rhs.size_; });
     }
 
     Op get_op(int idx)
     {
-        NES_ASSERT(idx >= 0 && idx < sizes_[0] + sizes_[1]);
-        if (idx < sizes_[0])
-            return banks_[0]->ops_[idx];
+        int idx_bank = 0;
 
-        return banks_[1]->ops_[idx - sizes_[0]];
+        while (idx > ops_[idx_bank].size_)
+        {
+            idx -= ops_[idx_bank].size_;
+            idx_bank++;
+        }
+
+        const OpRange& range = ops_[idx_bank];
+        const PrgBank* decoded_bank = range.decoded_bank_;
+
+        Op op = decoded_bank->ops_[range.first_idx_ + idx];
+        op.addr_ += range.mapped_addr + static_cast<address_t>(idx);
+
+        return op;
     }
 
     int get_idx(address_t addr)
     {
-        auto find_idx = [](std::span<const Op> ops, address_t addr)
+        int idx = 0;
+        int idx_bank = 0;
+
+        while (addr > ops_[idx_bank].size_)
         {
-            for (size_t i = 0; i < ops.size(); ++i)
-            {
-                if (ops[i].addr_ == addr)
-                    return static_cast<int>(i);
-            }
+            addr -= static_cast<address_t>(ops_[idx_bank].size_);
+            idx_bank++;
+        }
 
-            return -1;
-        };
-
-        if (addr < 0x4000 && banks_[0] != nullptr)
-            return find_idx(banks_[0]->ops_, addr);
-
-        if (addr >= 0x4000 && banks_[1] != nullptr)
-            return find_idx(banks_[1]->ops_, addr - 0x4000);
-            
-        return -1;
+        return idx + addr;
     }
 
-    std::array<const PrgBank*, 2> banks_ = {};
-    std::array<int, 2> sizes_= {};
+
 
     void* cart_check = nullptr;
 };
@@ -256,10 +311,9 @@ void ui::imgui_debugger()
     static PrgModel model;
     model.reset(bus, 0);
 
-    address_t prg_offset = bus.map_cpu_addr(0x8000);
     address_t program_counter = bus.map_cpu_addr(cpu_state.program_counter_);
 
-    int sticky_idx = model.get_idx(program_counter - prg_offset);
+    int sticky_idx = model.get_idx(program_counter);
 
     const float textHeight = GetTextLineHeightWithSpacing();
 
@@ -303,7 +357,7 @@ void ui::imgui_debugger()
                         TableNextRow();
 
                         TableNextColumn();
-                        const address_t mapped_addr = bus.map_cpu_addr(op.addr_ + prg_offset);
+                        const address_t mapped_addr = bus.map_cpu_addr(op.addr_);
                         TextFmt("{}{:04X}", is_at_pc ? '*' : ' ', mapped_addr);
 
                         if (is_at_pc)

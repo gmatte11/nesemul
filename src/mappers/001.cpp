@@ -8,15 +8,15 @@ M001::M001()
     , chr_l_(chr_map_.map_[0].mem_)
     , chr_h_(chr_map_.map_[1].mem_)
 {
-    prg_map_.map_[0].addr_ = 0x8000;
-    prg_map_.map_[0].size_ = 0x4000;
-    prg_map_.map_[1].addr_ = 0xC000;
-    prg_map_.map_[1].size_ = 0x4000;
+    prg_map_[0].addr_ = 0x8000;
+    prg_map_[0].size_ = 0x4000;
+    prg_map_[1].addr_ = 0xC000;
+    prg_map_[1].size_ = 0x4000;
 
-    chr_map_.map_[0].addr_ = 0x0000;
-    chr_map_.map_[0].size_ = 0x1000;
-    chr_map_.map_[1].addr_ = 0x1000;
-    chr_map_.map_[1].size_ = 0x1000;
+    chr_map_[0].addr_ = 0x0000;
+    chr_map_[0].size_ = 0x1000;
+    chr_map_[1].addr_ = 0x1000;
+    chr_map_[1].size_ = 0x1000;
 }
 
 void M001::post_load(Cartridge& cart)

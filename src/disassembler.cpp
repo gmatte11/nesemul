@@ -27,7 +27,7 @@ void Disassembler::load(const BUS& bus)
     {
         PrgBank& bank = banks_.emplace_back();
         bank.rom_ = &*std::begin(rom_banks[i]);
-        bank.source_idx = i;
+        bank.rom_bank_idx_ = i;
 
         load_bank_(bank, bank.rom_, rom_size);
     }
@@ -58,6 +58,7 @@ void Disassembler::load_bank_(PrgBank& bank, const byte_t* rom, size_t size)
     }
 
     bank.ops_.shrink_to_fit();
+    bank.rom_size_ = static_cast<int>(size);
 }
 
 void Disassembler::render(StringBuilder& sb, address_t addr, int offset) const
@@ -139,30 +140,35 @@ void Disassembler::asm_str(StringBuilder& sb, Op op) const
     }
 }
 
-auto Disassembler::get_mapped_banks(const BUS& bus) -> std::pair<const PrgBank*, const PrgBank*>
+int Disassembler::get_ops_count(const byte_t* bank_mem, int size)
 {
-    if (bus.cart_ != nullptr)
+    for (const PrgBank& prg_bank : banks_)
     {
-        const MemoryMap& prg_map = bus.cart_->get_mapped_prg();
-
-        NES_ASSERT(prg_map.map_[0].mem_ != nullptr);
-
-        const byte_t* bank0 = prg_map.map_[0].mem_;
-        const byte_t* bank1 = (prg_map.map_[1].mem_ != nullptr) ? prg_map.map_[1].mem_ : nullptr;
-
-        auto find_prg_bank = [this] (const byte_t* rom) -> const PrgBank*
+        if (bank_mem >= prg_bank.rom_ && bank_mem < prg_bank.rom_ + prg_bank.rom_size_)
         {
-            auto it = std::ranges::find_if(banks_, 
-                [=](const PrgBank& prg) { return prg.rom_ <= rom && prg.rom_ + rom_size > rom; });
+            NES_ASSERT(bank_mem + size <= prg_bank.rom_ + prg_bank.rom_size_);
 
-            if (it != banks_.end())
-                return &*it;
-            
-            return nullptr;
-        };
+            auto it = prg_bank.ops_.begin();
 
-        return { find_prg_bank(bank0), find_prg_bank(bank1) };
+            const byte_t* ptr = prg_bank.rom_;
+            while (ptr < bank_mem)
+            {
+                const int width = ops::opcode_data(it->opcode_).get_size();
+                ptr += width;
+            }
+
+            int count = 0;
+
+            while (ptr < bank_mem + size)
+            {
+                const int width = ops::opcode_data(it->opcode_).get_size();
+                ptr += width;
+                ++count;
+            }
+
+            return count;
+        }
     }
 
-    return { nullptr, nullptr };
+    return -1;
 }

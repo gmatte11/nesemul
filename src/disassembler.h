@@ -23,7 +23,8 @@ public:
     {
         std::vector<Op> ops_;
         const byte_t* rom_;
-        int source_idx; // Source prg rom index on the cartridge
+        int rom_size_;
+        int rom_bank_idx_; // Source prg rom index on the cartridge
     };
     
     static constexpr size_t rom_size = 0x4000;
@@ -34,7 +35,7 @@ public:
     void render(StringBuilder& buf, address_t addr, int offset = 0) const;
     void asm_str(StringBuilder& sb, Op op) const;
 
-    std::pair<const PrgBank*, const PrgBank*> get_mapped_banks(const BUS& bus);
+    int get_ops_count(const byte_t* bank_mem, int size);
     std::span<const PrgBank> get_banks() const { return banks_; }
 
 private:

@@ -12,32 +12,51 @@ struct MemoryMap
 {
     struct Bank
     {
+        byte_t* mem_ = nullptr;
+
         address_t addr_ = 0x3333; // Never mapped to cartridge
         address_t size_ = 0;
-        byte_t* mem_ = nullptr;
+
+        int rom_bank_idx_ = - 1;
+        address_t bank_offset_ = 0;
     };
 
-    std::array<Bank, 4> map_;
+    std::array<Bank, 8> map_;
 
-    bool is_mapped(address_t addr) const
+    Bank& operator[](int idx) { return map_[idx]; }
+    const Bank& operator[](int idx) const { return map_[idx]; }
+
+    std::optional<std::reference_wrapper<Bank>> get_mapping(address_t addr)
     {
-        bool mapped = false;
-        for (const Bank& mapping : map_)
+        for (Bank& mapping : map_)
         {
-            mapped = mapped 
-                || (addr >= mapping.addr_ 
-                && addr < mapping.addr_ + mapping.size_ 
-                && mapping.mem_ != nullptr);
+            if (addr >= mapping.addr_ && addr < mapping.addr_ + mapping.size_)
+                return mapping;
         }
-        return mapped;
+
+        return {};
     }
 
-    byte_t* map(address_t addr)
+    std::optional<std::reference_wrapper<const Bank>> get_mapping(address_t addr) const
     {
         for (const Bank& mapping : map_)
         {
             if (addr >= mapping.addr_ && addr < mapping.addr_ + mapping.size_)
-                return mapping.mem_ + (addr - mapping.addr_);
+                return mapping;
+        }
+
+        return {};
+    }
+
+    byte_t* map_to_mem(address_t addr)
+    {
+        auto opt_bank = get_mapping(addr);
+
+        if (opt_bank)
+        {
+            Bank& bank = opt_bank.value();
+            if (bank.mem_ != nullptr)
+                return bank.mem_ + (addr - bank.addr_);
         }
 
         return nullptr;

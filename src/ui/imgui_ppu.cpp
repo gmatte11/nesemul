@@ -53,10 +53,26 @@ void ui::PATData::update()
     {
         if (pat_idx_ == 0)
         {
-            const MemoryMap& map = cart->get_mapped_chr();
-            NES_ASSERT(map.map_[0].size_ == 0x1000);
-            ui::ppu_patterntable_texture(pat_textures_[0], {map.map_[0].mem_, 0x1000}, palette);
-            ui::ppu_patterntable_texture(pat_textures_[1], {map.map_[1].mem_, 0x1000}, palette);
+            const MemoryMap& chr_map = cart->get_mapped_chr();
+            if (chr_map[0].size_ == 0x1000 && chr_map[1].size_ == 0x1000)
+            {
+                ui::ppu_patterntable_texture(pat_textures_[0], {chr_map[0].mem_, 0x1000}, palette);
+                ui::ppu_patterntable_texture(pat_textures_[1], {chr_map[1].mem_, 0x1000}, palette);
+            }
+            else
+            {
+                std::array<byte_t, 0x2000> chr_data;
+                int idx = 0;
+                for (const auto& bank : chr_map.map_)
+                {
+                    if (bank.mem_ != nullptr)
+                        std::memcpy(chr_data.data() + idx, bank.mem_, bank.size_);
+                    idx += bank.size_;
+                }
+
+                ui::ppu_patterntable_texture(pat_textures_[0], {chr_data.data(), 0x1000}, palette);
+                ui::ppu_patterntable_texture(pat_textures_[1], {chr_data.data() + 0x1000, 0x1000}, palette);
+            }
         }
         else
         {
