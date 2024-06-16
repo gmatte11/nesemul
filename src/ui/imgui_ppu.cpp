@@ -133,7 +133,7 @@ void debug_oam()
             imgui::Image(sfSprite, sf::Vector2f(16.f, 16.f));
 
             SameLine();
-            TextFmt("{:02x} ({:3}, {:3}), {:02x}", sprite.tile_, sprite.x_, sprite.y_, sprite.att_);
+            TextFmt("{:02x} ({:3}, {:3}), {:02x}", sprite.tile_, sprite.x_, sprite.y_, sprite.att_.get());
         };
 
         if (BeginTable("-", 2))

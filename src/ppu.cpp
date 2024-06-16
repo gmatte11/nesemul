@@ -437,8 +437,8 @@ void PPU::render_()
                     if (sprite_pat != 0)
                     {
                         fg_pixel = sprite_pat;
-                        fg_pal = (sprite.att_ & 0x3) + 4;
-                        fg_priority = (sprite.att_ & 0x20) == 0;
+                        fg_pal = (sprite.att_.palette_) + 4;
+                        fg_priority = sprite.att_.priority_ == 0;
                         
                         is_sprite_0 = i == 0 && sprites.has_sprite_0_;
                     }
@@ -547,21 +547,21 @@ void PPU::tick_()
 
 void PPU::SecondaryOAM::reset()
 {
-    static constexpr SecondaryOAM::Entry empty{0xFF, 0xFF, 0xFF, 0xFF};
+    static SecondaryOAM::Entry empty{0xFF, 0xFF, 0xFF, 0xFF};
     
     count_ = 0;
     has_sprite_0_ = false;
     list_.fill(empty);
 }
 
-void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, byte_t attrib, byte_t x, byte_t ty)
+void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, OAMSprite::Attributes attrib, byte_t x, byte_t ty)
 {
     sprite.hpat_ = sprite.lpat_ = 0;
     sprite.att_ = attrib;
     sprite.x_ = x;
 
-    byte_t flip = attrib >> 6;
-    if (0b10 & flip) ty = 7 - ty; //vert flip
+    if (attrib.v_flip_)
+        ty = 7 - ty;
 
     address_t addr = static_cast<address_t>(tile.half_ & 0x1) << 12
         | static_cast<address_t>(tile.ntbyte_) << 4
@@ -573,7 +573,10 @@ void PPU::load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, byte_t attrib, by
     for (byte_t tx = 0; tx < 8; ++tx)
     {
         byte_t local_x = tx;
-        if (0b01 & flip) local_x = 7 - tx; //hori flip
+
+        if (attrib.h_flip_) 
+            local_x = 7 - tx;
+
         sprite.lpat_ |= ((lpat >> local_x) & 0x1) << tx;
         sprite.hpat_ |= ((hpat >> local_x) & 0x1) << tx;
     }

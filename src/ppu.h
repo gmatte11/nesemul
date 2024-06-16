@@ -177,7 +177,7 @@ private:
         {
             byte_t lpat_ = 0;
             byte_t hpat_ = 0;
-            byte_t att_ = 0;
+            OAMSprite::Attributes att_ = {};
             byte_t x_ = 0;
 
             byte_t get_pat(byte_t col)
@@ -200,7 +200,7 @@ private:
     };
     Latch<SecondaryOAM> secondary_oam_;
 
-    void load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, byte_t attrib, byte_t x, byte_t y);
+    void load_sprite_(SecondaryOAM::Entry& sprite, Tile tile, OAMSprite::Attributes attrib, byte_t x, byte_t y);
 
     // memory access
     byte_t load_(address_t addr) const;

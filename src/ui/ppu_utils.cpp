@@ -171,13 +171,13 @@ OAMSprite ppu_read_sprite_image(SpriteImage& image, const BUS& bus, int oam_idx)
     tile.ntbyte_ = sprite.tile_;
     tile.half_ = bus.ppu_.get_foreground_half() != 0;
 
-    Palette palette = ppu_read_palette(bus, static_cast<int>(sprite.att_ & 0x3) + 4);
+    Palette palette = ppu_read_palette(bus, static_cast<int>(sprite.att_.palette_) + 4);
 
     for (uint8_t y = 0; y < 8; ++y)
     {
         for (uint8_t x = 0; x < 8; ++x)
         {
-            byte_t pixel = ppu_tile_pixel(bus, tile, x, y, sprite.att_ >> 6);
+            byte_t pixel = ppu_tile_pixel(bus, tile, x, y, sprite.att_.get() >> 6);
             image.set(x, y, palette.get(pixel));
         }
     }

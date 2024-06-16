@@ -103,7 +103,15 @@ struct OAMSprite
 {
     byte_t y_;
     byte_t tile_;
-    byte_t att_;
+    struct Attributes : register_t<byte_t>
+    {
+        byte_t palette_ : 2; // index of foreground palette.
+        byte_t _ : 3;
+        byte_t priority_ : 1; // 0: in front, 1: behind
+        byte_t h_flip_ : 1; // horizontal flip
+        byte_t v_flip_ : 1; // vertical flip
+
+    } att_;
     byte_t x_;
 };
 static_assert(sizeof(OAMSprite) == sizeof(int));
