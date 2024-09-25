@@ -7,6 +7,15 @@ namespace nl = nlohmann;
 
 #include <span>
 #include <string_view>
+#include <string>
+
+class Serializer;
+
+template <typename T>
+concept Serializable = requires(T t)
+{
+    t.serialize(std::declval<Serializer&>());
+};
 
 enum class SerialType
 {
@@ -42,17 +51,70 @@ public:
     void process(std::string_view name, uint64_t& value);
 
     void process(std::string_view name, std::string& str);
+    void process(std::string_view name, std::u8string& str);
 
-    template <std::ranges::common_range Rng>
-    void process(std::string_view name, Rng& array)
+
+    template <typename T, typename... Args>
+    void process(std::string_view name, std::vector<T, Args...>& array)
     {
         if (is_writing())
         {
-            json_.update({{name, nl::json(array)}});
+            if constexpr (Serializable<T>)
+            {
+                std::vector<nl::json> entries;
+                entries.reserve(array.size());
+
+                for (T& t : array)
+                {
+                    Serializer s;
+                    t.serialize(s);
+                    entries.emplace_back() = std::move(s.json_);
+                }
+
+                json_[name] = entries;
+            }
+            else
+            {
+                json_[name] = array;
+            }
         }
         else
         {
-            json_[name].get_to(array);
+            if constexpr (Serializable<T>)
+            {
+                std::vector<nl::json> entries = json_[name];
+                array.clear();
+                array.reserve(entries.size());
+
+                for (auto& json_object : entries)
+                {
+                    Serializer s;
+                    s.is_writing_ = false;
+                    s.json_ = std::move(json_object);
+                    array.emplace_back().serialize(s);
+                }
+            }
+            else
+            {
+                json_[name].get_to(array);
+            }
+        }
+    }
+
+    void process(std::string_view name, Serializable auto& serializable)
+    {
+        if (is_writing())
+        {
+            Serializer s;
+            serializable.serialize(s);
+            json_[name] = std::move(s.json_);
+        }
+        else
+        {
+            Serializer s;
+            s.is_writing_ = false;
+            s.json_ = json_[name];
+            serializable.serialize(s);
         }
     }
 

@@ -6,7 +6,6 @@
 using bifstream = std::basic_ifstream<byte_t>;
 using bofstream = std::basic_ofstream<byte_t>;
 
-NES_DEOPTIMIZE
 Battery::Battery(stdfs::path filepath)
     : filepath_(std::move(filepath))
 {

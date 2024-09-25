@@ -30,3 +30,14 @@ private:
     time_unit timeout_ = 0;
     time_unit start_time_ = 0;
 };
+
+class FPSCounter
+{
+public:
+    time_unit get_ppu_fps();
+
+private:
+    time_unit last_ppu_frame_ = 0;
+    time_unit fps_ = 0;
+    time_unit last_time_ = 0;
+};

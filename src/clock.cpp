@@ -1,5 +1,7 @@
 #include "clock.h"
 
+#include "emulator.h"
+
 #include <SFML/System.hpp>
 
 static sf::Clock global_clock_;
@@ -48,4 +50,24 @@ void Timer::set_timeout(time_unit timeout)
 time_unit Timer::elapsed_us() const
 {
     return std::max(Clock::now_us() - start_time_, 0ll);
+}
+
+time_unit FPSCounter::get_ppu_fps()
+{
+    time_unit now = Clock::now_ms();
+    if ((now - last_time_) < 1000ll)
+        return fps_;
+
+    if (const PPU* ppu = Emulator::instance()->get_ppu())
+    {
+        time_unit frame = ppu->frame();
+        if (frame != last_ppu_frame_)
+        {
+            fps_ = frame - last_ppu_frame_;
+            last_ppu_frame_ = frame;
+            last_time_ = now;
+        }
+    }
+
+    return fps_;
 }

@@ -32,10 +32,7 @@ private:
     Emulator* emulator_;
 
     sf::Clock clock_;
-    sf::Time lastUpdate_;
-    sf::Time lastFPS_;
-    uint64_t lastFrameCount_ = 0;
-    uint64_t fps_ = 0;
+    sf::Time last_update_;
     std::unique_ptr<sf::RenderWindow> window_;
     sf::Int64 step_rate_ = 1000;
 };

@@ -33,6 +33,8 @@ int main(int argc, char* argv[])
 
         if (emul.get_cart() && emul.get_cart()->battery_)
             emul.get_cart()->battery_->save_now();
+
+        ui::save_settings();
     }
     catch (const std::exception& e)
     {

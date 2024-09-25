@@ -45,6 +45,7 @@ SFMLRenderer::SFMLRenderer(Emulator* emulator)
     window_.reset(new sf::RenderWindow(sf::VideoMode(1028, 720), "NESEMUL"));
 
     ImGui::SFML::Init(*window_);
+    ImGui::GetIO().IniFilename = "data/imgui.ini";
 }
 
 SFMLRenderer::~SFMLRenderer()
@@ -57,23 +58,13 @@ bool SFMLRenderer::update()
     poll_events_();
 
     sf::Time t = clock_.getElapsedTime();
-    sf::Time delta = t - lastUpdate_;
-    lastUpdate_ = t;
+    sf::Time delta = t - last_update_;
+    last_update_ = t;
 
     ImGui::SFML::Update(*window_, delta);
 
-    if ((t - lastFPS_).asSeconds() >= 1)
-    {
-        PPU const& ppu = *emulator_->get_ppu();
-        fps_ = ppu.frame() - lastFrameCount_;
-        lastFrameCount_ = ppu.frame();
-        lastFPS_ = t;
-    }
-
     if (window_->isOpen())
     {
-        sf::String title = fmt::format("NESEMUL (FPS: {})", fps_);
-        window_->setTitle(title);
         draw();
 
         ImGui::SFML::Render(*window_);

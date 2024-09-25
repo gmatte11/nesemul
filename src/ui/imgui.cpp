@@ -62,8 +62,8 @@ void ui::imgui_mainmenu()
 
             if (imgui::BeginMenu("Recent"))
             {
-                if (recent_file.has_value() && imgui::MenuItem(ws2s(recent_file.value().basename).c_str()))
-                    emulator.read_rom(recent_file.value().fullpath);
+                if (recent_file.has_value() && imgui::MenuItem(ws2s(recent_file.value().basename_).c_str()))
+                    emulator.read_rom(stdfs::path(recent_file.value().fullpath_).wstring());
 
                 for (int i = 1; i < 5; ++i)
                 {
@@ -72,8 +72,8 @@ void ui::imgui_mainmenu()
                     if (!recent_file.has_value())
                         break;
 
-                    if (imgui::MenuItem(ws2s(recent_file.value().basename).c_str()))
-                        emulator.read_rom(recent_file.value().fullpath);
+                    if (imgui::MenuItem(ws2s(recent_file.value().basename_).c_str()))
+                        emulator.read_rom(stdfs::path(recent_file.value().fullpath_).wstring());
                 }
 
                 imgui::EndMenu();
@@ -109,6 +109,29 @@ void ui::imgui_mainmenu()
             imgui::EndMenu(); 
         }
 
+        // Status information (right-side)
+        FPSCounter& counter = Globals::get().fps_counter_;
+        auto mode_str = []
+        {
+            Emulator* emulator = Emulator::instance();
+            if (emulator->is_paused())
+                return "PAUSED";
+
+            if (emulator->is_debugging())
+                return "BREAK";
+
+            if (emulator->is_ready())
+                return "RUN";
+
+            return "IDLE";
+        };
+
+        std::string status_text = fmt::format("{} | {} FPS", mode_str(), counter.get_ppu_fps());
+        float text_width = imgui::CalcTextSize(status_text.c_str()).x;
+
+        imgui::SameLine(imgui::GetWindowWidth() - text_width - 20.f);
+        imgui::TextUnformatted(status_text.data(), status_text.data() + status_text.size());
+        
         imgui::EndMainMenuBar();
     }
 }

@@ -7,6 +7,10 @@
 #include <span>
 #include <utility>
 
+#define NES_BREAKPOINT __debugbreak()
+#define NES_DEOPTIMIZE __pragma(optimize("",off))
+
+#define NES_ASSERT(X) { if(!(X)) { __debugbreak(); } }
 
 #define EXPAND(...) EXPAND1(EXPAND1(EXPAND1(EXPAND1(__VA_ARGS__))))
 #define EXPAND1(...) EXPAND2(EXPAND2(EXPAND2(EXPAND2(__VA_ARGS__))))

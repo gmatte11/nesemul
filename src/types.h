@@ -1,6 +1,8 @@
 #ifndef __NESEMUL_TYPES_H__
 #define __NESEMUL_TYPES_H__
 
+#include "utils.h"
+
 #include <concepts>
 #include <cstdint>
 #include <cstring>
@@ -51,8 +53,4 @@ enum class NT_Mirroring : byte_t
     Vertical,
 };
 
-#define NES_BREAKPOINT __debugbreak()
-#define NES_DEOPTIMIZE __pragma(optimize("",off))
-
-#define NES_ASSERT(X) { if(!(X)) { __debugbreak(); } }
 #endif // __NESEMUL_TYPES_H__
