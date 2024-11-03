@@ -8,65 +8,69 @@
 class INESReader;
 class Mapper;
 
+struct BankView
+{
+    std::span<byte_t> data_;
+    address_t addr_ = 0x3333; // Never assigned to cartridge
+
+    bool is_valid() const { return addr_ != 0x3333; }
+
+    bool contains(address_t addr) const { return is_valid() && addr >= addr_ && addr < (addr_ + data_.size()); }
+
+    bool is_mirror_of(BankView bank) const { return data_.data() == bank.data_.data(); }
+
+    void write(int idx, byte_t value) 
+    {  
+        NES_ASSERT(is_valid());
+        NES_ASSERT(idx >= 0 && idx < data_.size());
+        data_[idx] = value;
+    }
+
+    void read(int idx, byte_t& value) const
+    {
+        NES_ASSERT(is_valid());
+        NES_ASSERT(idx >= 0 && idx < data_.size());
+        value = data_[idx];
+    }
+};
+
 struct MemoryMap
 {
-    struct Bank
-    {
-        byte_t* mem_ = nullptr;
-
-        address_t addr_ = 0x3333; // Never mapped to cartridge
-        address_t size_ = 0;
-
-        int rom_bank_idx_ = - 1;
-        address_t bank_offset_ = 0;
-    };
+    using Bank = BankView;
 
     std::array<Bank, 8> map_;
 
     Bank& operator[](int idx) { return map_[idx]; }
     const Bank& operator[](int idx) const { return map_[idx]; }
 
-    std::optional<std::reference_wrapper<Bank>> get_mapping(address_t addr)
+    Bank get_mapping(address_t addr)
     {
-        for (Bank& mapping : map_)
+        for (Bank& bank : map_)
         {
-            if (addr >= mapping.addr_ && addr < mapping.addr_ + mapping.size_)
-                return mapping;
+            if (bank.contains(addr))
+                return bank;
         }
 
         return {};
     }
 
-    std::optional<std::reference_wrapper<const Bank>> get_mapping(address_t addr) const
+    const Bank get_mapping(address_t addr) const
     {
-        for (const Bank& mapping : map_)
+        for (const Bank& bank : map_)
         {
-            if (addr >= mapping.addr_ && addr < mapping.addr_ + mapping.size_)
-                return mapping;
+            if (bank.contains(addr))
+                return bank;
         }
 
         return {};
-    }
-
-    byte_t* map_to_mem(address_t addr)
-    {
-        auto opt_bank = get_mapping(addr);
-
-        if (opt_bank)
-        {
-            Bank& bank = opt_bank.value();
-            if (bank.mem_ != nullptr)
-                return bank.mem_ + (addr - bank.addr_);
-        }
-
-        return nullptr;
     }
 };
 
 class Cartridge
 {
 public:
-    Cartridge(byte_t ines_mapper_code);
+    Cartridge();
+    ~Cartridge();
 
     address_t map_to_cpu_addr(address_t addr);
 
@@ -77,18 +81,23 @@ public:
 
     void load_roms(INESReader& reader);
 
-    std::pair<byte_t*, address_t> get_bank(address_t addr) const;
+    BankView get_bank(address_t addr) const;
     const MemoryMap& get_mapped_prg() const;
     const MemoryMap& get_mapped_chr() const;
 
-    byte_t* get_prg_bank(int idx) const;
-    byte_t* get_chr_bank(int idx) const;
+    size_t calc_prg_offset(int idx, size_t bank_sz = prg_bank_sz) const;
+    size_t calc_chr_offset(int idx, size_t bank_sz = chr_bank_sz) const;
+
+    std::span<byte_t> get_prg_bank(int idx, size_t bank_sz = prg_bank_sz);
+    std::span<const byte_t> get_prg_bank(int idx, size_t bank_sz = prg_bank_sz) const;
+    std::span<byte_t> get_chr_bank(int idx, size_t bank_sz = chr_bank_sz);
+    std::span<const byte_t> get_chr_bank(int idx, size_t bank_sz = chr_bank_sz) const;
 
     auto get_prg_banks() const { return std::views::chunk(prg_rom_, prg_bank_sz); }
-    auto get_chr_banks() const { return std::views::chunk(chr_, chr_bank_sz); }
+    auto get_chr_banks() const { return std::views::chunk(chr_rom_, chr_bank_sz); }
 
 private:
-    Mapper* mapper_;
+    std::unique_ptr<Mapper> mapper_;
 
 public:
     static constexpr size_t prg_bank_sz = 0x4000;
@@ -96,7 +105,7 @@ public:
 
     std::vector<byte_t> prg_rom_;
     std::array<byte_t, 0x2000> wram_ {};
-    std::vector<byte_t> chr_;
+    std::vector<byte_t> chr_rom_;
 
     std::unique_ptr<Battery> battery_;
 };

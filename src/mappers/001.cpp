@@ -2,36 +2,34 @@
 #include "cartridge.h"
 #include "emulator.h"
 
-M001::M001()
-    : prg_l_(prg_map_.map_[0].mem_)
-    , prg_h_(prg_map_.map_[1].mem_)
-    , chr_l_(chr_map_.map_[0].mem_)
-    , chr_h_(chr_map_.map_[1].mem_)
+M001::M001(Cartridge& cart)
+    : cart_(cart)
 {
-    prg_map_[0].addr_ = 0x8000;
-    prg_map_[0].size_ = 0x4000;
-    prg_map_[1].addr_ = 0xC000;
-    prg_map_[1].size_ = 0x4000;
+    prg_l_ = { cart.get_prg_bank(0), 0x8000 };
+    prg_map_[0] = prg_l_;
 
-    chr_map_[0].addr_ = 0x0000;
-    chr_map_[0].size_ = 0x1000;
-    chr_map_[1].addr_ = 0x1000;
-    chr_map_[1].size_ = 0x1000;
-}
+    const size_t offset_l = cart.calc_prg_offset(0);
+    const size_t offset_h = cart.calc_prg_offset(-1);
 
-void M001::post_load(Cartridge& cart)
-{
-    cart_ = &cart;
+    if (offset_h != offset_l)
+    {
+        prg_h_ = { cart.get_prg_bank(-1), 0xC000 };
+        prg_map_[1] = prg_h_;
+    }
+    else
+    {
+        prg_h_ = prg_l_;
+    }
 
-    prg_l_ = cart.get_prg_bank(0);
-    prg_h_ = cart.get_prg_bank(-1);
-    
     // A single bank of CHR RAM is created when no CHR ROM is available in the cartridge.
-    if (cart.chr_.empty())
-        cart.chr_.resize(Cartridge::chr_bank_sz);
+    if (cart.chr_rom_.empty())
+        cart.chr_rom_.resize(Cartridge::chr_bank_sz);
 
-    chr_l_ = cart.get_chr_bank(0);
-    chr_h_ = chr_l_ + 0x1000;
+    chr_l_ = { cart.get_chr_bank(0, 0x1000), 0x0000 };
+    chr_map_[0] = chr_l_;
+
+    chr_h_ = { cart.get_chr_bank(1, 0x1000), 0x1000 };
+    chr_map_[1] = chr_h_;
 }
 
 address_t M001::map_to_cpu_addr(address_t addr) const
@@ -43,20 +41,20 @@ bool M001::on_cpu_read(address_t addr, byte_t& value)
 {
     if (addr >= 0x6000 && addr < 0x8000)
     {
-        if (!(cart_->battery_ && cart_->battery_->read(addr, value)))
-            value = cart_->wram_[addr & 0x1FFF];
+        if (!(cart_.battery_ && cart_.battery_->read(addr, value)))
+            value = cart_.wram_[addr & 0x1FFF];
         return true;
     }
 
     if (addr >= 0x8000 && addr < 0xC000)
     {
-        value = *(prg_l_ + (addr & 0x3FFF));
+        prg_l_.read(addr & 0x3FFF, value);
         return true;
     }
 
     if (addr >= 0xC000)
     {
-        value = *(prg_h_ + (addr & 0x3FFF));
+        prg_h_.read(addr & 0x3FFF, value);
         return true;
     }
 
@@ -67,8 +65,8 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
 {
     if (addr >= 0x6000 && addr < 0x8000)
     {
-        if (!(cart_->battery_ && cart_->battery_->write(addr, value)))
-            cart_->wram_[addr & 0x1FFF] = value;
+        if (!(cart_.battery_ && cart_.battery_->write(addr, value)))
+            cart_.wram_[addr & 0x1FFF] = value;
         return true;
     }
 
@@ -83,7 +81,7 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
             if (op == 0)
                 control_ |= 0xC;
             else if (op == 3)
-                prg_h_ = cart_->get_prg_bank(-1);
+                prg_h_.data_ = cart_.get_prg_bank(-1);
 
             return true;
         }
@@ -131,14 +129,14 @@ bool M001::on_cpu_write(address_t addr, byte_t value)
 
 bool M001::on_ppu_read(address_t addr, byte_t& value)
 {
-    if (addr < 0x1000 && chr_l_ != nullptr)
+    if (addr < 0x1000)
     {
-        value = *(chr_l_ + addr);
+        chr_l_.read(addr & 0x0FFF, value);
         return true;
     }
-    else if (addr >= 0x1000 && addr < 0x2000 && chr_h_ != nullptr)
+    else if (addr >= 0x1000 && addr < 0x2000)
     {
-        value = *(chr_h_ + (addr & 0xFFF));
+        chr_h_.read(addr & 0x0FFF, value);
         return true;
     }
 
@@ -150,21 +148,21 @@ bool M001::on_ppu_write(address_t addr, byte_t value)
     if (addr < 0x2000)
     {
         // CHR RAM is always at bank 0.
-        cart_->get_chr_bank(0)[addr] = value;
+        cart_.get_chr_bank(0)[addr] = value;
         return true;
     }
 
     return false;
 }
 
-std::pair<byte_t*, address_t> M001::get_bank(address_t addr) const
+BankView M001::get_bank(address_t addr) const
 {
     if (addr >= 0x8000)
     {
-        return  std::pair((addr < 0xC000) ? prg_l_ : prg_h_, static_cast<address_t>(addr & 0x3FFF));
+        return  (addr < 0xC000) ? prg_l_ : prg_h_;
     }
 
-    return std::pair(nullptr, 0_addr);
+    return {};
 }
 
 void M001::chr_low_switch()
@@ -175,13 +173,10 @@ void M001::chr_low_switch()
     if (mode_8kb)
         idx &= 0xFE;
 
-    int chr_idx = idx >> 1;
-    int offset = (idx & 0x1) ? 0x1000 : 0;
-
-    chr_l_ = cart_->get_chr_bank(chr_idx) + offset;
+    chr_l_.data_ = cart_.get_chr_bank(idx, 0x1000);
 
     if (mode_8kb)
-        chr_h_ = chr_l_ + 0x1000;
+        chr_h_.data_ = cart_.get_chr_bank(idx + 1, 0x1000);
 }
 
 void M001::chr_high_switch()
@@ -192,10 +187,7 @@ void M001::chr_high_switch()
     if (mode_8kb)
         return;
 
-    int chr_idx = idx >> 1;
-    int offset = (idx & 0x1) ? 0x1000 : 0;
-
-    chr_h_ = cart_->get_chr_bank(chr_idx) + offset;
+    chr_h_.data_ = cart_.get_chr_bank(idx, 0x1000);
 }
 
 void M001::prg_switch()
@@ -209,22 +201,22 @@ void M001::prg_switch()
     case 1:
     {
         idx &= 0b1110;
-        prg_l_ = cart_->get_prg_bank(idx);
-        prg_h_ = cart_->get_prg_bank(idx + 1);
+        prg_l_.data_ = cart_.get_prg_bank(idx);
+        prg_h_.data_ = cart_.get_prg_bank(idx + 1);
     }
     break;
 
     case 2:
     {
-        prg_l_ = cart_->get_prg_bank(0);
-        prg_h_ = cart_->get_prg_bank(idx);
+        prg_l_.data_ = cart_.get_prg_bank(0);
+        prg_h_.data_ = cart_.get_prg_bank(idx);
     } 
     break;
    
     case 3:
     {
-        prg_l_ = cart_->get_prg_bank(idx);
-        prg_h_ = cart_->get_prg_bank(-1);
+        prg_l_.data_ = cart_.get_prg_bank(idx);
+        prg_h_.data_ = cart_.get_prg_bank(-1);
     }
     break;
     }

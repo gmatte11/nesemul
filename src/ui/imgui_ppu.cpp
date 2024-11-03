@@ -54,10 +54,10 @@ void ui::PATData::update()
         if (pat_idx_ == 0)
         {
             const MemoryMap& chr_map = cart->get_mapped_chr();
-            if (chr_map[0].size_ == 0x1000 && chr_map[1].size_ == 0x1000)
+            if (chr_map[0].data_.size() == 0x1000 && chr_map[1].data_.size() == 0x1000)
             {
-                ui::ppu_patterntable_texture(pat_textures_[0], {chr_map[0].mem_, 0x1000}, palette);
-                ui::ppu_patterntable_texture(pat_textures_[1], {chr_map[1].mem_, 0x1000}, palette);
+                ui::ppu_patterntable_texture(pat_textures_[0], {chr_map[0].data_.data(), 0x1000}, palette);
+                ui::ppu_patterntable_texture(pat_textures_[1], {chr_map[1].data_.data(), 0x1000}, palette);
             }
             else
             {
@@ -65,9 +65,12 @@ void ui::PATData::update()
                 int idx = 0;
                 for (const auto& bank : chr_map.map_)
                 {
-                    if (bank.mem_ != nullptr)
-                        std::memcpy(chr_data.data() + idx, bank.mem_, bank.size_);
-                    idx += bank.size_;
+                    const byte_t* mem = bank.data_.data();
+                    const size_t bank_sz = bank.data_.size();
+
+                    if (mem != nullptr)
+                        std::memcpy(chr_data.data() + idx, mem, bank_sz);
+                    idx += int_cast<int>(bank_sz);
                 }
 
                 ui::ppu_patterntable_texture(pat_textures_[0], {chr_data.data(), 0x1000}, palette);
@@ -76,9 +79,9 @@ void ui::PATData::update()
         }
         else
         {
-            const byte_t* chr = cart->get_chr_bank(pat_idx_ - 1);
-            ui::ppu_patterntable_texture(pat_textures_[0], {chr, 0x1000}, palette);
-            ui::ppu_patterntable_texture(pat_textures_[1], {chr + 0x1000, 0x1000}, palette);
+            auto chr = cart->get_chr_bank(pat_idx_ - 1);
+            ui::ppu_patterntable_texture(pat_textures_[0], chr, palette);
+            ui::ppu_patterntable_texture(pat_textures_[1], {chr.data() + 0x1000, 0x1000}, palette);
         }
     }
 }

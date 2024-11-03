@@ -9,12 +9,10 @@
 class Mapper
 {
 public:
-    static Mapper* create(byte_t ines_code);
+    static Mapper* create(byte_t ines_code, Cartridge& cart);
 
 public:
     Mapper() = default;
-
-    virtual void post_load(Cartridge& cart) {}
 
     virtual address_t map_to_cpu_addr(address_t addr) const = 0;    
 
@@ -24,7 +22,7 @@ public:
     virtual bool on_ppu_read(address_t addr, byte_t& value) = 0;
     virtual bool on_ppu_write(address_t addr, byte_t value) = 0;
 
-    virtual std::pair<byte_t*, address_t> get_bank(address_t addr) const = 0;
+    virtual BankView get_bank(address_t addr) const = 0;
 
     const MemoryMap& get_cpu_mapped_prg_banks() const
     {

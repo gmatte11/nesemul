@@ -1,35 +1,31 @@
 #include "000.h"
 
-M000::M000()
-    : prg_l_(prg_map_.map_[0].mem_)
-    , prg_h_(prg_map_.map_[1].mem_)
-    , chr_l_(chr_map_.map_[0].mem_)
-    , chr_h_(chr_map_.map_[1].mem_)
+M000::M000(Cartridge& cart)
 {
-    prg_map_[0].addr_ = 0x8000;
-    prg_map_[0].size_ = 0x4000;
-    prg_map_[1].addr_ = 0xC000;
-    prg_map_[1].size_ = 0x4000;
+    prg_l_ = { cart.get_prg_bank(0), 0x8000 };
+    prg_map_[0] = prg_l_;
 
-    chr_map_[0].addr_ = 0x0000;
-    chr_map_[0].size_ = 0x1000;
-    chr_map_[1].addr_ = 0x1000;
-    chr_map_[1].size_ = 0x1000;
-}
+    const size_t offset_l = cart.calc_prg_offset(0);
+    const size_t offset_h = cart.calc_prg_offset(-1);
 
-void M000::post_load(Cartridge& cart)
-{
-    prg_l_ = cart.get_prg_bank(0);
-    prg_h_ = cart.get_prg_bank(-1);
-    
-    chr_l_ = cart.get_chr_bank(0);
-    chr_h_ = chr_l_ + 0x1000;
+    if (offset_h != offset_l)
+    {
+        prg_h_ = { cart.get_prg_bank(-1), 0xC000 };
+        prg_map_[1] = prg_h_;
+    }
+    else
+    {
+        prg_h_ = prg_l_;
+    }
+
+    chr_ = { cart.get_chr_bank(0), 0x0000 };
+    chr_map_[0] = chr_;
 }
 
 address_t M000::map_to_cpu_addr(address_t addr) const
 {
-    if (prg_h_ == prg_l_ && addr >= 0xC000)
-        return addr -= 0x4000;
+    if (addr >= 0xC000)
+        return prg_h_.addr_ + (addr & 0x3FFF);
 
     return addr;
 }
@@ -38,13 +34,13 @@ bool M000::on_cpu_read(address_t addr, byte_t& value)
 {
     if (addr >= 0x8000 && addr < 0xC000)
     {
-        value = *(prg_l_ + (addr & 0x3FFF));
+        prg_l_.read(addr & 0x3FFF, value);
         return true;
     }
 
     if (addr >= 0xC000)
     {
-        value = *(prg_h_ + (addr & 0x3FFF));
+        prg_h_.read(addr & 0x3FFF, value);
         return true;
     }
 
@@ -60,7 +56,7 @@ bool M000::on_ppu_read(address_t addr, byte_t& value)
 {
     if (addr < 0x2000)
     {
-        value = *(chr_l_ + addr);
+        chr_.read(addr & 0x1FFF, value);
         return true;
     }
 
@@ -72,12 +68,12 @@ bool M000::on_ppu_write(address_t addr, byte_t value)
     return false;
 }
 
-std::pair<byte_t*, address_t> M000::get_bank(address_t addr) const
+BankView M000::get_bank(address_t addr) const
 {
     if (addr >= 0x8000)
     {
-        return  std::pair((addr < 0xC000) ? prg_l_ : prg_h_, static_cast<address_t>(addr & 0x3FFF));
+        return  (addr < 0xC000) ? prg_l_ : prg_h_;
     }
 
-    return std::pair(nullptr, 0_addr);
+    return {};
 }

@@ -79,7 +79,7 @@ void Emulator::read_rom(std::wstring_view filename)
     fmt::print("num_8kb_chr_rom_banks: {}\n", h.chr_rom_size_);
     fmt::print("num_8kb_prg_ram_banks: {}\n", h.prg_ram_size_);
 
-    cart_.reset(new Cartridge(h.mapper_));
+    cart_.reset(new Cartridge);
     cart_->load_roms(reader);
 
     ppu_->set_mirroring(h.mirroring_);
@@ -172,6 +172,7 @@ void Emulator::release_button(Controller::Button button)
     bus_->ctrl_.release(button);
 }
 
+NES_DEOPTIMIZE
 // NTSC emulation: 29780.5 cpu cycles per frame: ~60 Hz
 void Emulator::clock_cpu_()
 {
@@ -184,8 +185,8 @@ void Emulator::clock_cpu_()
     else
     {
         --dma_cycle_counter_;
-        if ((dma_cycle_counter_ & 0x1) == 0 && dma_cycle_counter_ <= 512)
-            ppu_->dma_copy_byte(256_byte - static_cast<byte_t>(dma_cycle_counter_ / 2));
+        if ((dma_cycle_counter_ & 0x1) == 0 && dma_cycle_counter_ < 512)
+            ppu_->dma_copy_byte(255_byte - int_cast<byte_t>(dma_cycle_counter_ / 2));
         cpu_->dma_clock();
     }
 

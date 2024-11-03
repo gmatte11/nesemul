@@ -10,14 +10,21 @@
 typedef uint8_t byte_t;
 typedef uint16_t address_t;
 
+template <std::integral To, std::integral From>
+constexpr auto int_cast(From value) -> To
+{
+    NES_ASSERT(std::in_range<To>(value));
+    return static_cast<To>(value);
+}
+
 inline constexpr byte_t operator "" _byte(unsigned long long v)
 {
-    return static_cast<byte_t>(v);
+    return int_cast<byte_t>(v);
 }
 
 inline constexpr address_t operator "" _addr(unsigned long long v)
 {
-    return static_cast<address_t>(v);
+    return int_cast<address_t>(v);
 }
 
 template <std::unsigned_integral T>
@@ -31,11 +38,11 @@ struct register_t
     base_t get() const { return *reinterpret_cast<base_t const*>(this); }
     void set(base_t value) { memcpy(this, &value, sizeof(base_t)); }
 
-    byte_t get_h() const { static_assert(sizeof(base_t) > 1); return static_cast<byte_t>(get() >> 8); }
-    byte_t get_l() const { return static_cast<byte_t>(get() & 0xFF); }
+    byte_t get_h() const { static_assert(sizeof(base_t) > 1); return int_cast<byte_t>(get() >> 8); }
+    byte_t get_l() const { return int_cast<byte_t>(get() & 0xFF); }
 
-    void set_h(byte_t value) { static_assert(sizeof(base_t) > 1); set((static_cast<base_t>(value) << 8) | (get() & 0xFF)); }
-    void set_l(byte_t value) { set((get() & 0xFF00) | static_cast<base_t>(value) & 0xFF); }
+    void set_h(byte_t value) { static_assert(sizeof(base_t) > 1); set((int_cast<base_t>(value) << 8) | (get() & 0xFF)); }
+    void set_l(byte_t value) { set((get() & 0xFF00) | int_cast<base_t>(value) & 0xFF); }
 
     register_t& operator=(base_t value) { set(value); return *this; }
     register_t& operator+=(base_t value) { set(get() + value); return *this; }

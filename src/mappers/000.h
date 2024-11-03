@@ -1,14 +1,12 @@
 #pragma once
 
-#include "mapper.h"
+#include "mappers/mapper.h"
 
 // NROM
 class M000 : public Mapper
 {
 public:
-    M000();
-
-    void post_load(Cartridge& cart) override;
+    M000(Cartridge& cart);
 
     address_t map_to_cpu_addr(address_t addr) const override;
 
@@ -18,10 +16,9 @@ public:
     bool on_ppu_read(address_t addr, byte_t& value) override;
     bool on_ppu_write(address_t addr, byte_t value) override;
 
-    std::pair<byte_t*, address_t> get_bank(address_t addr) const;
+    BankView get_bank(address_t addr) const override;
 
-    byte_t*& prg_l_;
-    byte_t*& prg_h_;
-    byte_t*& chr_l_;
-    byte_t*& chr_h_;
+    BankView prg_l_;
+    BankView prg_h_;
+    BankView chr_;
 };

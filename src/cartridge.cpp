@@ -1,11 +1,14 @@
 #include "cartridge.h"
 
 #include "ines.h"
-#include "mapper.h"
+#include "mappers/mapper.h"
 
-Cartridge::Cartridge(byte_t ines_mapper_code)
+Cartridge::Cartridge()
 {
-    mapper_ = Mapper::create(ines_mapper_code);
+}
+
+Cartridge::~Cartridge()
+{
 }
 
 address_t Cartridge::map_to_cpu_addr(address_t addr)
@@ -60,22 +63,22 @@ void Cartridge::load_roms(INESReader& reader)
     if (h.chr_rom_size_ > 0)
     {
         std::array<byte_t, chr_bank_sz> bank;
-        chr_.resize(h.chr_rom_size_ * chr_bank_sz);
+        chr_rom_.resize(h.chr_rom_size_ * chr_bank_sz);
 
         for (int i = 0; i < h.chr_rom_size_; ++i)
         {
             reader.read_chr_rom(i, bank);
-            std::memcpy(chr_.data() + (i * chr_bank_sz), bank.data(), chr_bank_sz);
+            std::memcpy(chr_rom_.data() + (i * chr_bank_sz), bank.data(), chr_bank_sz);
         }
     }
 
     if (h.has_prg_ram_)
         battery_.reset(new Battery(Battery::make_save_filepath(reader.filepath_)));
 
-    mapper_->post_load(*this);
+    mapper_.reset(Mapper::create(h.mapper_, *this));
 }
 
-std::pair<byte_t*, address_t> Cartridge::get_bank(address_t addr) const
+BankView Cartridge::get_bank(address_t addr) const
 {
     return mapper_->get_bank(addr);
 }
@@ -90,24 +93,50 @@ const MemoryMap& Cartridge::get_mapped_chr() const
     return mapper_->get_ppu_mapped_chr_banks();
 }
 
-byte_t* Cartridge::get_prg_bank(int idx) const
+size_t Cartridge::calc_prg_offset(int idx, size_t bank_sz /*= prg_bank_sz*/) const
 {
-    const int count = static_cast<int>(prg_rom_.size() / prg_bank_sz);
+    const int count = int_cast<int>(prg_rom_.size() / bank_sz);
 
     if (idx < 0)
         idx = count + idx;
 
-    NES_ASSERT(idx >= 0 && idx < count);
-    return const_cast<byte_t*>(prg_rom_.data()) + (idx * prg_bank_sz);
+    return idx * bank_sz;
 }
 
-byte_t* Cartridge::get_chr_bank(int idx) const
+size_t Cartridge::calc_chr_offset(int idx, size_t bank_sz /*= chr_bank_sz*/) const
 {
-    const int count = static_cast<int>(chr_.size() / chr_bank_sz);
+    const int count = int_cast<int>(chr_rom_.size() / bank_sz);
 
     if (idx < 0)
         idx = count + idx;
 
-    NES_ASSERT(idx >= 0 && idx < count);
-    return const_cast<byte_t*>(chr_.data()) + (idx * chr_bank_sz);
+    return idx * bank_sz;
+}
+
+std::span<byte_t> Cartridge::get_prg_bank(int idx, size_t bank_sz /*= prg_bank_sz*/)
+{
+    const size_t offset = calc_prg_offset(idx, bank_sz);
+    NES_ASSERT((offset + bank_sz) <= prg_rom_.size());
+    return { prg_rom_.data() + offset, bank_sz };
+}
+
+std::span<const byte_t> Cartridge::get_prg_bank(int idx, size_t bank_sz) const
+{
+    const size_t offset = calc_prg_offset(idx, bank_sz);
+    NES_ASSERT((offset + bank_sz) <= prg_rom_.size());
+    return { prg_rom_.data() + offset, bank_sz };
+}
+
+std::span<byte_t> Cartridge::get_chr_bank(int idx, size_t bank_sz /*= chr_bank_sz*/)
+{
+    const size_t offset = calc_chr_offset(idx, bank_sz);
+    NES_ASSERT((offset + bank_sz) <= chr_rom_.size());
+    return { chr_rom_.data() + offset, bank_sz };
+}
+
+std::span<const byte_t> Cartridge::get_chr_bank(int idx, size_t bank_sz) const
+{
+    const size_t offset = calc_chr_offset(idx, bank_sz);
+    NES_ASSERT((offset + bank_sz) <= chr_rom_.size());
+    return { chr_rom_.data() + offset, bank_sz };
 }

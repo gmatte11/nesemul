@@ -24,7 +24,7 @@ struct PrgModel
         int size_;
     };
 
-    std::array<OpRange, 4> ops_;
+    std::array<OpRange, 8> ops_;
 
     void clear()
     {
@@ -49,10 +49,11 @@ struct PrgModel
             {
                 for (const PrgBank& decoded_bank : disassembler.get_banks())
                 {
-                    if (memory_bank.mem_ >= decoded_bank.rom_ && memory_bank.mem_ < decoded_bank.rom_ + decoded_bank.rom_size_)
+                    const byte_t* mem = memory_bank.data_.data();
+                    if (mem >= decoded_bank.rom_ && mem < decoded_bank.rom_ + decoded_bank.rom_size_)
                     {
-                        NES_ASSERT(memory_bank.mem_ + memory_bank.size_ <= decoded_bank.rom_ + decoded_bank.rom_size_);
-                       *it = decode_op_range(decoded_bank, memory_bank); 
+                        //NES_ASSERT(mem + memory_bank.data_.size() <= decoded_bank.rom_ + decoded_bank.rom_size_);
+                        *it = decode_op_range(decoded_bank, memory_bank);
                     }
                 }
 
@@ -86,12 +87,15 @@ struct PrgModel
 
     static OpRange decode_op_range(const PrgBank& decoded_bank, const MemoryMap::Bank& memory_bank)
     {
+        const byte_t* mem = memory_bank.data_.data();
+        const size_t bank_sz = memory_bank.data_.size();
+
         auto it = decoded_bank.ops_.begin();
 
         int first_idx = 0;
 
         const byte_t* op_ptr = decoded_bank.rom_;
-        while (op_ptr < memory_bank.mem_)
+        while (op_ptr < mem)
         {
             const int width = ops::opcode_data(it->opcode_).get_size();
             op_ptr += width;
@@ -100,7 +104,7 @@ struct PrgModel
 
         int size = 0;
 
-        while (op_ptr < memory_bank.mem_ + memory_bank.size_)
+        while (op_ptr < mem + bank_sz)
         {
             const int width = ops::opcode_data(it->opcode_).get_size();
             op_ptr += width;
@@ -136,16 +140,14 @@ struct PrgModel
 
     int get_idx(address_t addr)
     {
-        int idx = 0;
-        int idx_bank = 0;
-
-        while (addr > ops_[idx_bank].size_)
+        for (int i = 0; i < ops_.size(); ++i)
         {
-            addr -= static_cast<address_t>(ops_[idx_bank].size_);
-            idx_bank++;
+            const OpRange& op = ops_[i];
+            if (addr >= op.mapped_addr && addr < op.mapped_addr + op.size_)
+                return i;
         }
 
-        return idx + addr;
+        return -1;
     }
 
 

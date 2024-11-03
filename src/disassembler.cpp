@@ -68,7 +68,7 @@ void Disassembler::render(StringBuilder& sb, address_t addr, int offset) const
 
     auto [rom, rom_addr] = cart_->get_bank(addr);
 
-    auto it_banks = std::find_if(banks_.begin(), banks_.end(), [rom = rom](PrgBank const& bank) { return bank.rom_ == rom; });
+    auto it_banks = std::find_if(banks_.begin(), banks_.end(), [=](PrgBank const& bank) { return bank.rom_ == rom.data(); });
     if (it_banks == banks_.end())
         return;
 
