@@ -327,7 +327,7 @@ void ui::imgui_debugger()
         {
             SeparatorText("Instructions");
             
-            static ImGuiTabBarFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
+            static ImGuiTableFlags flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
             if (BeginTable("disassembly", 5, flags, ImVec2(0.f, textHeight * 16)))
             {
                 constexpr ImGuiTableColumnFlags op_flags = ImGuiTableColumnFlags_NoResize;

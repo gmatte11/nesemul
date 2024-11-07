@@ -8,8 +8,12 @@
 #include "ui/global.h"
 #include "ui/imgui.h"
 #include "ui/imgui_debugger.h"
+#include "ui/imgui_mem.h"
 
 static ui::CPUData& globals() { return *ui::Globals::get().cpu_data_; }
+
+void cpu_tab();
+void ram_tab();
 
 void ui::imgui_cpu_window()
 {
@@ -20,10 +24,37 @@ void ui::imgui_cpu_window()
 
     if (Begin("CPU", &globals().show_window_))
     {
+        if (BeginTabBar("-"))
+        {
+            if (BeginTabItem("CPU"))
+            {
+                cpu_tab();
+                EndTabItem();
+            }
+
+            if (BeginTabItem("RAM"))
+            {
+                ram_tab();
+                EndTabItem();
+            }
+
+            EndTabBar();
+        }
+
+        End();
+    }
+}
+
+void cpu_tab()
+{
+    using namespace imgui;
+
+    if (BeginChild("-"))
+    {
         Emulator& emulator = *Emulator::instance();
         const BUS& bus = *emulator.get_bus();
 
-        imgui_debugger();
+        ui::imgui_debugger();
 
         if (CollapsingHeader("Timings & VRAM", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -82,6 +113,15 @@ void ui::imgui_cpu_window()
             TextFmt("$6004: {}", buf);
         }
 
-        End();
+        EndChild();
+    }
+}
+
+void ram_tab()
+{
+    if (ImGui::BeginChild("-"))
+    {
+        ui::imgui_mem_view();
+        ImGui::EndChild();
     }
 }
