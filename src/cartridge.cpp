@@ -42,6 +42,11 @@ bool Cartridge::on_ppu_write(address_t addr, byte_t value)
     return mapper_->on_ppu_write(addr, value);
 }
 
+void Cartridge::on_ppu_scanline(int scanline)
+{
+    mapper_->on_ppu_scanline(scanline);
+}
+
 void Cartridge::load_roms(INESReader& reader)
 {
     INESHeader& h = reader.header_;
@@ -71,6 +76,11 @@ void Cartridge::load_roms(INESReader& reader)
             std::memcpy(chr_rom_.data() + (i * chr_bank_sz), bank.data(), chr_bank_sz);
         }
     }
+    else
+    {
+        // If no rom banks, expand to one bank of chr ram.
+        chr_rom_.resize(chr_bank_sz);
+    }
 
     if (h.has_prg_ram_)
         battery_.reset(new Battery(Battery::make_save_filepath(reader.filepath_)));
@@ -78,9 +88,9 @@ void Cartridge::load_roms(INESReader& reader)
     mapper_.reset(Mapper::create(h.mapper_, *this));
 }
 
-BankView Cartridge::get_bank(address_t addr) const
+BankView Cartridge::get_cpu_mapped_bank(address_t addr) const
 {
-    return mapper_->get_bank(addr);
+    return mapper_->get_cpu_mapped_bank(addr);
 }
 
 const MemoryMap& Cartridge::get_mapped_prg() const

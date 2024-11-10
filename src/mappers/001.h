@@ -8,15 +8,12 @@ class M001 : public Mapper
 public:
     M001(Cartridge& cart);
 
-    address_t map_to_cpu_addr(address_t addr) const override;
-
     bool on_cpu_read(address_t addr, byte_t& value) override;
     bool on_cpu_write(address_t addr, byte_t value) override;
 
     bool on_ppu_read(address_t addr, byte_t& value) override;
     bool on_ppu_write(address_t addr, byte_t value) override;
 
-    BankView get_bank(address_t addr) const override;
 private:
     Cartridge& cart_;
 

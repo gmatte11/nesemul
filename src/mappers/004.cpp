@@ -1,5 +1,7 @@
 #include "004.h"
 
+#include "emulator.h"
+
 NES_DEOPTIMIZE
 M004::M004(Cartridge& cart)
     : cart_(cart)
@@ -19,11 +21,6 @@ M004::M004(Cartridge& cart)
     chr_map_[5] = { empty_view, 0x1400 };
     chr_map_[6] = { empty_view, 0x1800 };
     chr_map_[7] = { empty_view, 0x1C00 };
-}
-
-address_t M004::map_to_cpu_addr(address_t addr) const
-{
-    return addr;
 }
 
 bool M004::on_cpu_read(address_t addr, byte_t& value) 
@@ -61,35 +58,35 @@ bool M004::on_cpu_write(address_t addr, byte_t value)
         switch (mode)
         {
         case 0x8000:
-            bank_select_(value);
+            on_bank_select_(value);
             break;
 
         case 0x8001:
-            bank_data_(value);
+            on_bank_data_(value);
             break;
 
         case 0xA000:
-            // TODO mirroring
+            on_mirroring_(value);
             break;
 
         case 0xA001:
-            // TODO PRG RAM protected
+            on_prg_ram_protect_(value);
             break;
 
         case 0xC000:
-            // TODO IRQ latch
+            on_irq_latch_(value);
             break;
 
         case 0xC001:
-            // TODO IRQ reload
+            on_irq_reload_();
             break;
 
         case 0xE000:
-            // TODO IRQ disable
+            on_irq_disable_();
             break;
 
         case 0xE001:
-            // TODO IRQ enable
+            on_irq_enable_();
             break;
         }
 
@@ -122,17 +119,23 @@ bool M004::on_ppu_write(address_t addr, byte_t value)
     return false;
 }
 
-BankView M004::get_bank(address_t addr) const
+void M004::on_ppu_scanline(int scanline)
 {
-    if (addr >= 0x8000)
-    {
-        return prg_map_.get_mapping(addr);
-    }
+    if (irq_counter_ > 1)
+        irq_counter_--;
 
-    return {};
+    const bool raise_irq = (irq_enabled_ && irq_counter_ == 0);
+
+    if (irq_reload_ || irq_counter_ == 0)
+        irq_counter_ = irq_latch_;
+
+    irq_reload_ = false;
+
+    if (raise_irq)
+        Emulator::instance()->get_cpu()->pull_irq();
 }
 
-void M004::bank_select_(byte_t value)
+void M004::on_bank_select_(byte_t value)
 {
     Register recv;
     recv.set(value);
@@ -145,7 +148,7 @@ void M004::bank_select_(byte_t value)
     register_.set(value);
 }
 
-void M004::bank_data_(byte_t value)
+void M004::on_bank_data_(byte_t value)
 {
     switch (register_.bank_select_)
     {
@@ -199,4 +202,41 @@ void M004::bank_data_(byte_t value)
         }
         break;
     }
+}
+
+void M004::on_mirroring_(byte_t value)
+{
+    PPU* ppu = Emulator::instance()->get_ppu();
+
+    if (ppu->get_mirroring() != NT_Mirroring::None)
+    {
+        ppu->set_mirroring((value & 0b1) == 0 ? NT_Mirroring::Vertical : NT_Mirroring::Horizontal);
+    }
+}
+
+void M004::on_prg_ram_protect_(byte_t value)
+{
+    // Do nothing: might revise for MMC6
+}
+
+void M004::on_irq_latch_(byte_t value)
+{
+    irq_latch_ = value;
+}
+
+void M004::on_irq_reload_()
+{
+    irq_reload_ = true;
+    irq_counter_ = 0xFF;
+}
+
+void M004::on_irq_disable_()
+{
+    irq_enabled_ = false;
+    // acknowledge pending interrupts?
+}
+
+void M004::on_irq_enable_()
+{
+    irq_enabled_ = true;
 }

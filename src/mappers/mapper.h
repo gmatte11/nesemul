@@ -14,15 +14,24 @@ public:
 public:
     Mapper() = default;
 
-    virtual address_t map_to_cpu_addr(address_t addr) const = 0;    
-
     virtual bool on_cpu_read(address_t addr, byte_t& value) = 0;
     virtual bool on_cpu_write(address_t addr, byte_t value) = 0;
 
     virtual bool on_ppu_read(address_t addr, byte_t& value) = 0;
     virtual bool on_ppu_write(address_t addr, byte_t value) = 0;
 
-    virtual BankView get_bank(address_t addr) const = 0;
+    virtual void on_ppu_scanline(int scanline) {}
+
+    virtual BankView get_cpu_mapped_bank(address_t addr) const
+    {
+        return prg_map_.get_mapping(map_to_cpu_addr(addr));
+    }
+
+    // TODO: still required?
+    virtual address_t map_to_cpu_addr(address_t addr) const
+    {
+        return addr;
+    }
 
     const MemoryMap& get_cpu_mapped_prg_banks() const
     {

@@ -8,15 +8,13 @@ class M004 : public Mapper
 public:
     M004(Cartridge& cart);
 
-    address_t map_to_cpu_addr(address_t addr) const override;
-
     bool on_cpu_read(address_t addr, byte_t& value) override;
     bool on_cpu_write(address_t addr, byte_t value) override;
 
     bool on_ppu_read(address_t addr, byte_t& value) override;
     bool on_ppu_write(address_t addr, byte_t value) override;
 
-    BankView get_bank(address_t addr) const;
+    void on_ppu_scanline(int scanline) override;
 
 private:
     Cartridge& cart_;
@@ -31,7 +29,16 @@ private:
     } register_;
 
     byte_t irq_latch_ = 0;
+    byte_t irq_counter_ = 0;
+    bool irq_enabled_ = false;
+    bool irq_reload_ = false;
 
-    void bank_select_(byte_t value);
-    void bank_data_(byte_t value);
+    void on_bank_select_(byte_t value);
+    void on_bank_data_(byte_t value);
+    void on_mirroring_(byte_t value);
+    void on_prg_ram_protect_(byte_t value);
+    void on_irq_latch_(byte_t value);
+    void on_irq_reload_();
+    void on_irq_disable_();
+    void on_irq_enable_();
 };

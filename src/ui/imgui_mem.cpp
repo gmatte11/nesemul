@@ -14,13 +14,13 @@ void ui::imgui_mem_view()
     const float textHeight = GetTextLineHeightWithSpacing();
 
     constexpr ImGuiTableFlags table_flags = ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit;
-    if (BeginTable("hex", 18, table_flags, ImVec2(0, textHeight* 32)))
+    if (BeginTable("hex", 18, table_flags, ImVec2(0, textHeight * 32)))
     {
         constexpr ImGuiTableColumnFlags col_flags = 0;
 
         TableSetupColumn("Address", 0, 0.f, col_flags);
 
-        constexpr std::array<const char[3], 16> byte_col_labels = 
+        constexpr std::array<const char[3], 16> byte_col_labels =
             {"00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "0A", "0B", "0C", "0D", "0E", "0F"};
 
         for (const char* label : byte_col_labels)
@@ -76,10 +76,10 @@ void ui::imgui_mem_view()
                     if (IsItemHovered(ImGuiHoveredFlags_ForTooltip) && !IsPopupOpen("edit"))
                     {
                         BeginTooltip();
-                        TextFmt("Decimal: {}", byte);   
+                        TextFmt("Decimal: {}", byte);
                         EndTooltip();
                     }
-                    
+
                     PopID();
                 }
 

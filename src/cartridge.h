@@ -79,9 +79,11 @@ public:
     bool on_ppu_read(address_t addr, byte_t& value);
     bool on_ppu_write(address_t addr, byte_t value);
 
+    void on_ppu_scanline(int scanline);
+
     void load_roms(INESReader& reader);
 
-    BankView get_bank(address_t addr) const;
+    BankView get_cpu_mapped_bank(address_t addr) const;
     const MemoryMap& get_mapped_prg() const;
     const MemoryMap& get_mapped_chr() const;
 

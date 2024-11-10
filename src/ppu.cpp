@@ -543,6 +543,11 @@ void PPU::tick_()
         if (ppustatus_.vblank_ && ppuctrl_.nmi_)
             bus_->cpu_.pull_nmi();
     }
+
+    if (cycle_ == 260 && (ppumask_.render_bg_ || ppumask_.render_fg_))
+    {
+        bus_->cart_->on_ppu_scanline(scanline_);
+    }
 }
 
 void PPU::SecondaryOAM::reset()
@@ -628,7 +633,7 @@ address_t PPU::mirror_addr_(address_t addr) const
             addr -= 0x0400;
         break;
 
-    default:
+    case NT_Mirroring::None:
         break;
     }
 

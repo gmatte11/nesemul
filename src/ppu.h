@@ -147,6 +147,7 @@ public:
 
     address_t get_vram_addr() const { return cursor_.v.get(); }
 
+    NT_Mirroring get_mirroring() const { return mirroring_; }
     void set_mirroring(NT_Mirroring mirroring) { mirroring_ = mirroring; }
 
     byte_t get_foreground_half() const { return ppuctrl_.fg_pat_; }

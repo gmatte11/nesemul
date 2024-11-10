@@ -8,33 +8,14 @@ M001::M001(Cartridge& cart)
     prg_l_ = { cart.get_prg_bank(0), 0x8000 };
     prg_map_[0] = prg_l_;
 
-    const size_t offset_l = cart.calc_prg_offset(0);
-    const size_t offset_h = cart.calc_prg_offset(-1);
-
-    if (offset_h != offset_l)
-    {
-        prg_h_ = { cart.get_prg_bank(-1), 0xC000 };
-        prg_map_[1] = prg_h_;
-    }
-    else
-    {
-        prg_h_ = prg_l_;
-    }
-
-    // A single bank of CHR RAM is created when no CHR ROM is available in the cartridge.
-    if (cart.chr_rom_.empty())
-        cart.chr_rom_.resize(Cartridge::chr_bank_sz);
+    prg_h_ = { cart.get_prg_bank(-1), 0xC000 };
+    prg_map_[1] = prg_h_;
 
     chr_l_ = { cart.get_chr_bank(0, 0x1000), 0x0000 };
     chr_map_[0] = chr_l_;
 
     chr_h_ = { cart.get_chr_bank(1, 0x1000), 0x1000 };
     chr_map_[1] = chr_h_;
-}
-
-address_t M001::map_to_cpu_addr(address_t addr) const
-{
-    return addr;
 }
 
 bool M001::on_cpu_read(address_t addr, byte_t& value) 
@@ -153,16 +134,6 @@ bool M001::on_ppu_write(address_t addr, byte_t value)
     }
 
     return false;
-}
-
-BankView M001::get_bank(address_t addr) const
-{
-    if (addr >= 0x8000)
-    {
-        return  (addr < 0xC000) ? prg_l_ : prg_h_;
-    }
-
-    return {};
 }
 
 void M001::chr_low_switch()
